@@ -11,6 +11,15 @@ export async function fetchChampionSummaries(version) {
   return Object.values(response.data);
 }
 
+export async function fetchItemSummaries(version) {
+  const response = await fetchJson(`${DATA_DRAGON_BASE_URL}/cdn/${version}/data/${DATA_LOCALE}/item.json`);
+  return response.data;
+}
+
+export function itemIconUrl(version, imageFileName) {
+  return `${DATA_DRAGON_BASE_URL}/cdn/${version}/img/item/${imageFileName}`;
+}
+
 export function championIconUrl(version, imageFileName) {
   return `${DATA_DRAGON_BASE_URL}/cdn/${version}/img/champion/${imageFileName}`;
 }

@@ -1,5 +1,5 @@
 import { ROLE, ROLES } from '../config/roles.js';
-import { championIconUrl, fetchChampionSummaries, fetchLatestVersion } from './dataDragon.js';
+import { championIconUrl, fetchChampionSummaries } from './dataDragon.js';
 import { CHAMPION_NAMES_BY_ROLE } from './championRoles.js';
 import { deriveChampionRatings } from './championRatings.js';
 
@@ -12,13 +12,11 @@ const FALLBACK_ROLE_BY_PRIMARY_TAG = Object.freeze({
   Assassin: ROLE.MID,
 });
 
-export async function loadChampionPool() {
-  const version = await fetchLatestVersion();
+export async function loadChampions(version) {
   const summaries = await fetchChampionSummaries(version);
-  const champions = summaries
+  return summaries
     .map(summary => createChampion(summary, version))
     .sort((first, second) => first.name.localeCompare(second.name));
-  return Object.freeze({ version, champions });
 }
 
 function createChampion(summary, version) {

@@ -1,9 +1,14 @@
 import { Application, Assets, Container, Graphics, Sprite, Text, Texture } from '../../vendor/pixi-8.22.0.min.mjs';
 import { TEAM } from '../config/teams.js';
 import {
-  BARON_PIT, BASE_CENTERS, DRAGON_PIT, LANE_PATHS, MAP_SIZE, RIVER_PATH, STRUCTURE_TYPE, jungleCampsFor,
+  BARON_PIT, BASE_CENTERS, DRAGON_PIT, LANE_PATHS, MAP_SIZE, RIVER_PATH, STRUCTURE_TYPE,
 } from '../game/mapLayout.js';
 import { isPositionVisible, visionSourcesFor } from '../game/vision.js';
+import { pointAtLaneDistance } from '../game/laneGeometry.js';
+import { ACTIVITY } from '../game/activities.js';
+import { isCampAlive } from '../game/simulation/jungleSystem.js';
+import { directionTowardEnemy } from '../game/simulation/laneSystem.js';
+import { displayedStateFor } from '../game/simulation/scoutingSystem.js';
 
 const MAP_COLORS = Object.freeze({
   background: 0x0b1116,
@@ -13,6 +18,8 @@ const MAP_COLORS = Object.freeze({
   river: 0x1c4a5e,
   pit: 0x24596e,
   camp: 0x2b3b33,
+  campAlive: 0xc9a227,
+  recallRing: 0x8fd3ff,
   coinText: 0xffffff,
   [TEAM.BLUE]: 0x3a9be8,
   [TEAM.RED]: 0xe0505b,
@@ -36,6 +43,12 @@ const FOG_COLOR_RGBA = 'rgba(4, 7, 10, 0.66)';
 const FOG_TEXTURE_SCALE = 0.5;
 const FOG_SOFT_EDGE_START = 0.8;
 const FULL_CIRCLE_RADIANS = Math.PI * 2;
+const MINION_DOT_RADIUS = 5;
+const MINION_DOT_SPACING = 11;
+const RECALL_RING_RADIUS = COIN_RADIUS + 6;
+const RECALL_RING_WIDTH = 3;
+const RECALL_PULSE_SPEED = 0.006;
+const RECALL_PULSE_MIN_ALPHA = 0.35;
 
 export async function createMapRenderer(hostElement, gameState) {
   const app = new Application();
@@ -51,8 +64,10 @@ export async function createMapRenderer(hostElement, gameState) {
 
   const world = new Container();
   const fog = createFogLayer();
+  const campLayer = new Graphics();
+  const minionLayer = new Graphics();
   const coinLayer = new Container();
-  world.addChild(drawTerrain(), drawStructures(gameState), fog.sprite, coinLayer);
+  world.addChild(drawTerrain(), drawStructures(gameState), campLayer, minionLayer, fog.sprite, coinLayer);
   app.stage.addChild(world);
 
   const coinsByChampionState = await createChampionCoins(gameState, coinLayer);
@@ -73,10 +88,16 @@ export async function createMapRenderer(hostElement, gameState) {
   function update(currentGameState) {
     const playerVisionSources = visionSourcesFor(currentGameState, currentGameState.playerSide);
     fog.draw(playerVisionSources);
-    for (const [championState, coin] of coinsByChampionState) {
-      coin.position.set(championState.position.x, championState.position.y);
+    drawJungleCamps(campLayer, currentGameState);
+    drawMinionWaves(minionLayer, currentGameState, playerVisionSources);
+    const recallPulseAlpha = RECALL_PULSE_MIN_ALPHA + (1 - RECALL_PULSE_MIN_ALPHA) * (0.5 + 0.5 * Math.sin(performance.now() * RECALL_PULSE_SPEED));
+    for (const [championState, { coin, recallRing }] of coinsByChampionState) {
       const isOwnChampion = championState.team === currentGameState.playerSide;
-      coin.visible = championState.isAlive && (isOwnChampion || isPositionVisible(championState.position, playerVisionSources));
+      coin.visible = championState.isAlive && (isOwnChampion || championState.isVisibleToPlayer);
+      coin.position.set(championState.position.x, championState.position.y);
+      const displayedState = displayedStateFor(championState, currentGameState.playerSide);
+      recallRing.visible = displayedState.activity === ACTIVITY.RECALLING;
+      recallRing.alpha = recallPulseAlpha;
     }
   }
 
@@ -99,11 +120,6 @@ function drawTerrain() {
   terrain.circle(DRAGON_PIT.x, DRAGON_PIT.y, PIT_RADIUS).fill(MAP_COLORS.pit);
   for (const lanePath of Object.values(LANE_PATHS)) {
     strokePath(terrain, lanePath, LANE_WIDTH, MAP_COLORS.lane);
-  }
-  for (const team of [TEAM.BLUE, TEAM.RED]) {
-    for (const camp of jungleCampsFor(team)) {
-      terrain.circle(camp.x, camp.y, CAMP_RADIUS).fill(MAP_COLORS.camp);
-    }
   }
   terrain.rect(0, 0, MAP_SIZE, MAP_SIZE).stroke({ width: MAP_FRAME_WIDTH, color: MAP_COLORS.jungleEdge, alignment: 1 });
   return terrain;
@@ -145,6 +161,31 @@ function drawStructure(graphics, structure, teamColor) {
   }
   graphics.roundRect(structure.x - NEXUS_HALF_SIZE, structure.y - NEXUS_HALF_SIZE, NEXUS_HALF_SIZE * 2, NEXUS_HALF_SIZE * 2, 6)
     .fill(teamColor);
+}
+
+function drawJungleCamps(graphics, gameState) {
+  graphics.clear();
+  for (const camp of gameState.jungleCamps) {
+    const color = isCampAlive(camp, gameState.gameSeconds) ? MAP_COLORS.campAlive : MAP_COLORS.camp;
+    graphics.circle(camp.position.x, camp.position.y, CAMP_RADIUS).fill(color);
+  }
+}
+
+function drawMinionWaves(graphics, gameState, playerVisionSources) {
+  graphics.clear();
+  for (const laneState of gameState.lanes) {
+    for (const team of [TEAM.BLUE, TEAM.RED]) {
+      const visibleDots = Math.ceil(laneState.minions[team]);
+      const stepTowardOwnBase = -directionTowardEnemy(team) * MINION_DOT_SPACING;
+      for (let dotIndex = 0; dotIndex < visibleDots; dotIndex += 1) {
+        const dotPosition = pointAtLaneDistance(laneState.lane, laneState.frontDistance + stepTowardOwnBase * (dotIndex + 0.5));
+        const isOwnMinion = team === gameState.playerSide;
+        if (isOwnMinion || isPositionVisible(dotPosition, playerVisionSources)) {
+          graphics.circle(dotPosition.x, dotPosition.y, MINION_DOT_RADIUS).fill(MAP_COLORS[team]);
+        }
+      }
+    }
+  }
 }
 
 function createFogLayer() {
@@ -193,8 +234,11 @@ async function createChampionCoins(gameState, coinLayer) {
     const textureResult = textures[index];
     const texture = textureResult.status === 'fulfilled' ? textureResult.value : null;
     const coin = createCoin(championState, texture);
+    const recallRing = new Graphics().circle(0, 0, RECALL_RING_RADIUS).stroke({ width: RECALL_RING_WIDTH, color: MAP_COLORS.recallRing });
+    recallRing.visible = false;
+    coin.addChild(recallRing);
     coinLayer.addChild(coin);
-    coinsByChampionState.set(championState, coin);
+    coinsByChampionState.set(championState, { coin, recallRing });
   });
   return coinsByChampionState;
 }

@@ -24,4 +24,8 @@ python -m http.server 8000
 
 ## Status
 
-Milepæl 1: forside, matchmaking, turnerings-draft mod AI, swap-fase og kampskærmens layout med fog of war. Simuleringen kommer i milepæl 2.
+- Milepæl 1: forside, matchmaking, turnerings-draft mod AI, swap-fase og kampskærmens layout med fog of war.
+- Milepæl 2: simuleringskerne med fast tick-rate (10 ticks per in-game sekund) og seeded random. Minion-bølger og lane push, champions går fra fountain til lane, farmer, trader, recaller og køber items ud fra build-typen. Junglere clearer camps, der respawner. Fjendens items, HP og level vises som sidst set, når de er i fog.
+- Næste: milepæl 3, hvor actions og calls bliver udført (ganks, dives, roams, wards, Call help).
+
+Tal og tider til simuleringen ligger i `src/config/gameRules.js`.

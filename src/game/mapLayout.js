@@ -4,6 +4,7 @@ export const MAP_SIZE = 1000;
 export const CHAMPION_VISION_RADIUS = 125;
 export const TOWER_VISION_RADIUS = 110;
 export const BASE_VISION_RADIUS = 240;
+export const MINION_WAVE_VISION_RADIUS = 90;
 
 export const STRUCTURE_TYPE = Object.freeze({
   TOWER: 'tower',
@@ -29,14 +30,6 @@ const BLUE_STRUCTURES = Object.freeze([
   { type: STRUCTURE_TYPE.NEXUS, lane: 'base', x: 115, y: 885 },
 ]);
 
-const BLUE_LANING_POSITIONS = Object.freeze({
-  top: { x: 95, y: 175 },
-  jungle: { x: 250, y: 520 },
-  mid: { x: 470, y: 530 },
-  bot: { x: 825, y: 908 },
-  support: { x: 840, y: 870 },
-});
-
 const BLUE_JUNGLE_CAMPS = Object.freeze([
   { x: 155, y: 450 }, { x: 250, y: 470 }, { x: 255, y: 585 },
   { x: 480, y: 635 }, { x: 530, y: 760 }, { x: 575, y: 850 },
@@ -52,13 +45,12 @@ export const RIVER_PATH = Object.freeze([[130, 130], [870, 870]]);
 export const BARON_PIT = Object.freeze({ x: 315, y: 315 });
 export const DRAGON_PIT = Object.freeze({ x: 685, y: 685 });
 export const BASE_CENTERS = Object.freeze({ [TEAM.BLUE]: { x: 60, y: 940 }, [TEAM.RED]: { x: 940, y: 60 } });
+export const FOUNTAIN_POSITIONS = Object.freeze({ [TEAM.BLUE]: { x: 45, y: 955 }, [TEAM.RED]: { x: 955, y: 45 } });
+
+export const LANE_BY_ROLE = Object.freeze({ top: 'top', mid: 'mid', bot: 'bot', support: 'bot' });
 
 export function structuresFor(team) {
   return BLUE_STRUCTURES.map(structure => ({ ...structure, ...mirrorForTeam(structure, team) }));
-}
-
-export function laningPositionFor(team, role) {
-  return mirrorForTeam(BLUE_LANING_POSITIONS[role], team);
 }
 
 export function jungleCampsFor(team) {

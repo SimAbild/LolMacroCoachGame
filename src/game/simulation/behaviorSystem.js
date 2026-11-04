@@ -1,0 +1,125 @@
+import { ROLE } from '../../config/roles.js';
+import {
+  FARM_RANGE, LANE_STANDOFF_DISTANCE, RECALL_CHANNEL_SECONDS, RECALL_GOLD_THRESHOLD, RECALL_HEALTH_THRESHOLD, RECALL_MANA_THRESHOLD,
+} from '../../config/gameRules.js';
+import { ACTIVITY } from '../activities.js';
+import { FOUNTAIN_POSITIONS, LANE_BY_ROLE } from '../mapLayout.js';
+import { pointAtLaneDistance } from '../laneGeometry.js';
+import { directionTowardEnemy } from './laneSystem.js';
+import { chooseNextCamp } from './jungleSystem.js';
+import { hasItemsLeftToBuy, spendGoldOnBuild } from './economy.js';
+
+const SUPPORT_DISTANCE_BEHIND_CARRY = 18;
+const SUPPORT_FOLLOWS_RECALL_RANGE = 120;
+const FULL_RATIO = 1;
+
+export function updateBehavior(gameState, tickSeconds) {
+  for (const teamState of Object.values(gameState.teams)) {
+    for (const championState of teamState.champions) {
+      ACTIVITY_HANDLERS[championState.activity](gameState, championState, teamState, tickSeconds);
+    }
+  }
+}
+
+const ACTIVITY_HANDLERS = Object.freeze({
+  [ACTIVITY.TRAVELING]: handleTraveling,
+  [ACTIVITY.LANING]: handleLaning,
+  [ACTIVITY.JUNGLING]: handleJungling,
+  [ACTIVITY.RECALLING]: handleRecalling,
+  [ACTIVITY.IN_FOUNTAIN]: handleInFountain,
+});
+
+function handleTraveling(gameState, championState, teamState) {
+  const post = postFor(gameState, championState, teamState);
+  championState.targetPosition = post;
+  if (distanceBetween(championState.position, post) <= FARM_RANGE / 2) {
+    championState.activity = championState.role === ROLE.JUNGLE ? ACTIVITY.JUNGLING : ACTIVITY.LANING;
+  }
+}
+
+function handleLaning(gameState, championState, teamState) {
+  if (shouldRecall(championState) || isSupportFollowingCarryRecall(championState, teamState)) {
+    startRecall(championState);
+    return;
+  }
+  championState.targetPosition = postFor(gameState, championState, teamState);
+}
+
+function handleJungling(gameState, championState) {
+  const isClearingCamp = championState.targetCamp?.clearProgressSeconds > 0;
+  if (!isClearingCamp && shouldRecall(championState)) {
+    startRecall(championState);
+    return;
+  }
+  championState.targetCamp ??= chooseNextCamp(gameState, championState);
+  championState.targetPosition = championState.targetCamp.position;
+}
+
+function handleRecalling(gameState, championState, teamState, tickSeconds) {
+  championState.activitySecondsLeft -= tickSeconds;
+  if (championState.activitySecondsLeft > 0) {
+    return;
+  }
+  championState.position = { ...FOUNTAIN_POSITIONS[championState.team] };
+  championState.activity = ACTIVITY.IN_FOUNTAIN;
+  spendGoldOnBuild(championState, gameState.itemCatalog);
+}
+
+function handleInFountain(gameState, championState) {
+  if (championState.healthRatio >= FULL_RATIO && championState.resourceRatio >= FULL_RATIO) {
+    championState.activity = ACTIVITY.TRAVELING;
+  }
+}
+
+function startRecall(championState) {
+  championState.activity = ACTIVITY.RECALLING;
+  championState.activitySecondsLeft = RECALL_CHANNEL_SECONDS;
+  championState.targetPosition = null;
+  championState.targetCamp = null;
+}
+
+function shouldRecall(championState) {
+  const isLowHealth = championState.healthRatio < RECALL_HEALTH_THRESHOLD;
+  const isLowMana = championState.champion.resourceType === 'Mana' && championState.resourceRatio < RECALL_MANA_THRESHOLD;
+  const canAffordUpgrade = championState.gold >= RECALL_GOLD_THRESHOLD && hasItemsLeftToBuy(championState);
+  return isLowHealth || isLowMana || canAffordUpgrade;
+}
+
+function isSupportFollowingCarryRecall(championState, teamState) {
+  if (championState.role !== ROLE.SUPPORT) {
+    return false;
+  }
+  const carry = carryOf(teamState);
+  return carry.activity === ACTIVITY.RECALLING && distanceBetween(carry.position, championState.position) <= SUPPORT_FOLLOWS_RECALL_RANGE;
+}
+
+function postFor(gameState, championState, teamState) {
+  if (championState.role === ROLE.JUNGLE) {
+    championState.targetCamp ??= chooseNextCamp(gameState, championState);
+    return championState.targetCamp.position;
+  }
+  if (championState.role === ROLE.SUPPORT) {
+    return supportPost(gameState, championState, teamState);
+  }
+  return lanePost(gameState, championState, 0);
+}
+
+function supportPost(gameState, championState, teamState) {
+  const carry = carryOf(teamState);
+  const carryIsInLane = carry.activity === ACTIVITY.LANING;
+  return lanePost(gameState, championState, carryIsInLane ? SUPPORT_DISTANCE_BEHIND_CARRY : 0);
+}
+
+function lanePost(gameState, championState, extraDistanceBehind) {
+  const laneState = gameState.lanes.find(candidate => candidate.lane === LANE_BY_ROLE[championState.role]);
+  const distanceBehindWave = (LANE_STANDOFF_DISTANCE + extraDistanceBehind) * directionTowardEnemy(championState.team);
+  return pointAtLaneDistance(laneState.lane, laneState.frontDistance - distanceBehindWave);
+}
+
+function carryOf(teamState) {
+  return teamState.champions.find(candidate => candidate.role === ROLE.BOT);
+}
+
+function distanceBetween(first, second) {
+  return Math.hypot(first.x - second.x, first.y - second.y);
+}

@@ -13,9 +13,9 @@ const SCREEN_PHASE = Object.freeze({ DRAFT: 'draft', SWAP: 'swap' });
 const BLUE_BAN_DISPLAY_ORDER = Object.freeze([0, 1, 2, null, 3, 4]);
 const RED_BAN_DISPLAY_ORDER = Object.freeze([4, 3, null, 2, 1, 0]);
 
-export function mountDraftScreen(root, { router, championPool, playerSide }) {
+export function mountDraftScreen(root, { router, gameData, playerSide }) {
   const aiTeam = opposingTeam(playerSide);
-  const draftState = new DraftState(championPool.champions);
+  const draftState = new DraftState(gameData.champions);
   const draftAi = new DraftAi(aiTeam);
   const view = {
     screenPhase: SCREEN_PHASE.DRAFT,
@@ -37,7 +37,7 @@ export function mountDraftScreen(root, { router, championPool, playerSide }) {
     championGrid,
   );
   const loadoutPanel = createLoadoutPanel({
-    version: championPool.version,
+    version: gameData.version,
     onLoadoutChange: changedLoadout => {
       view.loadouts[playerSide] = changedLoadout;
       render();
@@ -46,7 +46,7 @@ export function mountDraftScreen(root, { router, championPool, playerSide }) {
   const centerArea = createElement('div', { className: 'draft-center' }, championPicker);
   const primaryButton = createButton('Lock in', onPrimaryButtonClick, 'button button--lock');
 
-  for (const champion of championPool.champions) {
+  for (const champion of gameData.champions) {
     const tile = createChampionTile(champion);
     championTiles.set(champion.id, tile);
     championGrid.append(tile);
@@ -149,7 +149,7 @@ export function mountDraftScreen(root, { router, championPool, playerSide }) {
 
   function onPrimaryButtonClick() {
     if (view.screenPhase === SCREEN_PHASE.SWAP) {
-      router.show(mountGameScreen, { championPool, playerSide, loadouts: view.loadouts });
+      router.show(mountGameScreen, { gameData, playerSide, loadouts: view.loadouts });
       return;
     }
     lockInPlayerSelection();
@@ -251,11 +251,11 @@ export function mountDraftScreen(root, { router, championPool, playerSide }) {
     if (!isActiveSlot(team, action, slotIndex) || team !== playerSide || !view.selectedChampionId) {
       return null;
     }
-    return championPool.champions.find(champion => champion.id === view.selectedChampionId);
+    return gameData.champions.find(champion => champion.id === view.selectedChampionId);
   }
 
   function renderChampionGrid() {
-    for (const champion of championPool.champions) {
+    for (const champion of gameData.champions) {
       const tile = championTiles.get(champion.id);
       tile.classList.toggle('is-unavailable', !draftState.isChampionAvailable(champion.id));
       tile.classList.toggle('is-selected', champion.id === view.selectedChampionId);

@@ -4,17 +4,19 @@ import { CALL_HELP_ACTION_ID, ROLE_ACTIONS } from '../../config/actions.js';
 import { SUMMONER_SPELLS } from '../../config/summonerSpells.js';
 import { summonerSpellIconUrl } from '../../data/dataDragon.js';
 import { ITEM_SLOTS } from '../../game/gameState.js';
+import { describeActivity } from '../../game/activities.js';
 
 const RESOURCE_BAR_CLASS = Object.freeze({ Mana: 'bar--mana', Energy: 'bar--energy' });
 const PERCENT = 100;
 
-export function createChampionPanel(championState, { version, isOwnTeam, onAction, onActionHover }) {
+export function createChampionPanel(championState, { version, itemCatalog, isOwnTeam, onAction, onActionHover }) {
   const levelBadge = createElement('span', { className: 'level-badge' });
   const goldLabel = createElement('span', { className: 'champion-panel__gold' });
   const healthFill = createElement('div', { className: 'bar__fill' });
   const resourceFill = createElement('div', { className: 'bar__fill' });
   const statusLine = createElement('div', { className: 'champion-card__status' });
   const resourceBarClass = RESOURCE_BAR_CLASS[championState.champion.resourceType] ?? 'bar--other';
+  const itemSlots = createItemSlots();
 
   const panel = createElement('div', { className: 'champion-panel' },
     createElement('div', { className: 'champion-panel__portrait' },
@@ -31,7 +33,7 @@ export function createChampionPanel(championState, { version, isOwnTeam, onActio
       createElement('div', { className: `bar ${resourceBarClass}` }, resourceFill),
       createElement('div', { className: 'champion-panel__loadout' },
         createSummonerIcons(championState, version),
-        createItemSlots(),
+        itemSlots.element,
       ),
     ),
   );
@@ -47,13 +49,15 @@ export function createChampionPanel(championState, { version, isOwnTeam, onActio
 
   update(championState);
 
-  function update(currentChampionState) {
-    levelBadge.textContent = String(currentChampionState.level);
-    goldLabel.textContent = String(Math.round(currentChampionState.gold));
-    healthFill.style.width = `${currentChampionState.healthRatio * PERCENT}%`;
-    resourceFill.style.width = `${currentChampionState.resourceRatio * PERCENT}%`;
-    statusLine.textContent = currentChampionState.status;
-    card.classList.toggle('is-dead', !currentChampionState.isAlive);
+  function update(displayedState) {
+    levelBadge.textContent = String(displayedState.level);
+    goldLabel.textContent = String(Math.floor(displayedState.gold));
+    healthFill.style.width = `${displayedState.healthRatio * PERCENT}%`;
+    resourceFill.style.width = `${displayedState.resourceRatio * PERCENT}%`;
+    statusLine.textContent = displayedState.queuedAction ? `Queued: ${displayedState.queuedAction}` : describeActivity(displayedState);
+    itemSlots.update(displayedState.items, itemCatalog);
+    card.classList.toggle('is-dead', !displayedState.isAlive);
+    card.classList.toggle('is-in-fog', !isOwnTeam && !displayedState.isVisibleToPlayer);
   }
 
   function createActionControls() {
@@ -107,9 +111,40 @@ function createSummonerIcons(championState, version) {
 }
 
 function createItemSlots() {
-  const itemSlots = Array.from({ length: ITEM_SLOTS }, () => createElement('span', { className: 'item-slot' }));
-  return createElement('div', { className: 'item-slots' },
-    ...itemSlots,
+  const slots = Array.from({ length: ITEM_SLOTS }, () => createElement('span', { className: 'item-slot' }));
+  const element = createElement('div', { className: 'item-slots' },
+    ...slots,
     createElement('span', { className: 'item-slot item-slot--trinket', attributes: { title: 'Ward trinket' } }),
   );
+  const shownItemKeys = new Array(ITEM_SLOTS).fill('');
+
+  function update(items, itemCatalog) {
+    slots.forEach((slot, slotIndex) => {
+      const item = items[slotIndex];
+      const itemKey = item ? `${item.itemId}:${Math.floor(item.paidGold)}` : '';
+      if (itemKey === shownItemKeys[slotIndex]) {
+        return;
+      }
+      shownItemKeys[slotIndex] = itemKey;
+      fillItemSlot(slot, item, itemCatalog);
+    });
+  }
+
+  return { element, update };
+}
+
+function fillItemSlot(slot, item, itemCatalog) {
+  slot.replaceChildren();
+  slot.classList.remove('is-partial');
+  slot.removeAttribute('title');
+  if (!item) {
+    return;
+  }
+  const catalogItem = itemCatalog.get(item.itemId);
+  const progressPercent = Math.round((item.paidGold / item.cost) * PERCENT);
+  const isFinished = item.paidGold >= item.cost;
+  slot.title = isFinished ? catalogItem.name : `${catalogItem.name} (${progressPercent}%)`;
+  slot.classList.toggle('is-partial', !isFinished);
+  slot.style.setProperty('--progress', `${progressPercent}%`);
+  slot.append(createImage(catalogItem.iconUrl, catalogItem.name, 'item-slot__icon'));
 }

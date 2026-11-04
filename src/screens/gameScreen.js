@@ -4,16 +4,20 @@ import { TEAM } from '../config/teams.js';
 import { TEAM_CALLS } from '../config/actions.js';
 import { createInitialGameState } from '../game/gameState.js';
 import { createGameClock } from '../game/gameClock.js';
+import { createSimulation } from '../game/simulation/simulation.js';
+import { displayedStateFor } from '../game/simulation/scoutingSystem.js';
 import { createMapRenderer } from '../render/mapRenderer.js';
 import { createChampionPanel } from './game/championPanel.js';
 import { createTopBar } from './game/topBar.js';
 import { createCoordinationOverlay } from './game/coordinationOverlay.js';
 import { mountHomeScreen } from './homeScreen.js';
 
-const SIMULATION_PENDING_MESSAGE = 'Calls are queued. The simulation that carries them out is the next milestone.';
+const SIMULATION_PENDING_MESSAGE = 'Calls are queued. Carrying out calls is the next milestone.';
+const PANEL_REFRESH_INTERVAL_MS = 200;
 
-export function mountGameScreen(root, { router, championPool, playerSide, loadouts }) {
-  const gameState = createInitialGameState({ loadouts, playerSide });
+export function mountGameScreen(root, { router, gameData, playerSide, loadouts }) {
+  const gameState = createInitialGameState({ loadouts, playerSide, itemCatalog: gameData.items });
+  const simulation = createSimulation(gameState);
   const screen = createElement('section', { className: 'game-screen', dataset: { playerSide } });
   const overlay = createCoordinationOverlay(screen);
   const panelsByChampionState = new Map();
@@ -21,10 +25,16 @@ export function mountGameScreen(root, { router, championPool, playerSide, loadou
   let mapRenderer = null;
   let isMounted = true;
   let hasShownPendingMessage = false;
+  let lastPanelRefreshMs = 0;
 
   const clock = createGameClock(gameSecondsDelta => {
-    gameState.gameSeconds += gameSecondsDelta;
-    topBar.update(gameState);
+    simulation.advance(gameSecondsDelta);
+    mapRenderer?.update(gameState);
+    const nowMs = performance.now();
+    if (nowMs - lastPanelRefreshMs >= PANEL_REFRESH_INTERVAL_MS) {
+      lastPanelRefreshMs = nowMs;
+      refreshPanels();
+    }
   });
   const topBar = createTopBar({
     playerSide,
@@ -66,7 +76,8 @@ export function mountGameScreen(root, { router, championPool, playerSide, loadou
     const column = createElement('aside', { className: `team-column team-column--${team}` });
     for (const championState of gameState.teams[team].champions) {
       const panel = createChampionPanel(championState, {
-        version: championPool.version,
+        version: gameData.version,
+        itemCatalog: gameData.items,
         isOwnTeam: team === playerSide,
         onAction: queueChampionAction,
         onActionHover: showCoordinationLink,
@@ -88,8 +99,15 @@ export function mountGameScreen(root, { router, championPool, playerSide, loadou
     );
   }
 
+  function refreshPanels() {
+    topBar.update(gameState);
+    for (const [championState, panel] of panelsByChampionState) {
+      panel.update(displayedStateFor(championState, playerSide));
+    }
+  }
+
   function queueChampionAction(championState, action) {
-    championState.status = `Queued: ${action.label}`;
+    championState.queuedAction = action.label;
     panelsByChampionState.get(championState).update(championState);
     showCoordinationLink(championState, null);
     if (!hasShownPendingMessage) {

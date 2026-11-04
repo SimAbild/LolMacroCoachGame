@@ -1,24 +1,42 @@
 import { TEAM, opposingTeam } from '../config/teams.js';
-import { STRUCTURE_TYPE, laningPositionFor, structuresFor } from './mapLayout.js';
+import { ROLE } from '../config/roles.js';
+import { MINION_FIRST_SPAWN_SECONDS, JUNGLE_CAMP_FIRST_SPAWN_SECONDS } from '../config/gameRules.js';
+import { BUILD_PATH_ITEM_IDS, JUNGLE_STARTING_ITEM_ID, STARTING_ITEM_ID_BY_BUILD } from '../config/itemBuilds.js';
+import { FOUNTAIN_POSITIONS, STRUCTURE_TYPE, jungleCampsFor, structuresFor } from './mapLayout.js';
+import { LANES, laneLength } from './laneGeometry.js';
+import { ACTIVITY } from './activities.js';
+import { createRandomSeed, createSeededRandom } from './random.js';
 
 export const STARTING_GOLD = 500;
 export const STARTING_LEVEL = 1;
 export const ITEM_SLOTS = 6;
-export const NORMAL_PLAY_STATUS = 'Normal play';
 
-export function createInitialGameState({ loadouts, playerSide }) {
-  return {
+export function createInitialGameState({ loadouts, playerSide, itemCatalog, seed = createRandomSeed() }) {
+  const gameState = {
     playerSide,
+    seed,
+    random: createSeededRandom(seed),
     gameSeconds: 0,
+    itemCatalog,
     teams: {
       [TEAM.BLUE]: createTeamState(TEAM.BLUE, loadouts[TEAM.BLUE]),
       [TEAM.RED]: createTeamState(TEAM.RED, loadouts[TEAM.RED]),
     },
+    lanes: LANES.map(createLaneState),
+    jungleCamps: [TEAM.BLUE, TEAM.RED].flatMap(team => jungleCampsFor(team).map(position => createJungleCamp(team, position))),
   };
+  for (const championState of allChampionStates(gameState)) {
+    buyStartingItem(championState, itemCatalog);
+  }
+  return gameState;
+}
+
+export function allChampionStates(gameState) {
+  return [...gameState.teams[TEAM.BLUE].champions, ...gameState.teams[TEAM.RED].champions];
 }
 
 export function totalTeamGold(teamState) {
-  return teamState.champions.reduce((sum, championState) => sum + championState.gold, 0);
+  return teamState.champions.reduce((sum, championState) => sum + championState.totalGoldEarned, 0);
 }
 
 export function destroyedEnemyTowerCount(gameState, team) {
@@ -40,18 +58,53 @@ function createTeamState(team, loadout) {
 
 function createChampionState(team, loadoutEntry) {
   return {
+    id: `${team}-${loadoutEntry.role}`,
     team,
     role: loadoutEntry.role,
     champion: loadoutEntry.champion,
     buildType: loadoutEntry.buildType,
     summonerSpells: loadoutEntry.summonerSpells.map(spellId => ({ spellId, cooldownSeconds: 0 })),
     level: STARTING_LEVEL,
+    experience: 0,
     healthRatio: 1,
     resourceRatio: 1,
     gold: STARTING_GOLD,
+    totalGoldEarned: STARTING_GOLD,
     items: [],
-    position: laningPositionFor(team, loadoutEntry.role),
+    remainingBuildPath: [...BUILD_PATH_ITEM_IDS[loadoutEntry.buildType]],
+    position: { ...FOUNTAIN_POSITIONS[team] },
+    targetPosition: null,
+    activity: ACTIVITY.TRAVELING,
+    activitySecondsLeft: 0,
+    targetCamp: null,
+    queuedAction: null,
     isAlive: true,
-    status: NORMAL_PLAY_STATUS,
+    isVisibleToPlayer: true,
+    lastSeen: null,
   };
+}
+
+function createLaneState(lane) {
+  return {
+    lane,
+    frontDistance: laneLength(lane) / 2,
+    minions: { [TEAM.BLUE]: 0, [TEAM.RED]: 0 },
+    incomingWaves: [],
+    nextWaveSeconds: MINION_FIRST_SPAWN_SECONDS,
+    wavesSpawned: 0,
+  };
+}
+
+function createJungleCamp(team, position) {
+  return { team, position, respawnAtSeconds: JUNGLE_CAMP_FIRST_SPAWN_SECONDS, clearProgressSeconds: 0 };
+}
+
+function buyStartingItem(championState, itemCatalog) {
+  const startingItemId = championState.role === ROLE.JUNGLE ? JUNGLE_STARTING_ITEM_ID : STARTING_ITEM_ID_BY_BUILD[championState.buildType];
+  const startingItem = itemCatalog.get(startingItemId);
+  if (!startingItem || startingItem.cost > championState.gold) {
+    return;
+  }
+  championState.items.push({ itemId: startingItem.id, cost: startingItem.cost, paidGold: startingItem.cost, isStartingItem: true });
+  championState.gold -= startingItem.cost;
 }
