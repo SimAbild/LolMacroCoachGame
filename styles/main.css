@@ -233,6 +233,7 @@ h1, h2 { font-family: var(--font-display); margin: 0; letter-spacing: 0.02em; }
 .champion-tile:hover .champion-tile__icon { border-color: var(--color-gold); transform: translateY(-1px); }
 .champion-tile.is-selected .champion-tile__icon { border-color: var(--color-gold); box-shadow: 0 0 0 2px var(--color-gold); }
 .champion-tile.is-selected .champion-tile__name { color: var(--color-gold); }
+.champion-tile[hidden] { display: none; }
 .champion-tile.is-unavailable { cursor: default; }
 .champion-tile.is-unavailable .champion-tile__icon { filter: grayscale(1) brightness(0.35); border-color: #1c2630; transform: none; }
 
