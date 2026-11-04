@@ -14,7 +14,9 @@ export const STARTING_GOLD = 500;
 export const STARTING_LEVEL = 1;
 export const ITEM_SLOTS = 6;
 
-export function createInitialGameState({ loadouts, playerSide, itemCatalog, seed = createRandomSeed() }) {
+export function createInitialGameState({
+  loadouts, playerSide, itemCatalog, seed = createRandomSeed(), aiControlledTeams = [opposingTeam(playerSide)], aiWeightsByTeam = {},
+}) {
   const gameState = {
     playerSide,
     seed,
@@ -37,6 +39,11 @@ export function createInitialGameState({ loadouts, playerSide, itemCatalog, seed
     nextFightId: 1,
     plays: [],
     nextPlayId: 1,
+    intel: { [TEAM.BLUE]: {}, [TEAM.RED]: {} },
+    aiControlledTeams,
+    aiWeightsByTeam,
+    aiCoaches: {},
+    alerts: [],
     goldHistory: [],
     callLog: [],
     winner: null,

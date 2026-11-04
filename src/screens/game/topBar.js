@@ -13,7 +13,7 @@ const ICONS = Object.freeze({
   grub: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 14c0-4 4-8 8-8s8 4 8 8-3 4-8 4-8 0-8-4z"/></svg>',
 });
 
-export function createTopBar({ playerSide, onSpeedChange, onLeave }) {
+export function createTopBar({ playerSide, onSpeedChange, onSlowMotionToggle, onLeave }) {
   const teamStats = { [TEAM.BLUE]: createTeamStats(TEAM.BLUE), [TEAM.RED]: createTeamStats(TEAM.RED) };
   const blueKills = createElement('span', { className: 'scoreboard__kills scoreboard__kills--blue' });
   const redKills = createElement('span', { className: 'scoreboard__kills scoreboard__kills--red' });
@@ -27,12 +27,21 @@ export function createTopBar({ playerSide, onSpeedChange, onLeave }) {
     return button;
   });
 
+  const slowMotionButton = createButton('Slow-mo', () => {
+    const isEnabled = !slowMotionButton.classList.contains('is-active');
+    slowMotionButton.classList.toggle('is-active', isEnabled);
+    slowMotionButton.setAttribute('aria-pressed', String(isEnabled));
+    onSlowMotionToggle(isEnabled);
+  }, 'speed-button speed-button--toggle is-active');
+  slowMotionButton.title = 'Slow down on important moments';
+  slowMotionButton.setAttribute('aria-pressed', 'true');
+
   const element = createElement('div', { className: 'scoreboard' },
     createButton('Leave', onLeave, 'scoreboard__leave'),
     teamStats[TEAM.BLUE].element,
     createElement('div', { className: 'scoreboard__center' }, blueKills, createElement('span', { className: 'scoreboard__divider', text: '—' }), redKills),
     teamStats[TEAM.RED].element,
-    createElement('div', { className: 'scoreboard__clock' }, timer, createElement('div', { className: 'speed-buttons' }, ...speedButtons)),
+    createElement('div', { className: 'scoreboard__clock' }, timer, createElement('div', { className: 'speed-buttons' }, ...speedButtons, slowMotionButton)),
   );
 
   function createTeamStats(team) {

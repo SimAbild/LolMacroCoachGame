@@ -41,6 +41,7 @@ const TEAM_CALL_HANDLERS = Object.freeze({
         label: OBJECTIVE_LABELS[objective.key],
         objectiveKey: objective.key,
         spreadIndex,
+        issuedAtSeconds: gameState.gameSeconds,
       });
     });
     return { isIssued: true };

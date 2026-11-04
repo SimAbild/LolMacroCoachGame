@@ -14,6 +14,8 @@ import { updateObjectives } from './objectiveSystem.js';
 import { updateTeamfights } from './teamfightSystem.js';
 import { updateGoldHistory } from './statsSystem.js';
 import { updatePlays } from './playSystem.js';
+import { updateIntel } from './intelSystem.js';
+import { updateAlerts } from './alertSystem.js';
 
 const SYSTEMS_IN_TICK_ORDER = Object.freeze([
   updateLanes,
@@ -30,6 +32,8 @@ const SYSTEMS_IN_TICK_ORDER = Object.freeze([
   updateIncome,
   updateCooldownsAndWards,
   updateScouting,
+  updateIntel,
+  updateAlerts,
   updateGoldHistory,
 ]);
 

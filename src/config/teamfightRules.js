@@ -37,3 +37,5 @@ export const GROUP_SPREAD = 16;
 export const CONTEST_RALLY_DISTANCE = 260;
 export const CONTEST_RALLY_RADIUS = 80;
 export const CONTEST_RALLY_MIN_CHAMPIONS = 3;
+export const CONTEST_MAX_SECONDS = 150;
+export const CONTEST_ARC_STEP_RADIANS = 0.45;

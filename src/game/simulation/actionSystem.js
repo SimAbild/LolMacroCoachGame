@@ -19,7 +19,7 @@ import { grantExperience, grantGold } from './economy.js';
 import { startTeamfight } from './teamfightSystem.js';
 import { startRecall } from './recall.js';
 import {
-  CONTEST_RALLY_DISTANCE, CONTEST_RALLY_MIN_CHAMPIONS, CONTEST_RALLY_RADIUS, ENGAGE_TRIGGER_DISTANCE, GROUP_SPREAD, GROUP_STANDOFF_DISTANCE, RETREAT_TRAVEL_SECONDS, TEAMFIGHT_JOIN_RANGE,
+  CONTEST_ARC_STEP_RADIANS, CONTEST_MAX_SECONDS, CONTEST_RALLY_DISTANCE, CONTEST_RALLY_MIN_CHAMPIONS, CONTEST_RALLY_RADIUS, ENGAGE_TRIGGER_DISTANCE, GROUP_SPREAD, GROUP_STANDOFF_DISTANCE, RETREAT_TRAVEL_SECONDS, TEAMFIGHT_JOIN_RANGE,
 } from '../../config/teamfightRules.js';
 import { OBJECTIVE_RANGE } from '../../config/objectiveRules.js';
 import { RECALL_HEALTH_THRESHOLD_DURING_CALL } from '../../config/gameRules.js';
@@ -29,7 +29,6 @@ import { directionTowardEnemy } from './laneSystem.js';
 
 const MAX_TRAVEL_SECONDS = 45;
 const TEAM_SIZE = 5;
-const FULL_CIRCLE_RADIANS = Math.PI * 2;
 const MIN_ENEMIES_FOR_GROUP_FIGHT = 2;
 const ENGAGE_PHASE = Object.freeze({ APPROACH: 'approach', FIGHTING: 'fighting' });
 const FULLY_PUSHED_MARGIN = 2;
@@ -180,7 +179,8 @@ function updateGroup(gameState, championState, action) {
 
 function updateContest(gameState, championState, action) {
   const objective = gameState.objectives[action.objectiveKey];
-  if (!isObjectiveRelevant(gameState, objective)) {
+  const hasTakenTooLong = gameState.gameSeconds - (action.issuedAtSeconds ?? gameState.gameSeconds) > CONTEST_MAX_SECONDS;
+  if (!isObjectiveRelevant(gameState, objective) || hasTakenTooLong) {
     endAction(gameState, championState);
     return;
   }
@@ -197,16 +197,22 @@ function updateContest(gameState, championState, action) {
     }
     return;
   }
-  const angle = (action.spreadIndex / TEAM_SIZE) * FULL_CIRCLE_RADIANS;
-  const ringRadius = OBJECTIVE_RANGE / 2;
-  championState.targetPosition = {
-    x: objective.pit.x + Math.cos(angle) * ringRadius,
-    y: objective.pit.y + Math.sin(angle) * ringRadius,
-  };
+  championState.targetPosition = contestStandingPoint(objective, championState.team, action.spreadIndex);
   const distanceToPit = distanceBetween(championState.position, objective.pit);
   action.statusText = objective.isAlive
     ? `${action.label} (${distanceToPit <= OBJECTIVE_RANGE ? 'taking' : `${Math.ceil(distanceToPit / CHAMPION_MOVE_SPEED)}s`})`
     : `${action.label} (spawns in ${Math.ceil(objective.spawnAtSeconds - gameState.gameSeconds)}s)`;
+}
+
+function contestStandingPoint(objective, team, spreadIndex) {
+  const fountain = FOUNTAIN_POSITIONS[team];
+  const ownSideAngle = Math.atan2(fountain.y - objective.pit.y, fountain.x - objective.pit.x);
+  const angle = ownSideAngle + (spreadIndex - (TEAM_SIZE - 1) / 2) * CONTEST_ARC_STEP_RADIANS;
+  const arcRadius = OBJECTIVE_RANGE / 2;
+  return {
+    x: objective.pit.x + Math.cos(angle) * arcRadius,
+    y: objective.pit.y + Math.sin(angle) * arcRadius,
+  };
 }
 
 function contestRallyPoint(objective, team) {

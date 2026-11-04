@@ -6,13 +6,14 @@ import {
 import { ACTIVITY } from '../activities.js';
 import { FOUNTAIN_POSITIONS, LANE_BY_ROLE } from '../mapLayout.js';
 import { pointAtLaneDistance } from '../laneGeometry.js';
-import { directionTowardEnemy } from './laneSystem.js';
+import { directionTowardEnemy, lanePushFor } from './laneSystem.js';
 import { chooseNextCamp } from './jungleSystem.js';
 import { hasItemsLeftToBuy, spendGoldOnBuild } from './economy.js';
 import { startRecall } from './recall.js';
 import { isPlayingSafe } from '../stances.js';
 import { opposingTeam } from '../../config/teams.js';
-import { DANGER_RANGE, DANGER_REACTION_SECONDS } from '../../config/playRules.js';
+import { DANGER_RANGE, DANGER_REACTION_SECONDS, MISSING_JUNGLER_SECONDS, PUSHED_FOR_CAUTION } from '../../config/playRules.js';
+import { secondsSinceSeen } from './intelSystem.js';
 import { isPositionVisible, teamVisionSources } from '../vision.js';
 import { ACTION_KIND } from '../../config/actions.js';
 import { PLAY_SAFE_EXTRA_STANDOFF } from '../../config/combatRules.js';
@@ -79,9 +80,18 @@ function reactToNearbyDanger(gameState, championState) {
     && LANE_BY_ROLE[enemy.role] !== ownLane
     && distanceBetween(enemy.position, championState.position) <= DANGER_RANGE
     && isPositionVisible(enemy.position, teamVision));
-  if (isThreatened) {
+  if (isThreatened || isExposedToMissingJungler(gameState, championState)) {
     championState.cautiousUntilSeconds = Math.max(championState.cautiousUntilSeconds, gameState.gameSeconds + DANGER_REACTION_SECONDS);
   }
+}
+
+function isExposedToMissingJungler(gameState, championState) {
+  const enemyJungler = gameState.teams[opposingTeam(championState.team)].champions.find(enemy => enemy.role === ROLE.JUNGLE);
+  if (!enemyJungler.isAlive || secondsSinceSeen(gameState, championState.team, enemyJungler.id) < MISSING_JUNGLER_SECONDS) {
+    return false;
+  }
+  const laneState = gameState.lanes.find(candidate => candidate.lane === LANE_BY_ROLE[championState.role]);
+  return lanePushFor(gameState, laneState, championState.team) >= PUSHED_FOR_CAUTION;
 }
 
 function handleJungling(gameState, championState) {

@@ -625,3 +625,33 @@ h1, h2 { font-family: var(--font-display); margin: 0; letter-spacing: 0.02em; }
 .chart-data summary { cursor: pointer; color: var(--color-text-muted); }
 .chart-data table { margin-top: 8px; border-collapse: collapse; }
 .chart-data th, .chart-data td { padding: 3px 12px 3px 0; text-align: left; font-variant-numeric: tabular-nums; }
+
+.alert-banner {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: min(520px, 80%);
+  padding: 8px 16px;
+  font: 700 16px var(--font-display);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  text-align: center;
+  color: #1b1203;
+  background: var(--color-gold);
+  border-radius: 4px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+  z-index: 5;
+}
+.alert-banner[hidden] { display: none; }
+.alert-banner:not(.alert-banner--major) {
+  font-size: 13px;
+  color: var(--color-gold);
+  background: rgba(10, 14, 22, 0.88);
+  border: 1px solid var(--color-gold);
+}
+.alert-banner.is-entering { animation: alert-in 220ms ease-out; }
+@keyframes alert-in { from { opacity: 0; transform: translate(-50%, -8px); } }
+.speed-button--toggle { margin-left: 6px; }
+.game-screen[data-player-side="blue"] .alert-banner { top: auto; bottom: 12px; }

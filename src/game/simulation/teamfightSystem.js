@@ -42,6 +42,7 @@ export function startTeamfight(gameState, location, options = {}) {
     deathsByTeam: { [TEAM.BLUE]: [], [TEAM.RED]: [] },
     escapedNames: [],
     peakParticipants: 0,
+    hadBothSides: false,
   };
   gameState.nextFightId += 1;
   gameState.fights.push(fight);
@@ -73,6 +74,9 @@ export function updateTeamfights(gameState, tickSeconds) {
     joinNearbyChampions(gameState, fight);
     const sides = activeSides(gameState, fight);
     fight.peakParticipants = Math.max(fight.peakParticipants, sides[TEAM.BLUE].length + sides[TEAM.RED].length);
+    if (sides[TEAM.BLUE].length > 0 && sides[TEAM.RED].length > 0) {
+      fight.hadBothSides = true;
+    }
     const hasTimedOut = gameState.gameSeconds - fight.startedAtSeconds > TEAMFIGHT_MAX_SECONDS;
     const fightingBlue = sides[TEAM.BLUE].filter(participant => !participant.isFleeing);
     const fightingRed = sides[TEAM.RED].filter(participant => !participant.isFleeing);
@@ -261,7 +265,10 @@ function endFight(gameState, fight, sides) {
   for (const participant of [...sides[TEAM.BLUE], ...sides[TEAM.RED]]) {
     leaveFight(gameState, participant, participant.isFleeing);
   }
-  addEvent(gameState, describeFightResult(fight));
+  const anyoneDied = fight.deathsByTeam[TEAM.BLUE].length + fight.deathsByTeam[TEAM.RED].length > 0;
+  if (fight.hadBothSides || anyoneDied || fight.label) {
+    addEvent(gameState, describeFightResult(fight));
+  }
 }
 
 function describeFightResult(fight) {
@@ -283,12 +290,15 @@ function describeFightResult(fight) {
 }
 
 function leaveFight(gameState, championState, shouldRetreat) {
+  const hasEscaped = championState.isFleeing;
   championState.inFightId = null;
   championState.fightTargetId = null;
   championState.fightDestination = null;
   championState.isFleeing = false;
   championState.moveSpeedFactor = 1;
-  championState.canRejoinFightAtSeconds = gameState.gameSeconds + ESCAPED_CHAMPION_REJOIN_DELAY_SECONDS;
+  if (hasEscaped) {
+    championState.canRejoinFightAtSeconds = gameState.gameSeconds + ESCAPED_CHAMPION_REJOIN_DELAY_SECONDS;
+  }
   if (shouldRetreat && championState.isAlive) {
     startRetreat(gameState, championState);
   }

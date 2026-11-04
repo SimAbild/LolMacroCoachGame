@@ -13,12 +13,15 @@ import { createTopBar } from './game/topBar.js';
 import { createCoordinationOverlay } from './game/coordinationOverlay.js';
 import { mountHomeScreen } from './homeScreen.js';
 import { createEventFeed } from './game/eventFeed.js';
+import { createAlertBanner } from './game/alertBanner.js';
 import { cancelAction, issueAction } from '../game/simulation/actionSystem.js';
 import { issueTeamCall } from '../game/simulation/teamCallSystem.js';
 import { createObjectiveTimers } from './game/objectiveTimers.js';
 import { mountEndScreen } from './endScreen.js';
 
 const END_SCREEN_DELAY_MS = 2500;
+const SLOW_MOTION_FACTOR = 0.25;
+const SLOW_MOTION_REAL_SECONDS = 2.5;
 const PANEL_REFRESH_INTERVAL_MS = 200;
 
 export function mountGameScreen(root, { router, gameData, playerSide, loadouts }) {
@@ -37,6 +40,7 @@ export function mountGameScreen(root, { router, gameData, playerSide, loadouts }
   const clock = createGameClock(gameSecondsDelta => {
     simulation.advance(gameSecondsDelta);
     mapRenderer?.update(gameState);
+    showNewAlerts();
     if (gameState.winner && !endScreenTimer) {
       clock.stop();
       refreshPanels();
@@ -52,17 +56,23 @@ export function mountGameScreen(root, { router, gameData, playerSide, loadouts }
   const topBar = createTopBar({
     playerSide,
     onSpeedChange: speed => clock.setSpeed(speed),
+    onSlowMotionToggle: isEnabled => {
+      isSlowMotionEnabled = isEnabled;
+    },
     onLeave: () => router.show(mountHomeScreen),
   });
   const mapHost = createElement('div', { className: 'map-host' });
   const eventFeed = createEventFeed(playerSide);
+  const alertBanner = createAlertBanner();
+  let isSlowMotionEnabled = true;
+  let shownAlertCount = 0;
 
   screen.append(
     topBar.element,
     createElement('div', { className: 'game-body' },
       createTeamColumn(TEAM.BLUE),
       createElement('main', { className: 'map-area' },
-        createElement('div', { className: 'map-frame' }, mapHost, eventFeed.element),
+        createElement('div', { className: 'map-frame' }, mapHost, eventFeed.element, alertBanner.element),
         createTeamCallBar(),
       ),
       createTeamColumn(TEAM.RED),
@@ -87,6 +97,7 @@ export function mountGameScreen(root, { router, gameData, playerSide, loadouts }
     isMounted = false;
     clock.stop();
     clearTimeout(endScreenTimer);
+    alertBanner.destroy();
     mapRenderer?.destroy();
   };
 
@@ -123,6 +134,17 @@ export function mountGameScreen(root, { router, gameData, playerSide, loadouts }
       createElement('span', { className: 'team-calls__label', text: 'Team calls' }),
       ...buttons,
     );
+  }
+
+  function showNewAlerts() {
+    while (shownAlertCount < gameState.alerts.length) {
+      const alert = gameState.alerts[shownAlertCount];
+      alertBanner.show(alert.text, alert.isMajor);
+      shownAlertCount += 1;
+      if (isSlowMotionEnabled && alert.isMajor) {
+        clock.slowDown(SLOW_MOTION_FACTOR, SLOW_MOTION_REAL_SECONDS);
+      }
+    }
   }
 
   function refreshPanels() {
