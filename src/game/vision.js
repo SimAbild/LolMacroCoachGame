@@ -2,6 +2,7 @@ import {
   BASE_CENTERS, BASE_VISION_RADIUS, CHAMPION_VISION_RADIUS, MINION_WAVE_VISION_RADIUS, STRUCTURE_TYPE, TOWER_VISION_RADIUS,
 } from './mapLayout.js';
 import { pointAtLaneDistance } from './laneGeometry.js';
+import { hasLineOfSight } from './navigation.js';
 import { WARD_VISION_RADIUS } from '../config/combatRules.js';
 
 export function visionSourcesFor(gameState, team) {
@@ -23,7 +24,7 @@ export function visionSourcesFor(gameState, team) {
 }
 
 export function isPositionVisible(position, visionSources) {
-  return visionSources.some(source => distanceBetween(position, source) <= source.radius);
+  return visionSources.some(source => distanceBetween(position, source) <= source.radius && hasLineOfSight(source, position));
 }
 
 function distanceBetween(first, second) {

@@ -10,6 +10,7 @@ import { isCampAlive } from '../game/simulation/jungleSystem.js';
 import { directionTowardEnemy } from '../game/simulation/laneSystem.js';
 import { displayedStateFor } from '../game/simulation/scoutingSystem.js';
 import { WARD_VISION_RADIUS } from '../config/combatRules.js';
+import { castVisionRay } from '../game/navigation.js';
 
 const MAP_COLORS = Object.freeze({
   background: 0x0b1116,
@@ -49,6 +50,9 @@ const FOG_COLOR_RGBA = 'rgba(4, 7, 10, 0.66)';
 const FOG_TEXTURE_SCALE = 0.5;
 const FOG_SOFT_EDGE_START = 0.8;
 const FULL_CIRCLE_RADIANS = Math.PI * 2;
+const VISION_RAY_COUNT = 96;
+const MAX_CACHED_VISION_SHAPES = 400;
+const visionShapeCache = new Map();
 const MINION_DOT_RADIUS = 5;
 const MINION_DOT_SPACING = 11;
 const RECALL_RING_RADIUS = COIN_RADIUS + 6;
@@ -75,7 +79,7 @@ const ELEMENT_COLORS = Object.freeze({
 });
 const WARD_RING_ALPHA = 0.35;
 
-export async function createMapRenderer(hostElement, gameState) {
+export async function createMapRenderer(hostElement, gameState, { mapImageUrl }) {
   const app = new Application();
   await app.init({
     width: INITIAL_CANVAS_SIZE,
@@ -97,7 +101,7 @@ export async function createMapRenderer(hostElement, gameState) {
   const fightLayer = new Graphics();
   let shownStructureSignature = '';
   const coinLayer = new Container();
-  world.addChild(drawTerrain(), structureLayer, objectiveLayer, campLayer, minionLayer, fog.sprite, wardLayer, fightLayer, coinLayer);
+  world.addChild(await createTerrain(mapImageUrl), structureLayer, objectiveLayer, campLayer, minionLayer, fog.sprite, wardLayer, fightLayer, coinLayer);
   app.stage.addChild(world);
 
   const coinsByChampionState = await createChampionCoins(gameState, coinLayer);
@@ -145,6 +149,17 @@ export async function createMapRenderer(hostElement, gameState) {
   }
 
   return { update, destroy };
+}
+
+async function createTerrain(mapImageUrl) {
+  try {
+    const minimapSprite = new Sprite(await Assets.load(mapImageUrl));
+    minimapSprite.width = MAP_SIZE;
+    minimapSprite.height = MAP_SIZE;
+    return minimapSprite;
+  } catch {
+    return drawTerrain();
+  }
 }
 
 function drawTerrain() {
@@ -314,8 +329,28 @@ function cutVisionCircle(context, source) {
   gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
   context.fillStyle = gradient;
   context.beginPath();
-  context.arc(x, y, radius, 0, FULL_CIRCLE_RADIANS);
+  visionShapeOf(source).forEach((point, index) => {
+    const method = index === 0 ? 'moveTo' : 'lineTo';
+    context[method](point.x * FOG_TEXTURE_SCALE, point.y * FOG_TEXTURE_SCALE);
+  });
+  context.closePath();
   context.fill();
+}
+
+function visionShapeOf(source) {
+  const cacheKey = `${Math.round(source.x)},${Math.round(source.y)},${source.radius}`;
+  const cachedShape = visionShapeCache.get(cacheKey);
+  if (cachedShape) {
+    return cachedShape;
+  }
+  const shape = Array.from({ length: VISION_RAY_COUNT }, (_, rayIndex) => (
+    castVisionRay(source, (rayIndex / VISION_RAY_COUNT) * FULL_CIRCLE_RADIANS, source.radius)
+  ));
+  if (visionShapeCache.size >= MAX_CACHED_VISION_SHAPES) {
+    visionShapeCache.clear();
+  }
+  visionShapeCache.set(cacheKey, shape);
+  return shape;
 }
 
 async function createChampionCoins(gameState, coinLayer) {

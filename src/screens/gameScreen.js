@@ -7,6 +7,7 @@ import { createGameClock } from '../game/gameClock.js';
 import { createSimulation } from '../game/simulation/simulation.js';
 import { displayedStateFor } from '../game/simulation/scoutingSystem.js';
 import { createMapRenderer } from '../render/mapRenderer.js';
+import { minimapImageUrl } from '../data/dataDragon.js';
 import { createChampionPanel } from './game/championPanel.js';
 import { createTopBar } from './game/topBar.js';
 import { createCoordinationOverlay } from './game/coordinationOverlay.js';
@@ -72,7 +73,7 @@ export function mountGameScreen(root, { router, gameData, playerSide, loadouts }
 
   topBar.update(gameState);
   clock.start();
-  createMapRenderer(mapHost, gameState)
+  createMapRenderer(mapHost, gameState, { mapImageUrl: minimapImageUrl(gameData.version) })
     .then(renderer => {
       if (isMounted) {
         mapRenderer = renderer;

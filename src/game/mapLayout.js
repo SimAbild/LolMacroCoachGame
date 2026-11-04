@@ -1,8 +1,10 @@
 import { TEAM } from '../config/teams.js';
+import { MAP_SIZE } from './mapConstants.js';
+import { nearestWalkable } from './navigation.js';
 
-export const MAP_SIZE = 1000;
-export const CHAMPION_VISION_RADIUS = 125;
-export const TOWER_VISION_RADIUS = 110;
+export { MAP_SIZE };
+export const CHAMPION_VISION_RADIUS = 100;
+export const TOWER_VISION_RADIUS = 95;
 export const BASE_VISION_RADIUS = 240;
 export const MINION_WAVE_VISION_RADIUS = 90;
 
@@ -36,14 +38,14 @@ const BLUE_JUNGLE_CAMPS = Object.freeze([
 ]);
 
 export const LANE_PATHS = Object.freeze({
-  top: [[100, 860], [85, 140], [140, 85], [860, 100]],
+  top: [[100, 860], [95, 150], [118, 118], [150, 95], [860, 100]],
   mid: [[170, 830], [830, 170]],
-  bot: [[140, 900], [860, 915], [915, 860], [900, 140]],
+  bot: [[140, 900], [850, 905], [882, 882], [905, 850], [900, 140]],
 });
 
 export const RIVER_PATH = Object.freeze([[130, 130], [870, 870]]);
-export const BARON_PIT = Object.freeze({ x: 315, y: 315 });
-export const DRAGON_PIT = Object.freeze({ x: 685, y: 685 });
+export const BARON_PIT = Object.freeze({ x: 332, y: 292 });
+export const DRAGON_PIT = Object.freeze({ x: 670, y: 706 });
 export const BASE_CENTERS = Object.freeze({ [TEAM.BLUE]: { x: 60, y: 940 }, [TEAM.RED]: { x: 940, y: 60 } });
 export const FOUNTAIN_POSITIONS = Object.freeze({ [TEAM.BLUE]: { x: 45, y: 955 }, [TEAM.RED]: { x: 955, y: 45 } });
 
@@ -57,7 +59,7 @@ const BLUE_WARD_SPOTS = Object.freeze({
 });
 
 export function wardSpotFor(team, spotName) {
-  return mirrorForTeam(BLUE_WARD_SPOTS[spotName], team);
+  return nearestWalkable(mirrorForTeam(BLUE_WARD_SPOTS[spotName], team));
 }
 
 export function structuresFor(team) {
@@ -65,7 +67,7 @@ export function structuresFor(team) {
 }
 
 export function jungleCampsFor(team) {
-  return BLUE_JUNGLE_CAMPS.map(camp => mirrorForTeam(camp, team));
+  return BLUE_JUNGLE_CAMPS.map(camp => nearestWalkable(mirrorForTeam(camp, team)));
 }
 
 function mirrorForTeam(position, team) {

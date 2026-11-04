@@ -60,7 +60,7 @@ export const SHOVE_FARM_MULTIPLIER = 1.8;
 export const SHOVE_EXTRA_PUSH_SPEED = 6;
 export const ROAM_MAX_SECONDS = 20;
 
-export const WARD_VISION_RADIUS = 100;
+export const WARD_VISION_RADIUS = 70;
 export const WARD_DURATION_SECONDS = 90;
 export const MAX_WARDS_PER_CHAMPION = 3;
 export const TRINKET_MAX_CHARGES = 2;

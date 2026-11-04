@@ -20,6 +20,10 @@ export function itemIconUrl(version, imageFileName) {
   return `${DATA_DRAGON_BASE_URL}/cdn/${version}/img/item/${imageFileName}`;
 }
 
+export function minimapImageUrl(version) {
+  return `${DATA_DRAGON_BASE_URL}/cdn/${version}/img/map/map11.png`;
+}
+
 export function championIconUrl(version, imageFileName) {
   return `${DATA_DRAGON_BASE_URL}/cdn/${version}/img/champion/${imageFileName}`;
 }
