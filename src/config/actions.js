@@ -37,6 +37,7 @@ export const ROLE_ACTIONS = Object.freeze({
     { id: 'gankBot', label: 'Gank bot', kind: ACTION_KIND.GANK, targetRole: 'bot', targetLane: 'bot' },
     { id: 'invade', label: 'Invade', kind: ACTION_KIND.INVADE },
     { id: 'setupObjective', label: 'Setup objective', kind: ACTION_KIND.SETUP_OBJECTIVE },
+    { id: CALL_HELP_ACTION_ID, label: 'Call help', kind: ACTION_KIND.CALL_HELP },
   ],
   mid: [
     { id: 'shove', label: 'Shove', kind: ACTION_KIND.SHOVE },
@@ -56,7 +57,9 @@ export const ROLE_ACTIONS = Object.freeze({
     { id: 'wardObjectiveBot', label: 'Ward obj. bot', kind: ACTION_KIND.WARD, wardSpot: 'objectiveBot' },
     { id: 'deepWardTop', label: 'Deep ward top', kind: ACTION_KIND.WARD, wardSpot: 'deepTop' },
     { id: 'deepWardBot', label: 'Deep ward bot', kind: ACTION_KIND.WARD, wardSpot: 'deepBot' },
+    { id: 'roamTop', label: 'Roam top', kind: ACTION_KIND.GANK, targetRole: 'top', targetLane: 'top' },
     { id: 'roamMid', label: 'Roam mid', kind: ACTION_KIND.GANK, targetRole: 'mid', targetLane: 'mid' },
+    { id: CALL_HELP_ACTION_ID, label: 'Call help', kind: ACTION_KIND.CALL_HELP },
   ],
 });
 

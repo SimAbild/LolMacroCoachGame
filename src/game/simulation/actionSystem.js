@@ -29,6 +29,7 @@ import { pointAtLaneDistance } from '../laneGeometry.js';
 import { directionTowardEnemy } from './laneSystem.js';
 
 const MAX_TRAVEL_SECONDS = 45;
+const REGROUP_DISTANCE = 90;
 const TEAM_SIZE = 5;
 const FULL_CIRCLE_RADIANS = Math.PI * 2;
 const MIN_ENEMIES_FOR_GROUP_FIGHT = 2;
@@ -97,6 +98,7 @@ const ACTION_STARTERS = Object.freeze({
       label: `${ROLE_LABELS[caller.role]} + ${ROLE_LABELS[helper.role]} play`,
       targetId: target.id,
       linkedChampionId: caller.id,
+      regroupWithId: caller.id,
     });
   },
   [ACTION_KIND.INVADE]: (gameState, championState, definition) => {
@@ -307,6 +309,9 @@ function updateFightTravel(gameState, championState, action, tickSeconds) {
     abortAction(gameState, championState, `${action.label} called off: ${target.champion.name} left`);
     return;
   }
+  if (action.regroupWithId && !regroupWithCaller(gameState, championState, action, tickSeconds)) {
+    return;
+  }
   const distanceToTarget = distanceBetween(championState.position, target.position);
   if (distanceToTarget <= FIGHT_ENGAGE_DISTANCE) {
     const fight = gatherFight(gameState, { initiator: championState, primaryTarget: target });
@@ -326,6 +331,24 @@ function updateFightTravel(gameState, championState, action, tickSeconds) {
     action.wasSpotted = true;
   }
   action.statusText = `${action.label} (${Math.ceil(distanceToTarget / CHAMPION_MOVE_SPEED)}s)${action.wasSpotted ? ' · spotted' : ''}`;
+}
+
+function regroupWithCaller(gameState, helper, action, tickSeconds) {
+  const caller = championById(gameState, action.regroupWithId);
+  if (!caller.isAlive || caller.activeAction?.linkedChampionId !== helper.id) {
+    abortAction(gameState, helper, `${action.label} called off: ${caller.champion.name} is gone`);
+    return false;
+  }
+  const distanceToCaller = distanceBetween(helper.position, caller.position);
+  if (distanceToCaller > REGROUP_DISTANCE) {
+    if (travelTick(gameState, helper, action, tickSeconds, caller.position)) {
+      action.statusText = `Joining ${caller.champion.name} (${Math.ceil(distanceToCaller / CHAMPION_MOVE_SPEED)}s)`;
+    }
+    return false;
+  }
+  action.regroupWithId = null;
+  startTravelAction(caller, { kind: ACTION_KIND.GANK, label: action.label, targetId: action.targetId, linkedChampionId: helper.id });
+  return true;
 }
 
 function updateInvade(gameState, championState, action, tickSeconds) {
