@@ -1,0 +1,70 @@
+import { TEAM } from '../config/teams.js';
+
+export const MAP_SIZE = 1000;
+export const CHAMPION_VISION_RADIUS = 125;
+export const TOWER_VISION_RADIUS = 110;
+export const BASE_VISION_RADIUS = 240;
+
+export const STRUCTURE_TYPE = Object.freeze({
+  TOWER: 'tower',
+  INHIBITOR: 'inhibitor',
+  NEXUS: 'nexus',
+});
+
+const BLUE_STRUCTURES = Object.freeze([
+  { type: STRUCTURE_TYPE.TOWER, lane: 'top', x: 85, y: 280 },
+  { type: STRUCTURE_TYPE.TOWER, lane: 'top', x: 90, y: 500 },
+  { type: STRUCTURE_TYPE.TOWER, lane: 'top', x: 95, y: 700 },
+  { type: STRUCTURE_TYPE.INHIBITOR, lane: 'top', x: 100, y: 775 },
+  { type: STRUCTURE_TYPE.TOWER, lane: 'mid', x: 395, y: 605 },
+  { type: STRUCTURE_TYPE.TOWER, lane: 'mid', x: 330, y: 670 },
+  { type: STRUCTURE_TYPE.TOWER, lane: 'mid', x: 255, y: 745 },
+  { type: STRUCTURE_TYPE.INHIBITOR, lane: 'mid', x: 215, y: 785 },
+  { type: STRUCTURE_TYPE.TOWER, lane: 'bot', x: 720, y: 915 },
+  { type: STRUCTURE_TYPE.TOWER, lane: 'bot', x: 500, y: 910 },
+  { type: STRUCTURE_TYPE.TOWER, lane: 'bot', x: 300, y: 905 },
+  { type: STRUCTURE_TYPE.INHIBITOR, lane: 'bot', x: 225, y: 900 },
+  { type: STRUCTURE_TYPE.TOWER, lane: 'base', x: 140, y: 830 },
+  { type: STRUCTURE_TYPE.TOWER, lane: 'base', x: 170, y: 860 },
+  { type: STRUCTURE_TYPE.NEXUS, lane: 'base', x: 115, y: 885 },
+]);
+
+const BLUE_LANING_POSITIONS = Object.freeze({
+  top: { x: 95, y: 175 },
+  jungle: { x: 250, y: 520 },
+  mid: { x: 470, y: 530 },
+  bot: { x: 825, y: 908 },
+  support: { x: 840, y: 870 },
+});
+
+const BLUE_JUNGLE_CAMPS = Object.freeze([
+  { x: 155, y: 450 }, { x: 250, y: 470 }, { x: 255, y: 585 },
+  { x: 480, y: 635 }, { x: 530, y: 760 }, { x: 575, y: 850 },
+]);
+
+export const LANE_PATHS = Object.freeze({
+  top: [[100, 860], [85, 140], [140, 85], [860, 100]],
+  mid: [[170, 830], [830, 170]],
+  bot: [[140, 900], [860, 915], [915, 860], [900, 140]],
+});
+
+export const RIVER_PATH = Object.freeze([[130, 130], [870, 870]]);
+export const BARON_PIT = Object.freeze({ x: 315, y: 315 });
+export const DRAGON_PIT = Object.freeze({ x: 685, y: 685 });
+export const BASE_CENTERS = Object.freeze({ [TEAM.BLUE]: { x: 60, y: 940 }, [TEAM.RED]: { x: 940, y: 60 } });
+
+export function structuresFor(team) {
+  return BLUE_STRUCTURES.map(structure => ({ ...structure, ...mirrorForTeam(structure, team) }));
+}
+
+export function laningPositionFor(team, role) {
+  return mirrorForTeam(BLUE_LANING_POSITIONS[role], team);
+}
+
+export function jungleCampsFor(team) {
+  return BLUE_JUNGLE_CAMPS.map(camp => mirrorForTeam(camp, team));
+}
+
+function mirrorForTeam(position, team) {
+  return team === TEAM.BLUE ? { x: position.x, y: position.y } : { x: position.y, y: position.x };
+}
