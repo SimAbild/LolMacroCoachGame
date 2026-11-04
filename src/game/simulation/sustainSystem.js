@@ -5,7 +5,7 @@ import {
 import { opposingTeam } from '../../config/teams.js';
 import { ACTIVITY } from '../activities.js';
 import { LANE_BY_ROLE } from '../mapLayout.js';
-import { ACTION_KIND } from '../../config/actions.js';
+import { isPlayingSafe } from '../stances.js';
 import { PLAY_SAFE_TRADE_DAMAGE_FACTOR } from '../../config/combatRules.js';
 
 const MIN_TRADE_INTENSITY = 0.4;
@@ -44,7 +44,7 @@ function isTradingWithLaneOpponent(championState, enemyChampions) {
 }
 
 function applyLaneTrade(gameState, championState, tickSeconds) {
-  const stanceFactor = championState.activeAction?.kind === ACTION_KIND.PLAY_SAFE ? PLAY_SAFE_TRADE_DAMAGE_FACTOR : 1;
+  const stanceFactor = isPlayingSafe(gameState, championState) ? PLAY_SAFE_TRADE_DAMAGE_FACTOR : 1;
   const tradeIntensity = (MIN_TRADE_INTENSITY + gameState.random() * TRADE_INTENSITY_SPREAD) * stanceFactor;
   championState.healthRatio = Math.max(
     MINIMUM_HEALTH_WITHOUT_COMBAT,

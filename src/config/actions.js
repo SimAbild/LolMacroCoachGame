@@ -12,6 +12,7 @@ export const ACTION_KIND = Object.freeze({
   CONTEST: 'contest',
   ENGAGE: 'engage',
   RETREAT: 'retreat',
+  PLAY_SETUP: 'playSetup',
 });
 
 export const TEAM_CALL = Object.freeze({

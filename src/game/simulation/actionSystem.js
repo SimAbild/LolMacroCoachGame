@@ -2,7 +2,7 @@ import { opposingTeam } from '../../config/teams.js';
 import { ROLE, ROLE_LABELS } from '../../config/roles.js';
 import { ACTION_KIND } from '../../config/actions.js';
 import {
-  COUNTER_GANK_RANGE, FIGHT_ENGAGE_DISTANCE, MAX_WARDS_PER_CHAMPION, PLAY_SAFE_SECONDS, SPOTTED_CHECK_MIN_DISTANCE,
+  COUNTER_GANK_RANGE, FIGHT_ENGAGE_DISTANCE, MAX_WARDS_PER_CHAMPION, PLAY_SAFE_SECONDS,
   TRINKET_RECHARGE_SECONDS, WARD_DURATION_SECONDS, WARD_PLACE_DISTANCE,
 } from '../../config/combatRules.js';
 import {
@@ -12,15 +12,14 @@ import { ACTIVITY } from '../activities.js';
 import { EVENT_KIND, addEvent } from '../events.js';
 import { allChampionStates } from '../gameState.js';
 import { BARON_PIT, FOUNTAIN_POSITIONS, LANE_BY_ROLE, STRUCTURE_TYPE, wardSpotFor } from '../mapLayout.js';
-import { isPositionVisible, visionSourcesFor } from '../vision.js';
-import { gatherFight, resolveFight } from './fightSystem.js';
+import { finishPlay, startPlay } from './playSystem.js';
 import { lanePushFor } from './laneSystem.js';
 import { isCampAlive } from './jungleSystem.js';
 import { grantExperience, grantGold } from './economy.js';
 import { startTeamfight } from './teamfightSystem.js';
 import { startRecall } from './recall.js';
 import {
-  CONTEST_RALLY_DISTANCE, CONTEST_RALLY_MIN_CHAMPIONS, CONTEST_RALLY_RADIUS, ENGAGE_TRIGGER_DISTANCE, GROUP_SPREAD, GROUP_STANDOFF_DISTANCE, RETREAT_TRAVEL_SECONDS, TEAMFIGHT_JOIN_RANGE, TEAMFIGHT_MIN_PARTICIPANTS,
+  CONTEST_RALLY_DISTANCE, CONTEST_RALLY_MIN_CHAMPIONS, CONTEST_RALLY_RADIUS, ENGAGE_TRIGGER_DISTANCE, GROUP_SPREAD, GROUP_STANDOFF_DISTANCE, RETREAT_TRAVEL_SECONDS, TEAMFIGHT_JOIN_RANGE,
 } from '../../config/teamfightRules.js';
 import { OBJECTIVE_RANGE } from '../../config/objectiveRules.js';
 import { RECALL_HEALTH_THRESHOLD_DURING_CALL } from '../../config/gameRules.js';
@@ -29,7 +28,6 @@ import { pointAtLaneDistance } from '../laneGeometry.js';
 import { directionTowardEnemy } from './laneSystem.js';
 
 const MAX_TRAVEL_SECONDS = 45;
-const REGROUP_DISTANCE = 90;
 const TEAM_SIZE = 5;
 const FULL_CIRCLE_RADIANS = Math.PI * 2;
 const MIN_ENEMIES_FOR_GROUP_FIGHT = 2;
@@ -72,34 +70,35 @@ const ACTION_STARTERS = Object.freeze({
     championState.activeAction = { kind: definition.kind, label: definition.label, secondsLeft: PLAY_SAFE_SECONDS, statusText: 'Playing safe' };
   },
   [ACTION_KIND.FARM]: () => {},
-  [ACTION_KIND.DIVE]: (gameState, championState, definition) => {
-    const target = laneOpponentOf(gameState, championState);
-    startTravelAction(championState, { kind: ACTION_KIND.DIVE, label: `Dive ${LANE_BY_ROLE[championState.role]}`, targetId: target.id });
+  [ACTION_KIND.DIVE]: (gameState, championState) => {
+    startPlay(gameState, {
+      gankers: [],
+      target: laneOpponentOf(gameState, championState),
+      label: `Dive ${LANE_BY_ROLE[championState.role]}`,
+      isDiveCall: true,
+      extraOwners: [championState],
+    });
   },
   [ACTION_KIND.GANK]: (gameState, championState, definition) => {
-    const target = enemyWithRole(gameState, championState.team, definition.targetRole);
-    startTravelAction(championState, { kind: ACTION_KIND.GANK, label: definition.label, targetId: target.id });
+    startPlay(gameState, {
+      gankers: [championState],
+      target: enemyWithRole(gameState, championState.team, definition.targetRole),
+      label: definition.label,
+    });
   },
   [ACTION_KIND.CALL_HELP]: (gameState, caller, definition, helperRole) => {
     const helper = allyWithRole(gameState, caller.team, helperRole);
-    const target = laneOpponentOf(gameState, caller);
     cancelAction(gameState, helper);
     if (helper.activity === ACTIVITY.RECALLING) {
       helper.activity = ACTIVITY.TRAVELING;
     }
-    caller.activeAction = {
-      kind: ACTION_KIND.CALL_HELP,
-      label: definition.label,
-      linkedChampionId: helper.id,
-      statusText: `Waiting for ${helper.champion.name}`,
-    };
-    startTravelAction(helper, {
-      kind: ACTION_KIND.GANK,
-      label: `${ROLE_LABELS[caller.role]} + ${ROLE_LABELS[helper.role]} play`,
-      targetId: target.id,
-      linkedChampionId: caller.id,
-      regroupWithId: caller.id,
-    });
+    const label = `${ROLE_LABELS[caller.role]} + ${ROLE_LABELS[helper.role]} play`;
+    const target = laneOpponentOf(gameState, caller);
+    if (caller.role === ROLE.JUNGLE) {
+      startPlay(gameState, { gankers: [helper, caller], target, label });
+      return;
+    }
+    startPlay(gameState, { gankers: [helper], target, label, extraOwners: [caller] });
   },
   [ACTION_KIND.INVADE]: (gameState, championState, definition) => {
     const camp = nearestAliveEnemyCamp(gameState, championState);
@@ -137,14 +136,10 @@ const ACTION_UPDATERS = Object.freeze({
       endAction(gameState, championState);
     }
   },
-  [ACTION_KIND.CALL_HELP]: (gameState, caller, action) => {
-    const helper = championById(gameState, action.linkedChampionId);
-    if (helper.activeAction?.linkedChampionId !== caller.id) {
-      endAction(gameState, caller);
-    }
-  },
-  [ACTION_KIND.DIVE]: updateFightTravel,
-  [ACTION_KIND.GANK]: updateFightTravel,
+  [ACTION_KIND.CALL_HELP]: () => {},
+  [ACTION_KIND.DIVE]: () => {},
+  [ACTION_KIND.GANK]: () => {},
+  [ACTION_KIND.PLAY_SETUP]: () => {},
   [ACTION_KIND.INVADE]: updateInvade,
   [ACTION_KIND.WARD]: updateWard,
   [ACTION_KIND.FARM]: () => {},
@@ -303,54 +298,6 @@ function midpoint(first, second) {
   return { x: (first.x + second.x) / 2, y: (first.y + second.y) / 2 };
 }
 
-function updateFightTravel(gameState, championState, action, tickSeconds) {
-  const target = championById(gameState, action.targetId);
-  if (!target.isAlive || target.activity === ACTIVITY.IN_FOUNTAIN) {
-    abortAction(gameState, championState, `${action.label} called off: ${target.champion.name} left`);
-    return;
-  }
-  if (action.regroupWithId && !regroupWithCaller(gameState, championState, action, tickSeconds)) {
-    return;
-  }
-  const distanceToTarget = distanceBetween(championState.position, target.position);
-  if (distanceToTarget <= FIGHT_ENGAGE_DISTANCE) {
-    const fight = gatherFight(gameState, { initiator: championState, primaryTarget: target });
-    endAction(gameState, championState);
-    const participantCount = fight.attackers.length + fight.defenders.length + fight.counterGankers.length;
-    if (participantCount >= TEAMFIGHT_MIN_PARTICIPANTS) {
-      startTeamfight(gameState, target.position);
-      return;
-    }
-    resolveFight(gameState, fight, { label: action.label, wasSpotted: action.wasSpotted });
-    return;
-  }
-  if (!travelTick(gameState, championState, action, tickSeconds, target.position)) {
-    return;
-  }
-  if (distanceToTarget > SPOTTED_CHECK_MIN_DISTANCE && isSeenByEnemies(gameState, championState)) {
-    action.wasSpotted = true;
-  }
-  action.statusText = `${action.label} (${Math.ceil(distanceToTarget / CHAMPION_MOVE_SPEED)}s)${action.wasSpotted ? ' · spotted' : ''}`;
-}
-
-function regroupWithCaller(gameState, helper, action, tickSeconds) {
-  const caller = championById(gameState, action.regroupWithId);
-  if (!caller.isAlive || caller.activeAction?.linkedChampionId !== helper.id) {
-    abortAction(gameState, helper, `${action.label} called off: ${caller.champion.name} is gone`);
-    return false;
-  }
-  const distanceToCaller = distanceBetween(helper.position, caller.position);
-  if (distanceToCaller > REGROUP_DISTANCE) {
-    if (travelTick(gameState, helper, action, tickSeconds, caller.position)) {
-      action.statusText = `Joining ${caller.champion.name} (${Math.ceil(distanceToCaller / CHAMPION_MOVE_SPEED)}s)`;
-    }
-    return false;
-  }
-  action.regroupWithId = null;
-  startTravelAction(caller, { kind: ACTION_KIND.GANK, label: action.label, targetId: action.targetId, linkedChampionId: helper.id });
-  return true;
-}
-
 function updateInvade(gameState, championState, action, tickSeconds) {
   const camp = action.camp;
   if (!isCampAlive(camp, gameState.gameSeconds)) {
@@ -366,9 +313,8 @@ function updateInvade(gameState, championState, action, tickSeconds) {
   }
   const enemyJungler = enemyWithRole(gameState, championState.team, ROLE.JUNGLE);
   if (enemyJungler.isAlive && distanceBetween(enemyJungler.position, camp.position) <= COUNTER_GANK_RANGE) {
-    const fight = gatherFight(gameState, { initiator: championState, primaryTarget: enemyJungler });
     endAction(gameState, championState);
-    resolveFight(gameState, fight, { label: 'Invade fight', wasSpotted: false });
+    startTeamfight(gameState, enemyJungler.position, { label: 'Invade fight', team: championState.team });
     return;
   }
   championState.targetPosition = camp.position;
@@ -437,6 +383,10 @@ function abortAction(gameState, championState, text) {
 
 function endAction(gameState, championState) {
   const action = championState.activeAction;
+  if (action?.playId) {
+    finishPlay(gameState, action.playId, `${action.label} cancelled`);
+    return;
+  }
   championState.activeAction = null;
   if (championState.activity === ACTIVITY.ACTING) {
     championState.activity = ACTIVITY.TRAVELING;
@@ -524,10 +474,6 @@ function nearestAliveEnemyCamp(gameState, championState) {
   return aliveEnemyCamps.reduce((nearest, camp) => (
     distanceBetween(camp.position, championState.position) < distanceBetween(nearest.position, championState.position) ? camp : nearest
   ));
-}
-
-function isSeenByEnemies(gameState, championState) {
-  return isPositionVisible(championState.position, visionSourcesFor(gameState, opposingTeam(championState.team)));
 }
 
 function distanceBetween(first, second) {

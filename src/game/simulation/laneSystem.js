@@ -11,6 +11,7 @@ import { frontStructureOf, isInhibitorDown, laneDistanceOfStructure } from '../s
 import { SUPER_MINIONS_PER_WAVE } from '../../config/structureRules.js';
 import { BARON_PUSH_MULTIPLIER } from '../../config/objectiveRules.js';
 import { hasBaron } from '../teamPower.js';
+import { isShovingWave } from '../stances.js';
 import { ACTIVITY } from '../activities.js';
 import { allChampionStates } from '../gameState.js';
 import { grantExperience, grantGold } from './economy.js';
@@ -146,8 +147,7 @@ function shovePushSpeed(laneState, championsAtWave, team) {
 }
 
 function isShoving(championState) {
-  const actionKind = championState.activeAction?.kind;
-  return actionKind === ACTION_KIND.SHOVE || actionKind === ACTION_KIND.GROUP;
+  return isShovingWave(championState);
 }
 
 function killMinions(laneState, team, requestedKills, minionDeaths) {

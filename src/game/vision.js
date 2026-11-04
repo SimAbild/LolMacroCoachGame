@@ -23,6 +23,14 @@ export function visionSourcesFor(gameState, team) {
   return [...championSources, ...towerSources, ...minionWaveSources, ...wardSources, baseSource];
 }
 
+export function teamVisionSources(gameState, team) {
+  if (gameState.visionCache?.gameSeconds !== gameState.gameSeconds) {
+    gameState.visionCache = { gameSeconds: gameState.gameSeconds, sourcesByTeam: {} };
+  }
+  gameState.visionCache.sourcesByTeam[team] ??= visionSourcesFor(gameState, team);
+  return gameState.visionCache.sourcesByTeam[team];
+}
+
 export function isPositionVisible(position, visionSources) {
   return visionSources.some(source => distanceBetween(position, source) <= source.radius && hasLineOfSight(source, position));
 }

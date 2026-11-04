@@ -10,6 +10,10 @@ import { directionTowardEnemy } from './laneSystem.js';
 import { chooseNextCamp } from './jungleSystem.js';
 import { hasItemsLeftToBuy, spendGoldOnBuild } from './economy.js';
 import { startRecall } from './recall.js';
+import { isPlayingSafe } from '../stances.js';
+import { opposingTeam } from '../../config/teams.js';
+import { DANGER_RANGE, DANGER_REACTION_SECONDS } from '../../config/playRules.js';
+import { isPositionVisible, teamVisionSources } from '../vision.js';
 import { ACTION_KIND } from '../../config/actions.js';
 import { PLAY_SAFE_EXTRA_STANDOFF } from '../../config/combatRules.js';
 
@@ -64,7 +68,20 @@ function handleLaning(gameState, championState, teamState) {
     startRecall(championState);
     return;
   }
+  reactToNearbyDanger(gameState, championState);
   championState.targetPosition = postFor(gameState, championState, teamState);
+}
+
+function reactToNearbyDanger(gameState, championState) {
+  const ownLane = LANE_BY_ROLE[championState.role];
+  const teamVision = teamVisionSources(gameState, championState.team);
+  const isThreatened = gameState.teams[opposingTeam(championState.team)].champions.some(enemy => enemy.isAlive
+    && LANE_BY_ROLE[enemy.role] !== ownLane
+    && distanceBetween(enemy.position, championState.position) <= DANGER_RANGE
+    && isPositionVisible(enemy.position, teamVision));
+  if (isThreatened) {
+    championState.cautiousUntilSeconds = Math.max(championState.cautiousUntilSeconds, gameState.gameSeconds + DANGER_REACTION_SECONDS);
+  }
 }
 
 function handleJungling(gameState, championState) {
@@ -119,8 +136,7 @@ function postFor(gameState, championState, teamState) {
   if (championState.role === ROLE.SUPPORT) {
     return supportPost(gameState, championState, teamState);
   }
-  const isPlayingSafe = championState.activeAction?.kind === ACTION_KIND.PLAY_SAFE;
-  return lanePost(gameState, championState, isPlayingSafe ? PLAY_SAFE_EXTRA_STANDOFF : 0);
+  return lanePost(gameState, championState, isPlayingSafe(gameState, championState) ? PLAY_SAFE_EXTRA_STANDOFF : 0);
 }
 
 function supportPost(gameState, championState, teamState) {

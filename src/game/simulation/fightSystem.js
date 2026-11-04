@@ -60,7 +60,8 @@ export function computeFightChance(gameState, fight, { wasSpotted }) {
   addModifier('Gold', (average(attackers, attacker => attacker.totalGoldEarned) - average(defenders, defender => defender.totalGoldEarned))
     / GOLD_PER_THOUSAND * GOLD_MODIFIER_PER_THOUSAND);
   addModifier('Buffs', teamBuffPower(gameState, attackers[0].team) - teamBuffPower(gameState, primaryTarget.team));
-  addModifier('Target playing safe', primaryTarget.activeAction?.kind === ACTION_KIND.PLAY_SAFE ? PLAYING_SAFE_TARGET_MODIFIER : 0);
+  const isTargetCautious = primaryTarget.activeAction?.kind === ACTION_KIND.PLAY_SAFE || gameState.gameSeconds < primaryTarget.cautiousUntilSeconds;
+  addModifier('Target playing safe', isTargetCautious ? PLAYING_SAFE_TARGET_MODIFIER : 0);
   if (isDive) {
     addModifier('Multiple divers', attackers.length >= 2 ? MULTIPLE_DIVERS_MODIFIER : 0);
     addModifier('Tank takes aggro', attackers.some(isTowerTank) ? TANK_TAKES_TOWER_AGGRO_MODIFIER : 0);
@@ -243,7 +244,7 @@ function average(items, valueOf) {
   return items.reduce((sum, item) => sum + valueOf(item), 0) / items.length;
 }
 
-function describeTopModifiers(modifiers) {
+export function describeTopModifiers(modifiers) {
   const strongest = [...modifiers].sort((first, second) => Math.abs(second.value) - Math.abs(first.value)).slice(0, MODIFIERS_SHOWN_IN_EVENT);
   if (strongest.length === 0) {
     return '';
