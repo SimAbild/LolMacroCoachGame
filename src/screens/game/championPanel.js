@@ -1,4 +1,4 @@
-import { createElement, createImage } from '../../ui/dom.js';
+import { createButton, createElement, createImage } from '../../ui/dom.js';
 import { ROLES, ROLE_LABELS } from '../../config/roles.js';
 import { CALL_HELP_ACTION_ID, ROLE_ACTIONS } from '../../config/actions.js';
 import { SUMMONER_SPELLS } from '../../config/summonerSpells.js';
@@ -9,14 +9,19 @@ import { describeActivity } from '../../game/activities.js';
 const RESOURCE_BAR_CLASS = Object.freeze({ Mana: 'bar--mana', Energy: 'bar--energy' });
 const PERCENT = 100;
 
-export function createChampionPanel(championState, { version, itemCatalog, isOwnTeam, onAction, onActionHover }) {
+export function createChampionPanel(championState, { version, itemCatalog, isOwnTeam, onAction, onCancelAction, onActionHover }) {
   const levelBadge = createElement('span', { className: 'level-badge' });
   const goldLabel = createElement('span', { className: 'champion-panel__gold' });
   const healthFill = createElement('div', { className: 'bar__fill' });
   const resourceFill = createElement('div', { className: 'bar__fill' });
-  const statusLine = createElement('div', { className: 'champion-card__status' });
+  const statusText = createElement('span', { className: 'champion-card__status-text' });
+  const cancelButton = createButton('✕', () => onCancelAction(championState), 'cancel-action');
+  cancelButton.title = 'Cancel call';
+  cancelButton.setAttribute('aria-label', 'Cancel call');
+  const statusLine = createElement('div', { className: 'champion-card__status' }, statusText, cancelButton);
   const resourceBarClass = RESOURCE_BAR_CLASS[championState.champion.resourceType] ?? 'bar--other';
   const itemSlots = createItemSlots();
+  const summonerIcons = createSummonerIcons(championState, version);
 
   const panel = createElement('div', { className: 'champion-panel' },
     createElement('div', { className: 'champion-panel__portrait' },
@@ -32,7 +37,7 @@ export function createChampionPanel(championState, { version, itemCatalog, isOwn
       createElement('div', { className: 'bar bar--health' }, healthFill),
       createElement('div', { className: `bar ${resourceBarClass}` }, resourceFill),
       createElement('div', { className: 'champion-panel__loadout' },
-        createSummonerIcons(championState, version),
+        summonerIcons.element,
         itemSlots.element,
       ),
     ),
@@ -54,8 +59,10 @@ export function createChampionPanel(championState, { version, itemCatalog, isOwn
     goldLabel.textContent = String(Math.floor(displayedState.gold));
     healthFill.style.width = `${displayedState.healthRatio * PERCENT}%`;
     resourceFill.style.width = `${displayedState.resourceRatio * PERCENT}%`;
-    statusLine.textContent = displayedState.queuedAction ? `Queued: ${displayedState.queuedAction}` : describeActivity(displayedState);
-    itemSlots.update(displayedState.items, itemCatalog);
+    statusText.textContent = describeActivity(displayedState);
+    cancelButton.hidden = !displayedState.activeAction;
+    itemSlots.update(displayedState.items, itemCatalog, isOwnTeam ? displayedState.trinketCharges : null);
+    summonerIcons.update(displayedState.summonerSpells);
     card.classList.toggle('is-dead', !displayedState.isAlive);
     card.classList.toggle('is-in-fog', !isOwnTeam && !displayedState.isVisibleToPlayer);
   }
@@ -66,9 +73,9 @@ export function createChampionPanel(championState, { version, itemCatalog, isOwn
     const otherRoles = ROLES.filter(role => role !== championState.role);
     for (const targetRole of otherRoles) {
       const label = `with ${ROLE_LABELS[targetRole]}`;
-      helpTargets.append(createActionChip({ id: CALL_HELP_ACTION_ID, label, targetRole }, () => {
+      helpTargets.append(createActionChip({ label, targetRole }, () => {
         helpTargets.hidden = true;
-        onAction(championState, { id: CALL_HELP_ACTION_ID, label: `Call help ${label}`, targetRole });
+        onAction(championState, callHelpDefinition(championState.role), { helperRole: targetRole });
       }));
     }
     const actionChips = createElement('div', { className: 'action-chips' });
@@ -100,25 +107,42 @@ export function createChampionPanel(championState, { version, itemCatalog, isOwn
   return { element: card, update };
 }
 
+function callHelpDefinition(role) {
+  return ROLE_ACTIONS[role].find(action => action.id === CALL_HELP_ACTION_ID);
+}
+
 function createSummonerIcons(championState, version) {
-  return createElement('div', { className: 'summoner-icons' },
-    ...championState.summonerSpells.map(({ spellId }) => createImage(
-      summonerSpellIconUrl(version, SUMMONER_SPELLS[spellId].iconId),
-      SUMMONER_SPELLS[spellId].label,
-      'summoner-icon',
-    )),
-  );
+  const icons = championState.summonerSpells.map(({ spellId }) => createImage(
+    summonerSpellIconUrl(version, SUMMONER_SPELLS[spellId].iconId),
+    SUMMONER_SPELLS[spellId].label,
+    'summoner-icon',
+  ));
+  const element = createElement('div', { className: 'summoner-icons' }, ...icons);
+
+  function update(summonerSpells) {
+    icons.forEach((icon, index) => {
+      const cooldownSeconds = summonerSpells[index]?.cooldownSeconds ?? 0;
+      icon.classList.toggle('is-on-cooldown', cooldownSeconds > 0);
+      icon.title = cooldownSeconds > 0
+        ? `${SUMMONER_SPELLS[summonerSpells[index].spellId].label} (${Math.ceil(cooldownSeconds)}s)`
+        : SUMMONER_SPELLS[summonerSpells[index].spellId].label;
+    });
+  }
+
+  return { element, update };
 }
 
 function createItemSlots() {
   const slots = Array.from({ length: ITEM_SLOTS }, () => createElement('span', { className: 'item-slot' }));
-  const element = createElement('div', { className: 'item-slots' },
-    ...slots,
-    createElement('span', { className: 'item-slot item-slot--trinket', attributes: { title: 'Ward trinket' } }),
-  );
+  const trinketSlot = createElement('span', { className: 'item-slot item-slot--trinket', attributes: { title: 'Ward trinket' } });
+  const element = createElement('div', { className: 'item-slots' }, ...slots, trinketSlot);
   const shownItemKeys = new Array(ITEM_SLOTS).fill('');
 
-  function update(items, itemCatalog) {
+  function update(items, itemCatalog, trinketCharges) {
+    if (trinketCharges !== null) {
+      trinketSlot.textContent = String(trinketCharges);
+      trinketSlot.title = `Ward trinket · ${trinketCharges} charges`;
+    }
     slots.forEach((slot, slotIndex) => {
       const item = items[slotIndex];
       const itemKey = item ? `${item.itemId}:${Math.floor(item.paidGold)}` : '';

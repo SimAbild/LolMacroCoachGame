@@ -5,6 +5,8 @@ import {
 import { opposingTeam } from '../../config/teams.js';
 import { ACTIVITY } from '../activities.js';
 import { LANE_BY_ROLE } from '../mapLayout.js';
+import { ACTION_KIND } from '../../config/actions.js';
+import { PLAY_SAFE_TRADE_DAMAGE_FACTOR } from '../../config/combatRules.js';
 
 const MIN_TRADE_INTENSITY = 0.4;
 const TRADE_INTENSITY_SPREAD = 1.2;
@@ -14,6 +16,9 @@ export function updateSustain(gameState, tickSeconds) {
   for (const teamState of Object.values(gameState.teams)) {
     const enemyChampions = gameState.teams[opposingTeam(teamState.team)].champions;
     for (const championState of teamState.champions) {
+      if (championState.activity === ACTIVITY.DEAD) {
+        continue;
+      }
       if (championState.activity === ACTIVITY.IN_FOUNTAIN) {
         restoreInFountain(championState, tickSeconds);
         continue;
@@ -39,7 +44,8 @@ function isTradingWithLaneOpponent(championState, enemyChampions) {
 }
 
 function applyLaneTrade(gameState, championState, tickSeconds) {
-  const tradeIntensity = MIN_TRADE_INTENSITY + gameState.random() * TRADE_INTENSITY_SPREAD;
+  const stanceFactor = championState.activeAction?.kind === ACTION_KIND.PLAY_SAFE ? PLAY_SAFE_TRADE_DAMAGE_FACTOR : 1;
+  const tradeIntensity = (MIN_TRADE_INTENSITY + gameState.random() * TRADE_INTENSITY_SPREAD) * stanceFactor;
   championState.healthRatio = Math.max(
     MINIMUM_HEALTH_WITHOUT_COMBAT,
     championState.healthRatio - LANE_TRADE_DAMAGE_PER_SECOND * tradeIntensity * tickSeconds,

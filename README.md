@@ -26,6 +26,7 @@ python -m http.server 8000
 
 - Milepæl 1: forside, matchmaking, turnerings-draft mod AI, swap-fase og kampskærmens layout med fog of war.
 - Milepæl 2: simuleringskerne med fast tick-rate (10 ticks per in-game sekund) og seeded random. Minion-bølger og lane push, champions går fra fountain til lane, farmer, trader, recaller og køber items ud fra build-typen. Junglere clearer camps, der respawner. Fjendens items, HP og level vises som sidst set, når de er i fog.
-- Næste: milepæl 3, hvor actions og calls bliver udført (ganks, dives, roams, wards, Call help).
+- Milepæl 3: calls bliver udført. Ganks, dives, roams, Call help, invade, wards, shove og play safe. Chancen for en gank eller dive beregnes ved ankomst ud fra lane push, vision (blev du spottet?), ratings, Flash, HP, levels, counter-gank, antal og gold. Kills med first blood, bounties, shutdowns og assists; respawn-timer efter level. Kill feed viser udfald og de vigtigste modifiers. AI-modstanderen ganker og warder selv.
+- Næste: milepæl 4 med strukturer, objectives, teamfights og team calls.
 
 Tal og tider til simuleringen ligger i `src/config/gameRules.js`.

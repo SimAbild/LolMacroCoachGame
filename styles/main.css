@@ -392,7 +392,27 @@ h1, h2 { font-family: var(--font-display); margin: 0; letter-spacing: 0.02em; }
 .game-body { display: grid; grid-template-columns: minmax(250px, 300px) 1fr minmax(250px, 300px); gap: 14px; min-height: 0; }
 .team-column { display: flex; flex-direction: column; gap: 8px; min-height: 0; overflow-y: auto; }
 .map-area { display: flex; flex-direction: column; gap: 10px; min-height: 0; min-width: 0; }
+.map-frame { position: relative; flex: 1; min-height: 0; display: flex; }
 .map-host { flex: 1; min-height: 0; display: grid; place-items: center; }
+.event-feed { position: absolute; display: flex; flex-direction: column; gap: 4px; max-width: min(420px, 48%); pointer-events: none; }
+.game-screen[data-player-side="blue"] .event-feed { top: 10px; right: 10px; align-items: flex-end; }
+.game-screen[data-player-side="red"] .event-feed { bottom: 10px; left: 10px; }
+.event-feed__item {
+  display: flex;
+  gap: 8px;
+  padding: 5px 9px;
+  font-size: 12px;
+  line-height: 1.35;
+  background: rgba(7, 11, 15, 0.86);
+  border: 1px solid var(--color-border);
+  border-left: 3px solid var(--color-text-muted);
+  border-radius: 4px;
+  animation: toast-in 160ms ease-out;
+}
+.event-feed__item.is-ours { border-left-color: var(--color-gold); }
+.event-feed__item.is-theirs { border-left-color: var(--color-red); }
+.event-feed__item--kill { font-weight: 600; }
+.event-feed__time { color: var(--color-text-muted); font-variant-numeric: tabular-nums; }
 .map-host canvas { border-radius: var(--radius); border: 1px solid #2a3a2f; box-shadow: 0 0 0 4px #0b1116, 0 0 0 5px #3b2f17; }
 
 .team-calls { display: flex; justify-content: center; align-items: center; gap: 8px; flex-wrap: wrap; }
@@ -467,8 +487,23 @@ h1, h2 { font-family: var(--font-display); margin: 0; letter-spacing: 0.02em; }
 .item-slot.is-partial .item-slot__icon { filter: grayscale(0.85) brightness(0.55); }
 .item-slot.is-partial::after { content: ''; position: absolute; left: 0; bottom: 0; height: 3px; width: var(--progress); background: var(--color-gold); }
 .item-slot--trinket { border-radius: 50%; border-color: #4a3d17; margin-left: 2px; }
-.champion-card__status { font-size: 12px; color: var(--color-text-muted); }
-.champion-card--red .champion-card__status { text-align: right; }
+.champion-card__status { display: flex; align-items: center; gap: 6px; min-height: 18px; font-size: 12px; color: var(--color-text-muted); }
+.champion-card--red .champion-card__status { flex-direction: row-reverse; }
+.cancel-action {
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  font-size: 10px;
+  line-height: 16px;
+  color: var(--color-red);
+  background: transparent;
+  border: 1px solid #5c2a31;
+  border-radius: 3px;
+  cursor: pointer;
+}
+.cancel-action[hidden] { display: none; }
+.summoner-icon.is-on-cooldown { filter: grayscale(1) brightness(0.45); }
+.item-slot--trinket { display: grid; place-items: center; font: 700 11px var(--font-display); color: var(--color-gold); }
 .action-chips, .help-targets { display: flex; flex-wrap: wrap; gap: 4px; }
 .help-targets[hidden] { display: none; }
 .champion-card--red .action-chips, .champion-card--red .help-targets { justify-content: flex-end; }

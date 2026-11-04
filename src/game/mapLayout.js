@@ -49,6 +49,17 @@ export const FOUNTAIN_POSITIONS = Object.freeze({ [TEAM.BLUE]: { x: 45, y: 955 }
 
 export const LANE_BY_ROLE = Object.freeze({ top: 'top', mid: 'mid', bot: 'bot', support: 'bot' });
 
+const BLUE_WARD_SPOTS = Object.freeze({
+  objectiveTop: { x: 290, y: 345 },
+  objectiveBot: { x: 655, y: 715 },
+  deepTop: { x: 450, y: 210 },
+  deepBot: { x: 790, y: 560 },
+});
+
+export function wardSpotFor(team, spotName) {
+  return mirrorForTeam(BLUE_WARD_SPOTS[spotName], team);
+}
+
 export function structuresFor(team) {
   return BLUE_STRUCTURES.map(structure => ({ ...structure, ...mirrorForTeam(structure, team) }));
 }

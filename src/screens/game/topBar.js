@@ -2,8 +2,8 @@ import { createButton, createElement } from '../../ui/dom.js';
 import { TEAM, TEAM_LABELS } from '../../config/teams.js';
 import { GAME_SPEEDS } from '../../game/gameClock.js';
 import { destroyedEnemyTowerCount, totalTeamGold } from '../../game/gameState.js';
+import { formatGameTime } from '../../ui/formatGameTime.js';
 
-const SECONDS_PER_MINUTE = 60;
 const GOLD_PER_THOUSAND = 1000;
 const DRAKES_FOR_SOUL = 4;
 
@@ -78,10 +78,4 @@ function createStat(iconName, title, valueElement) {
 
 function formatGold(gold) {
   return `${(gold / GOLD_PER_THOUSAND).toFixed(1)}K`;
-}
-
-function formatGameTime(gameSeconds) {
-  const minutes = Math.floor(gameSeconds / SECONDS_PER_MINUTE);
-  const seconds = Math.floor(gameSeconds % SECONDS_PER_MINUTE);
-  return `${minutes}:${String(seconds).padStart(2, '0')}`;
 }

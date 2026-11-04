@@ -6,14 +6,20 @@ import { updateMovement } from './movementSystem.js';
 import { updateSustain } from './sustainSystem.js';
 import { updateIncome } from './incomeSystem.js';
 import { updateScouting } from './scoutingSystem.js';
+import { updateActions } from './actionSystem.js';
+import { updateCooldownsAndWards } from './cooldownSystem.js';
+import { updateAiCoach } from './aiCoachSystem.js';
 
 const SYSTEMS_IN_TICK_ORDER = Object.freeze([
   updateLanes,
   updateJungle,
+  updateAiCoach,
+  updateActions,
   updateBehavior,
   updateMovement,
   updateSustain,
   updateIncome,
+  updateCooldownsAndWards,
   updateScouting,
 ]);
 

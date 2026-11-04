@@ -10,6 +10,8 @@ import { laneDistanceOfPoint, laneLength, pointAtLaneDistance } from '../laneGeo
 import { ACTIVITY } from '../activities.js';
 import { allChampionStates } from '../gameState.js';
 import { grantExperience, grantGold } from './economy.js';
+import { ACTION_KIND } from '../../config/actions.js';
+import { SHOVE_EXTRA_PUSH_SPEED, SHOVE_FARM_MULTIPLIER } from '../../config/combatRules.js';
 
 const TEAMS = [TEAM.BLUE, TEAM.RED];
 
@@ -23,7 +25,7 @@ export function updateLanes(gameState, tickSeconds) {
     resolveTowerDefense(gameState, laneState, tickSeconds, minionDeaths);
     resolveFarming(laneState, tickSeconds, championsAtWave, minionDeaths);
     grantLaneExperience(championsAtWave, minionDeaths);
-    moveWaveFront(gameState, laneState, tickSeconds);
+    moveWaveFront(gameState, laneState, tickSeconds, championsAtWave);
   }
 }
 
@@ -90,7 +92,8 @@ function resolveFarming(laneState, tickSeconds, championsAtWave, minionDeaths) {
   for (const team of TEAMS) {
     const farmers = championsAtWave[team].filter(championState => championState.role !== ROLE.SUPPORT);
     for (const farmer of farmers) {
-      const kills = killMinions(laneState, opposingTeam(team), FARM_KILLS_PER_SECOND * tickSeconds, minionDeaths);
+      const farmMultiplier = isShoving(farmer) ? SHOVE_FARM_MULTIPLIER : 1;
+      const kills = killMinions(laneState, opposingTeam(team), FARM_KILLS_PER_SECOND * farmMultiplier * tickSeconds, minionDeaths);
       grantGold(farmer, kills * MINION_GOLD);
     }
   }
@@ -107,7 +110,7 @@ function grantLaneExperience(championsAtWave, minionDeaths) {
   }
 }
 
-function moveWaveFront(gameState, laneState, tickSeconds) {
+function moveWaveFront(gameState, laneState, tickSeconds, championsAtWave) {
   const blueMinions = laneState.minions[TEAM.BLUE];
   const redMinions = laneState.minions[TEAM.RED];
   let velocityTowardRed = 0;
@@ -118,9 +121,21 @@ function moveWaveFront(gameState, laneState, tickSeconds) {
   } else if (redMinions > 0) {
     velocityTowardRed = -MINION_WALK_SPEED;
   }
+  velocityTowardRed += shovePushSpeed(laneState, championsAtWave, TEAM.BLUE) - shovePushSpeed(laneState, championsAtWave, TEAM.RED);
   const { blueLimit, redLimit } = waveFrontLimits(gameState, laneState);
   const movedDistance = laneState.frontDistance + velocityTowardRed * tickSeconds;
   laneState.frontDistance = Math.min(redLimit, Math.max(blueLimit, movedDistance));
+}
+
+function shovePushSpeed(laneState, championsAtWave, team) {
+  if (laneState.minions[team] <= 0) {
+    return 0;
+  }
+  return championsAtWave[team].filter(isShoving).length * SHOVE_EXTRA_PUSH_SPEED;
+}
+
+function isShoving(championState) {
+  return championState.activeAction?.kind === ACTION_KIND.SHOVE;
 }
 
 function killMinions(laneState, team, requestedKills, minionDeaths) {

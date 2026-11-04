@@ -1,6 +1,7 @@
 import { ROLE } from '../../config/roles.js';
 import {
   FARM_RANGE, LANE_STANDOFF_DISTANCE, RECALL_CHANNEL_SECONDS, RECALL_GOLD_THRESHOLD, RECALL_HEALTH_THRESHOLD, RECALL_MANA_THRESHOLD,
+  RECALL_HEALTH_THRESHOLD_DURING_CALL,
 } from '../../config/gameRules.js';
 import { ACTIVITY } from '../activities.js';
 import { FOUNTAIN_POSITIONS, LANE_BY_ROLE } from '../mapLayout.js';
@@ -8,6 +9,8 @@ import { pointAtLaneDistance } from '../laneGeometry.js';
 import { directionTowardEnemy } from './laneSystem.js';
 import { chooseNextCamp } from './jungleSystem.js';
 import { hasItemsLeftToBuy, spendGoldOnBuild } from './economy.js';
+import { ACTION_KIND } from '../../config/actions.js';
+import { PLAY_SAFE_EXTRA_STANDOFF } from '../../config/combatRules.js';
 
 const SUPPORT_DISTANCE_BEHIND_CARRY = 18;
 const SUPPORT_FOLLOWS_RECALL_RANGE = 120;
@@ -27,7 +30,22 @@ const ACTIVITY_HANDLERS = Object.freeze({
   [ACTIVITY.JUNGLING]: handleJungling,
   [ACTIVITY.RECALLING]: handleRecalling,
   [ACTIVITY.IN_FOUNTAIN]: handleInFountain,
+  [ACTIVITY.ACTING]: () => {},
+  [ACTIVITY.DEAD]: handleDead,
 });
+
+function handleDead(gameState, championState, teamState, tickSeconds) {
+  championState.activitySecondsLeft -= tickSeconds;
+  if (championState.activitySecondsLeft > 0) {
+    return;
+  }
+  championState.isAlive = true;
+  championState.healthRatio = FULL_RATIO;
+  championState.resourceRatio = FULL_RATIO;
+  championState.position = { ...FOUNTAIN_POSITIONS[championState.team] };
+  championState.activity = ACTIVITY.IN_FOUNTAIN;
+  spendGoldOnBuild(championState, gameState.itemCatalog);
+}
 
 function handleTraveling(gameState, championState, teamState) {
   const post = postFor(gameState, championState, teamState);
@@ -72,6 +90,7 @@ function handleInFountain(gameState, championState) {
 }
 
 function startRecall(championState) {
+  championState.activeAction = null;
   championState.activity = ACTIVITY.RECALLING;
   championState.activitySecondsLeft = RECALL_CHANNEL_SECONDS;
   championState.targetPosition = null;
@@ -79,6 +98,9 @@ function startRecall(championState) {
 }
 
 function shouldRecall(championState) {
+  if (championState.activeAction) {
+    return championState.healthRatio < RECALL_HEALTH_THRESHOLD_DURING_CALL;
+  }
   const isLowHealth = championState.healthRatio < RECALL_HEALTH_THRESHOLD;
   const isLowMana = championState.champion.resourceType === 'Mana' && championState.resourceRatio < RECALL_MANA_THRESHOLD;
   const canAffordUpgrade = championState.gold >= RECALL_GOLD_THRESHOLD && hasItemsLeftToBuy(championState);
@@ -101,11 +123,15 @@ function postFor(gameState, championState, teamState) {
   if (championState.role === ROLE.SUPPORT) {
     return supportPost(gameState, championState, teamState);
   }
-  return lanePost(gameState, championState, 0);
+  const isPlayingSafe = championState.activeAction?.kind === ACTION_KIND.PLAY_SAFE;
+  return lanePost(gameState, championState, isPlayingSafe ? PLAY_SAFE_EXTRA_STANDOFF : 0);
 }
 
 function supportPost(gameState, championState, teamState) {
   const carry = carryOf(teamState);
+  if (carry.activity === ACTIVITY.ACTING) {
+    return carry.position;
+  }
   const carryIsInLane = carry.activity === ACTIVITY.LANING;
   return lanePost(gameState, championState, carryIsInLane ? SUPPORT_DISTANCE_BEHIND_CARRY : 0);
 }

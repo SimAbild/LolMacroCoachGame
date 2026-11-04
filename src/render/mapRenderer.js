@@ -9,6 +9,7 @@ import { ACTIVITY } from '../game/activities.js';
 import { isCampAlive } from '../game/simulation/jungleSystem.js';
 import { directionTowardEnemy } from '../game/simulation/laneSystem.js';
 import { displayedStateFor } from '../game/simulation/scoutingSystem.js';
+import { WARD_VISION_RADIUS } from '../config/combatRules.js';
 
 const MAP_COLORS = Object.freeze({
   background: 0x0b1116,
@@ -19,6 +20,7 @@ const MAP_COLORS = Object.freeze({
   pit: 0x24596e,
   camp: 0x2b3b33,
   campAlive: 0xc9a227,
+  ward: 0xf2c94c,
   recallRing: 0x8fd3ff,
   coinText: 0xffffff,
   [TEAM.BLUE]: 0x3a9be8,
@@ -49,6 +51,8 @@ const RECALL_RING_RADIUS = COIN_RADIUS + 6;
 const RECALL_RING_WIDTH = 3;
 const RECALL_PULSE_SPEED = 0.006;
 const RECALL_PULSE_MIN_ALPHA = 0.35;
+const WARD_MARKER_SIZE = 7;
+const WARD_RING_ALPHA = 0.35;
 
 export async function createMapRenderer(hostElement, gameState) {
   const app = new Application();
@@ -66,8 +70,9 @@ export async function createMapRenderer(hostElement, gameState) {
   const fog = createFogLayer();
   const campLayer = new Graphics();
   const minionLayer = new Graphics();
+  const wardLayer = new Graphics();
   const coinLayer = new Container();
-  world.addChild(drawTerrain(), drawStructures(gameState), campLayer, minionLayer, fog.sprite, coinLayer);
+  world.addChild(drawTerrain(), drawStructures(gameState), campLayer, minionLayer, fog.sprite, wardLayer, coinLayer);
   app.stage.addChild(world);
 
   const coinsByChampionState = await createChampionCoins(gameState, coinLayer);
@@ -90,6 +95,7 @@ export async function createMapRenderer(hostElement, gameState) {
     fog.draw(playerVisionSources);
     drawJungleCamps(campLayer, currentGameState);
     drawMinionWaves(minionLayer, currentGameState, playerVisionSources);
+    drawOwnWards(wardLayer, currentGameState);
     const recallPulseAlpha = RECALL_PULSE_MIN_ALPHA + (1 - RECALL_PULSE_MIN_ALPHA) * (0.5 + 0.5 * Math.sin(performance.now() * RECALL_PULSE_SPEED));
     for (const [championState, { coin, recallRing }] of coinsByChampionState) {
       const isOwnChampion = championState.team === currentGameState.playerSide;
@@ -185,6 +191,15 @@ function drawMinionWaves(graphics, gameState, playerVisionSources) {
         }
       }
     }
+  }
+}
+
+function drawOwnWards(graphics, gameState) {
+  graphics.clear();
+  for (const ward of gameState.wards.filter(candidate => candidate.team === gameState.playerSide)) {
+    const { x, y } = ward.position;
+    graphics.circle(x, y, WARD_VISION_RADIUS).stroke({ width: 2, color: MAP_COLORS.ward, alpha: WARD_RING_ALPHA });
+    graphics.poly([x, y - WARD_MARKER_SIZE, x + WARD_MARKER_SIZE, y, x, y + WARD_MARKER_SIZE, x - WARD_MARKER_SIZE, y]).fill(MAP_COLORS.ward);
   }
 }
 

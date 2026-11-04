@@ -11,8 +11,10 @@ import { createChampionPanel } from './game/championPanel.js';
 import { createTopBar } from './game/topBar.js';
 import { createCoordinationOverlay } from './game/coordinationOverlay.js';
 import { mountHomeScreen } from './homeScreen.js';
+import { createEventFeed } from './game/eventFeed.js';
+import { cancelAction, issueAction } from '../game/simulation/actionSystem.js';
 
-const SIMULATION_PENDING_MESSAGE = 'Calls are queued. Carrying out calls is the next milestone.';
+const TEAM_CALLS_PENDING_MESSAGE = 'Team calls arrive with teamfights and objectives in milestone 4.';
 const PANEL_REFRESH_INTERVAL_MS = 200;
 
 export function mountGameScreen(root, { router, gameData, playerSide, loadouts }) {
@@ -24,7 +26,6 @@ export function mountGameScreen(root, { router, gameData, playerSide, loadouts }
   const cardsByTeamAndRole = { [TEAM.BLUE]: new Map(), [TEAM.RED]: new Map() };
   let mapRenderer = null;
   let isMounted = true;
-  let hasShownPendingMessage = false;
   let lastPanelRefreshMs = 0;
 
   const clock = createGameClock(gameSecondsDelta => {
@@ -42,12 +43,16 @@ export function mountGameScreen(root, { router, gameData, playerSide, loadouts }
     onLeave: () => router.show(mountHomeScreen),
   });
   const mapHost = createElement('div', { className: 'map-host' });
+  const eventFeed = createEventFeed(playerSide);
 
   screen.append(
     topBar.element,
     createElement('div', { className: 'game-body' },
       createTeamColumn(TEAM.BLUE),
-      createElement('main', { className: 'map-area' }, mapHost, createTeamCallBar()),
+      createElement('main', { className: 'map-area' },
+        createElement('div', { className: 'map-frame' }, mapHost, eventFeed.element),
+        createTeamCallBar(),
+      ),
       createTeamColumn(TEAM.RED),
     ),
     overlay.element,
@@ -79,7 +84,8 @@ export function mountGameScreen(root, { router, gameData, playerSide, loadouts }
         version: gameData.version,
         itemCatalog: gameData.items,
         isOwnTeam: team === playerSide,
-        onAction: queueChampionAction,
+        onAction: issueChampionAction,
+        onCancelAction: cancelChampionAction,
         onActionHover: showCoordinationLink,
       });
       panelsByChampionState.set(championState, panel);
@@ -91,7 +97,7 @@ export function mountGameScreen(root, { router, gameData, playerSide, loadouts }
 
   function createTeamCallBar() {
     const buttons = TEAM_CALLS.map(teamCall => createButton(teamCall.label, () => {
-      showToast(`Team call: ${teamCall.label}. ${SIMULATION_PENDING_MESSAGE}`);
+      showToast(`Team call: ${teamCall.label}. ${TEAM_CALLS_PENDING_MESSAGE}`);
     }, 'team-call'));
     return createElement('div', { className: 'team-calls' },
       createElement('span', { className: 'team-calls__label', text: 'Team calls' }),
@@ -101,19 +107,24 @@ export function mountGameScreen(root, { router, gameData, playerSide, loadouts }
 
   function refreshPanels() {
     topBar.update(gameState);
+    eventFeed.update(gameState);
     for (const [championState, panel] of panelsByChampionState) {
       panel.update(displayedStateFor(championState, playerSide));
     }
   }
 
-  function queueChampionAction(championState, action) {
-    championState.queuedAction = action.label;
-    panelsByChampionState.get(championState).update(championState);
-    showCoordinationLink(championState, null);
-    if (!hasShownPendingMessage) {
-      hasShownPendingMessage = true;
-      showToast(SIMULATION_PENDING_MESSAGE);
+  function issueChampionAction(championState, actionDefinition, options) {
+    const result = issueAction(gameState, championState, actionDefinition, options);
+    if (!result.isIssued) {
+      showToast(result.reason);
     }
+    showCoordinationLink(championState, null);
+    refreshPanels();
+  }
+
+  function cancelChampionAction(championState) {
+    cancelAction(gameState, championState);
+    refreshPanels();
   }
 
   function showCoordinationLink(championState, targetRole) {

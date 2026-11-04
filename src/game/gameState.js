@@ -1,6 +1,7 @@
 import { TEAM, opposingTeam } from '../config/teams.js';
 import { ROLE } from '../config/roles.js';
 import { MINION_FIRST_SPAWN_SECONDS, JUNGLE_CAMP_FIRST_SPAWN_SECONDS } from '../config/gameRules.js';
+import { TRINKET_MAX_CHARGES } from '../config/combatRules.js';
 import { BUILD_PATH_ITEM_IDS, JUNGLE_STARTING_ITEM_ID, STARTING_ITEM_ID_BY_BUILD } from '../config/itemBuilds.js';
 import { FOUNTAIN_POSITIONS, STRUCTURE_TYPE, jungleCampsFor, structuresFor } from './mapLayout.js';
 import { LANES, laneLength } from './laneGeometry.js';
@@ -24,6 +25,9 @@ export function createInitialGameState({ loadouts, playerSide, itemCatalog, seed
     },
     lanes: LANES.map(createLaneState),
     jungleCamps: [TEAM.BLUE, TEAM.RED].flatMap(team => jungleCampsFor(team).map(position => createJungleCamp(team, position))),
+    wards: [],
+    events: [],
+    isFirstBloodTaken: false,
   };
   for (const championState of allChampionStates(gameState)) {
     buyStartingItem(championState, itemCatalog);
@@ -77,7 +81,14 @@ function createChampionState(team, loadoutEntry) {
     activity: ACTIVITY.TRAVELING,
     activitySecondsLeft: 0,
     targetCamp: null,
-    queuedAction: null,
+    activeAction: null,
+    kills: 0,
+    deaths: 0,
+    assists: 0,
+    killStreak: 0,
+    deathStreak: 0,
+    trinketCharges: TRINKET_MAX_CHARGES,
+    trinketRechargeSecondsLeft: 0,
     isAlive: true,
     isVisibleToPlayer: true,
     lastSeen: null,
