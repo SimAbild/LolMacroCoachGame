@@ -1,6 +1,6 @@
 import { ROLE } from '../../config/roles.js';
 import {
-  FARM_RANGE, LANE_STANDOFF_DISTANCE, RECALL_CHANNEL_SECONDS, RECALL_GOLD_THRESHOLD, RECALL_HEALTH_THRESHOLD, RECALL_MANA_THRESHOLD,
+  FARM_RANGE, LANE_STANDOFF_DISTANCE, RECALL_GOLD_THRESHOLD, RECALL_HEALTH_THRESHOLD, RECALL_MANA_THRESHOLD,
   RECALL_HEALTH_THRESHOLD_DURING_CALL,
 } from '../../config/gameRules.js';
 import { ACTIVITY } from '../activities.js';
@@ -9,6 +9,7 @@ import { pointAtLaneDistance } from '../laneGeometry.js';
 import { directionTowardEnemy } from './laneSystem.js';
 import { chooseNextCamp } from './jungleSystem.js';
 import { hasItemsLeftToBuy, spendGoldOnBuild } from './economy.js';
+import { startRecall } from './recall.js';
 import { ACTION_KIND } from '../../config/actions.js';
 import { PLAY_SAFE_EXTRA_STANDOFF } from '../../config/combatRules.js';
 
@@ -19,6 +20,9 @@ const FULL_RATIO = 1;
 export function updateBehavior(gameState, tickSeconds) {
   for (const teamState of Object.values(gameState.teams)) {
     for (const championState of teamState.champions) {
+      if (championState.inFightId) {
+        continue;
+      }
       ACTIVITY_HANDLERS[championState.activity](gameState, championState, teamState, tickSeconds);
     }
   }
@@ -87,14 +91,6 @@ function handleInFountain(gameState, championState) {
   if (championState.healthRatio >= FULL_RATIO && championState.resourceRatio >= FULL_RATIO) {
     championState.activity = ACTIVITY.TRAVELING;
   }
-}
-
-function startRecall(championState) {
-  championState.activeAction = null;
-  championState.activity = ACTIVITY.RECALLING;
-  championState.activitySecondsLeft = RECALL_CHANNEL_SECONDS;
-  championState.targetPosition = null;
-  championState.targetCamp = null;
 }
 
 function shouldRecall(championState) {

@@ -11,14 +11,28 @@ import {
 import { ACTIVITY } from '../activities.js';
 import { EVENT_KIND, addEvent } from '../events.js';
 import { allChampionStates } from '../gameState.js';
-import { LANE_BY_ROLE, wardSpotFor } from '../mapLayout.js';
+import { BARON_PIT, FOUNTAIN_POSITIONS, LANE_BY_ROLE, STRUCTURE_TYPE, wardSpotFor } from '../mapLayout.js';
 import { isPositionVisible, visionSourcesFor } from '../vision.js';
 import { gatherFight, resolveFight } from './fightSystem.js';
 import { lanePushFor } from './laneSystem.js';
 import { isCampAlive } from './jungleSystem.js';
 import { grantExperience, grantGold } from './economy.js';
+import { startTeamfight } from './teamfightSystem.js';
+import { startRecall } from './recall.js';
+import {
+  CONTEST_RALLY_DISTANCE, CONTEST_RALLY_MIN_CHAMPIONS, CONTEST_RALLY_RADIUS, ENGAGE_TRIGGER_DISTANCE, GROUP_SPREAD, GROUP_STANDOFF_DISTANCE, RETREAT_TRAVEL_SECONDS, TEAMFIGHT_JOIN_RANGE, TEAMFIGHT_MIN_PARTICIPANTS,
+} from '../../config/teamfightRules.js';
+import { OBJECTIVE_RANGE } from '../../config/objectiveRules.js';
+import { RECALL_HEALTH_THRESHOLD_DURING_CALL } from '../../config/gameRules.js';
+import { chooseObjectiveToContest, isObjectiveRelevant } from '../objectives.js';
+import { pointAtLaneDistance } from '../laneGeometry.js';
+import { directionTowardEnemy } from './laneSystem.js';
 
 const MAX_TRAVEL_SECONDS = 45;
+const TEAM_SIZE = 5;
+const FULL_CIRCLE_RADIANS = Math.PI * 2;
+const MIN_ENEMIES_FOR_GROUP_FIGHT = 2;
+const ENGAGE_PHASE = Object.freeze({ APPROACH: 'approach', FIGHTING: 'fighting' });
 const FULLY_PUSHED_MARGIN = 2;
 
 export function issueAction(gameState, championState, actionDefinition, { helperRole } = {}) {
@@ -43,7 +57,7 @@ export function cancelAction(gameState, championState) {
 export function updateActions(gameState, tickSeconds) {
   for (const championState of allChampionStates(gameState)) {
     const action = championState.activeAction;
-    if (action && championState.isAlive) {
+    if (action && championState.isAlive && !championState.inFightId) {
       ACTION_UPDATERS[action.kind](gameState, championState, action, tickSeconds);
     }
   }
@@ -96,6 +110,15 @@ const ACTION_STARTERS = Object.freeze({
       wardPosition: wardSpotFor(championState.team, definition.wardSpot),
     });
   },
+  [ACTION_KIND.SETUP_OBJECTIVE]: (gameState, championState, definition) => {
+    const objective = chooseObjectiveToContest(gameState);
+    const wardSpot = objective.pit === BARON_PIT ? 'objectiveTop' : 'objectiveBot';
+    startTravelAction(championState, {
+      kind: ACTION_KIND.WARD,
+      label: `Setup ${objective.key}`,
+      wardPosition: wardSpotFor(championState.team, wardSpot),
+    });
+  },
 });
 
 const ACTION_UPDATERS = Object.freeze({
@@ -123,7 +146,160 @@ const ACTION_UPDATERS = Object.freeze({
   [ACTION_KIND.INVADE]: updateInvade,
   [ACTION_KIND.WARD]: updateWard,
   [ACTION_KIND.FARM]: () => {},
+  [ACTION_KIND.GROUP]: updateGroup,
+  [ACTION_KIND.CONTEST]: updateContest,
+  [ACTION_KIND.ENGAGE]: updateEngage,
+  [ACTION_KIND.RETREAT]: updateRetreat,
 });
+
+export function startTeamAction(championState, action) {
+  startTravelAction(championState, action);
+}
+
+export function startRetreat(gameState, championState) {
+  championState.activeAction = null;
+  startTravelAction(championState, {
+    kind: ACTION_KIND.RETREAT,
+    label: 'Backing off',
+    destination: retreatDestination(gameState, championState),
+    secondsLeft: RETREAT_TRAVEL_SECONDS,
+  });
+}
+
+function updateGroup(gameState, championState, action) {
+  if (championState.healthRatio < RECALL_HEALTH_THRESHOLD_DURING_CALL) {
+    startRecall(championState);
+    return;
+  }
+  const laneState = gameState.lanes.find(candidate => candidate.lane === action.lane);
+  const distanceBehindWave = (GROUP_STANDOFF_DISTANCE + action.spreadIndex * GROUP_SPREAD) * directionTowardEnemy(championState.team);
+  championState.targetPosition = pointAtLaneDistance(action.lane, laneState.frontDistance - distanceBehindWave);
+  action.statusText = 'Grouped mid';
+  const nearbyEnemies = livingEnemiesNear(gameState, championState, TEAMFIGHT_JOIN_RANGE);
+  if (nearbyEnemies.length >= MIN_ENEMIES_FOR_GROUP_FIGHT) {
+    startTeamfight(gameState, midpoint(championState.position, nearbyEnemies[0].position));
+  }
+}
+
+function updateContest(gameState, championState, action) {
+  const objective = gameState.objectives[action.objectiveKey];
+  if (!isObjectiveRelevant(gameState, objective)) {
+    endAction(gameState, championState);
+    return;
+  }
+  if (championState.healthRatio < RECALL_HEALTH_THRESHOLD_DURING_CALL) {
+    startRecall(championState);
+    return;
+  }
+  if (!action.hasRallied) {
+    const rallyPoint = contestRallyPoint(objective, championState.team);
+    championState.targetPosition = rallyPoint;
+    action.statusText = `${action.label} (gathering)`;
+    if (isTeamRallied(gameState, championState.team, objective, rallyPoint)) {
+      markTeamRallied(gameState, championState.team, objective);
+    }
+    return;
+  }
+  const angle = (action.spreadIndex / TEAM_SIZE) * FULL_CIRCLE_RADIANS;
+  const ringRadius = OBJECTIVE_RANGE / 2;
+  championState.targetPosition = {
+    x: objective.pit.x + Math.cos(angle) * ringRadius,
+    y: objective.pit.y + Math.sin(angle) * ringRadius,
+  };
+  const distanceToPit = distanceBetween(championState.position, objective.pit);
+  action.statusText = objective.isAlive
+    ? `${action.label} (${distanceToPit <= OBJECTIVE_RANGE ? 'taking' : `${Math.ceil(distanceToPit / CHAMPION_MOVE_SPEED)}s`})`
+    : `${action.label} (spawns in ${Math.ceil(objective.spawnAtSeconds - gameState.gameSeconds)}s)`;
+}
+
+function contestRallyPoint(objective, team) {
+  const fountain = FOUNTAIN_POSITIONS[team];
+  const distanceToFountain = distanceBetween(objective.pit, fountain);
+  return {
+    x: objective.pit.x + ((fountain.x - objective.pit.x) / distanceToFountain) * CONTEST_RALLY_DISTANCE,
+    y: objective.pit.y + ((fountain.y - objective.pit.y) / distanceToFountain) * CONTEST_RALLY_DISTANCE,
+  };
+}
+
+function isTeamRallied(gameState, team, objective, rallyPoint) {
+  const contesters = gameState.teams[team].champions.filter(teammate => teammate.isAlive && isContestingObjective(teammate, objective));
+  const rallied = contesters.filter(teammate => distanceBetween(teammate.position, rallyPoint) <= CONTEST_RALLY_RADIUS);
+  return rallied.length >= Math.min(CONTEST_RALLY_MIN_CHAMPIONS, contesters.length);
+}
+
+function markTeamRallied(gameState, team, objective) {
+  for (const teammate of gameState.teams[team].champions) {
+    if (isContestingObjective(teammate, objective)) {
+      teammate.activeAction.hasRallied = true;
+    }
+  }
+}
+
+function isContestingObjective(championState, objective) {
+  return championState.activeAction?.kind === ACTION_KIND.CONTEST && championState.activeAction.objectiveKey === objective.key;
+}
+
+function updateEngage(gameState, championState, action) {
+  if (action.phase === ENGAGE_PHASE.FIGHTING) {
+    const fight = gameState.fights.find(candidate => candidate.id === action.fightId);
+    if (!fight) {
+      endAction(gameState, championState);
+      return;
+    }
+    championState.targetPosition = fight.location;
+    action.statusText = 'Joining the fight';
+    return;
+  }
+  const target = championById(gameState, action.targetId);
+  if (!target.isAlive || target.activity === ACTIVITY.IN_FOUNTAIN) {
+    endAction(gameState, championState);
+    return;
+  }
+  championState.targetPosition = target.position;
+  const distanceToTarget = distanceBetween(championState.position, target.position);
+  action.statusText = `Engaging ${target.champion.name} (${Math.ceil(distanceToTarget / CHAMPION_MOVE_SPEED)}s)`;
+  if (distanceToTarget > ENGAGE_TRIGGER_DISTANCE) {
+    return;
+  }
+  const fight = startTeamfight(gameState, target.position);
+  for (const teammate of gameState.teams[championState.team].champions) {
+    if (teammate.activeAction?.kind === ACTION_KIND.ENGAGE) {
+      teammate.activeAction.phase = ENGAGE_PHASE.FIGHTING;
+      teammate.activeAction.fightId = fight.id;
+    }
+  }
+}
+
+function updateRetreat(gameState, championState, action, tickSeconds) {
+  championState.targetPosition = action.destination;
+  action.secondsLeft -= tickSeconds;
+  action.statusText = 'Backing off';
+  if (action.secondsLeft <= 0 || distanceBetween(championState.position, action.destination) <= WARD_PLACE_DISTANCE) {
+    endAction(gameState, championState);
+  }
+}
+
+function retreatDestination(gameState, championState) {
+  const standingTowers = gameState.teams[championState.team].structures
+    .filter(structure => structure.type === STRUCTURE_TYPE.TOWER && structure.isStanding);
+  if (standingTowers.length === 0) {
+    return { ...FOUNTAIN_POSITIONS[championState.team] };
+  }
+  const nearestTower = standingTowers.reduce((nearest, tower) => (
+    distanceBetween(tower, championState.position) < distanceBetween(nearest, championState.position) ? tower : nearest
+  ));
+  return { x: nearestTower.x, y: nearestTower.y };
+}
+
+function livingEnemiesNear(gameState, championState, range) {
+  return gameState.teams[opposingTeam(championState.team)].champions.filter(enemy => enemy.isAlive
+    && enemy.activity !== ACTIVITY.IN_FOUNTAIN
+    && distanceBetween(enemy.position, championState.position) <= range);
+}
+
+function midpoint(first, second) {
+  return { x: (first.x + second.x) / 2, y: (first.y + second.y) / 2 };
+}
 
 function updateFightTravel(gameState, championState, action, tickSeconds) {
   const target = championById(gameState, action.targetId);
@@ -135,6 +311,11 @@ function updateFightTravel(gameState, championState, action, tickSeconds) {
   if (distanceToTarget <= FIGHT_ENGAGE_DISTANCE) {
     const fight = gatherFight(gameState, { initiator: championState, primaryTarget: target });
     endAction(gameState, championState);
+    const participantCount = fight.attackers.length + fight.defenders.length + fight.counterGankers.length;
+    if (participantCount >= TEAMFIGHT_MIN_PARTICIPANTS) {
+      startTeamfight(gameState, target.position);
+      return;
+    }
     resolveFight(gameState, fight, { label: action.label, wasSpotted: action.wasSpotted });
     return;
   }
@@ -257,7 +438,7 @@ function rejectionReason(gameState, championState, actionDefinition, helperRole)
   }
   switch (actionDefinition.kind) {
     case ACTION_KIND.SETUP_OBJECTIVE:
-      return 'Objectives arrive in milestone 4';
+      return chooseObjectiveToContest(gameState) ? null : 'No objective is up or spawning soon';
     case ACTION_KIND.DIVE:
       return targetRejectionReason(laneOpponentOf(gameState, championState));
     case ACTION_KIND.GANK:

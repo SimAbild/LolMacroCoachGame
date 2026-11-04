@@ -3,8 +3,10 @@ import { allChampionStates } from '../gameState.js';
 
 export function updateMovement(gameState, tickSeconds) {
   for (const championState of allChampionStates(gameState)) {
-    if (championState.targetPosition) {
-      moveToward(championState, championState.targetPosition, CHAMPION_MOVE_SPEED * tickSeconds);
+    const fight = championState.inFightId ? gameState.fights.find(candidate => candidate.id === championState.inFightId) : null;
+    const destination = fight?.location ?? championState.targetPosition;
+    if (destination && championState.isAlive) {
+      moveToward(championState, destination, CHAMPION_MOVE_SPEED * tickSeconds);
     }
   }
 }

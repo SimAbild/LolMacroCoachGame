@@ -22,6 +22,7 @@ export function createChampionPanel(championState, { version, itemCatalog, isOwn
   const resourceBarClass = RESOURCE_BAR_CLASS[championState.champion.resourceType] ?? 'bar--other';
   const itemSlots = createItemSlots();
   const summonerIcons = createSummonerIcons(championState, version);
+  const ultimateBadge = createElement('span', { className: 'ultimate-badge', text: 'R' });
 
   const panel = createElement('div', { className: 'champion-panel' },
     createElement('div', { className: 'champion-panel__portrait' },
@@ -37,6 +38,7 @@ export function createChampionPanel(championState, { version, itemCatalog, isOwn
       createElement('div', { className: 'bar bar--health' }, healthFill),
       createElement('div', { className: `bar ${resourceBarClass}` }, resourceFill),
       createElement('div', { className: 'champion-panel__loadout' },
+        ultimateBadge,
         summonerIcons.element,
         itemSlots.element,
       ),
@@ -63,6 +65,9 @@ export function createChampionPanel(championState, { version, itemCatalog, isOwn
     cancelButton.hidden = !displayedState.activeAction;
     itemSlots.update(displayedState.items, itemCatalog, isOwnTeam ? displayedState.trinketCharges : null);
     summonerIcons.update(displayedState.summonerSpells);
+    const ultimateCooldown = displayedState.ultimateCooldownSeconds ?? 0;
+    ultimateBadge.classList.toggle('is-on-cooldown', ultimateCooldown > 0);
+    ultimateBadge.title = ultimateCooldown > 0 ? `Ultimate (${Math.ceil(ultimateCooldown)}s)` : 'Ultimate ready';
     card.classList.toggle('is-dead', !displayedState.isAlive);
     card.classList.toggle('is-in-fog', !isOwnTeam && !displayedState.isVisibleToPlayer);
   }

@@ -7,6 +7,7 @@ export function updateCooldownsAndWards(gameState, tickSeconds) {
     for (const spell of championState.summonerSpells) {
       spell.cooldownSeconds = Math.max(0, spell.cooldownSeconds - tickSeconds);
     }
+    championState.ultimateCooldownSeconds = Math.max(0, championState.ultimateCooldownSeconds - tickSeconds);
     rechargeTrinket(championState, tickSeconds);
   }
 }

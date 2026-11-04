@@ -20,6 +20,7 @@ import { EVENT_KIND, addEvent } from '../events.js';
 import { LANE_BY_ROLE, STRUCTURE_TYPE } from '../mapLayout.js';
 import { lanePushFor } from './laneSystem.js';
 import { grantExperience, grantGold } from './economy.js';
+import { teamBuffPower } from '../teamPower.js';
 
 const PERCENT = 100;
 const GOLD_PER_THOUSAND = 1000;
@@ -58,6 +59,7 @@ export function computeFightChance(gameState, fight, { wasSpotted }) {
   addModifier('Numbers', (attackers.length - defenders.length - 1) * NUMBERS_MODIFIER_PER_CHAMPION);
   addModifier('Gold', (average(attackers, attacker => attacker.totalGoldEarned) - average(defenders, defender => defender.totalGoldEarned))
     / GOLD_PER_THOUSAND * GOLD_MODIFIER_PER_THOUSAND);
+  addModifier('Buffs', teamBuffPower(gameState, attackers[0].team) - teamBuffPower(gameState, primaryTarget.team));
   addModifier('Target playing safe', primaryTarget.activeAction?.kind === ACTION_KIND.PLAY_SAFE ? PLAYING_SAFE_TARGET_MODIFIER : 0);
   if (isDive) {
     addModifier('Multiple divers', attackers.length >= 2 ? MULTIPLE_DIVERS_MODIFIER : 0);

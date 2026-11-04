@@ -9,18 +9,26 @@ import { updateScouting } from './scoutingSystem.js';
 import { updateActions } from './actionSystem.js';
 import { updateCooldownsAndWards } from './cooldownSystem.js';
 import { updateAiCoach } from './aiCoachSystem.js';
+import { updateStructures } from './structureSystem.js';
+import { updateObjectives } from './objectiveSystem.js';
+import { updateTeamfights } from './teamfightSystem.js';
+import { updateGoldHistory } from './statsSystem.js';
 
 const SYSTEMS_IN_TICK_ORDER = Object.freeze([
   updateLanes,
+  updateStructures,
   updateJungle,
+  updateObjectives,
   updateAiCoach,
   updateActions,
+  updateTeamfights,
   updateBehavior,
   updateMovement,
   updateSustain,
   updateIncome,
   updateCooldownsAndWards,
   updateScouting,
+  updateGoldHistory,
 ]);
 
 export function createSimulation(gameState) {
@@ -28,7 +36,7 @@ export function createSimulation(gameState) {
 
   function advance(gameSecondsDelta) {
     unsimulatedSeconds += gameSecondsDelta;
-    while (unsimulatedSeconds >= TICK_SECONDS) {
+    while (unsimulatedSeconds >= TICK_SECONDS && !gameState.winner) {
       runTick();
       unsimulatedSeconds -= TICK_SECONDS;
     }

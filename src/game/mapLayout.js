@@ -13,21 +13,21 @@ export const STRUCTURE_TYPE = Object.freeze({
 });
 
 const BLUE_STRUCTURES = Object.freeze([
-  { type: STRUCTURE_TYPE.TOWER, lane: 'top', x: 85, y: 280 },
-  { type: STRUCTURE_TYPE.TOWER, lane: 'top', x: 90, y: 500 },
-  { type: STRUCTURE_TYPE.TOWER, lane: 'top', x: 95, y: 700 },
-  { type: STRUCTURE_TYPE.INHIBITOR, lane: 'top', x: 100, y: 775 },
-  { type: STRUCTURE_TYPE.TOWER, lane: 'mid', x: 395, y: 605 },
-  { type: STRUCTURE_TYPE.TOWER, lane: 'mid', x: 330, y: 670 },
-  { type: STRUCTURE_TYPE.TOWER, lane: 'mid', x: 255, y: 745 },
-  { type: STRUCTURE_TYPE.INHIBITOR, lane: 'mid', x: 215, y: 785 },
-  { type: STRUCTURE_TYPE.TOWER, lane: 'bot', x: 720, y: 915 },
-  { type: STRUCTURE_TYPE.TOWER, lane: 'bot', x: 500, y: 910 },
-  { type: STRUCTURE_TYPE.TOWER, lane: 'bot', x: 300, y: 905 },
-  { type: STRUCTURE_TYPE.INHIBITOR, lane: 'bot', x: 225, y: 900 },
-  { type: STRUCTURE_TYPE.TOWER, lane: 'base', x: 140, y: 830 },
-  { type: STRUCTURE_TYPE.TOWER, lane: 'base', x: 170, y: 860 },
-  { type: STRUCTURE_TYPE.NEXUS, lane: 'base', x: 115, y: 885 },
+  { type: STRUCTURE_TYPE.TOWER, lane: 'top', tier: 'outer', x: 85, y: 280 },
+  { type: STRUCTURE_TYPE.TOWER, lane: 'top', tier: 'inner', x: 90, y: 500 },
+  { type: STRUCTURE_TYPE.TOWER, lane: 'top', tier: 'inhibitorTower', x: 95, y: 700 },
+  { type: STRUCTURE_TYPE.INHIBITOR, lane: 'top', tier: 'inhibitor', x: 100, y: 775 },
+  { type: STRUCTURE_TYPE.TOWER, lane: 'mid', tier: 'outer', x: 395, y: 605 },
+  { type: STRUCTURE_TYPE.TOWER, lane: 'mid', tier: 'inner', x: 330, y: 670 },
+  { type: STRUCTURE_TYPE.TOWER, lane: 'mid', tier: 'inhibitorTower', x: 255, y: 745 },
+  { type: STRUCTURE_TYPE.INHIBITOR, lane: 'mid', tier: 'inhibitor', x: 215, y: 785 },
+  { type: STRUCTURE_TYPE.TOWER, lane: 'bot', tier: 'outer', x: 720, y: 915 },
+  { type: STRUCTURE_TYPE.TOWER, lane: 'bot', tier: 'inner', x: 500, y: 910 },
+  { type: STRUCTURE_TYPE.TOWER, lane: 'bot', tier: 'inhibitorTower', x: 300, y: 905 },
+  { type: STRUCTURE_TYPE.INHIBITOR, lane: 'bot', tier: 'inhibitor', x: 225, y: 900 },
+  { type: STRUCTURE_TYPE.TOWER, lane: 'base', tier: 'nexusTower', x: 140, y: 830 },
+  { type: STRUCTURE_TYPE.TOWER, lane: 'base', tier: 'nexusTower', x: 170, y: 860 },
+  { type: STRUCTURE_TYPE.NEXUS, lane: 'base', tier: 'nexus', x: 115, y: 885 },
 ]);
 
 const BLUE_JUNGLE_CAMPS = Object.freeze([

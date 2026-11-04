@@ -21,6 +21,10 @@ const MAP_COLORS = Object.freeze({
   camp: 0x2b3b33,
   campAlive: 0xc9a227,
   ward: 0xf2c94c,
+  destroyedStructure: 0x3a4650,
+  fight: 0xf2a51d,
+  elder: 0xe8e3d0,
+  voidCreature: 0x9b5de5,
   recallRing: 0x8fd3ff,
   coinText: 0xffffff,
   [TEAM.BLUE]: 0x3a9be8,
@@ -52,6 +56,23 @@ const RECALL_RING_WIDTH = 3;
 const RECALL_PULSE_SPEED = 0.006;
 const RECALL_PULSE_MIN_ALPHA = 0.35;
 const WARD_MARKER_SIZE = 7;
+const DESTROYED_STRUCTURE_STROKE = 2;
+const DRAGON_ICON_RADIUS = 17;
+const BARON_ICON_RADIUS = 21;
+const GRUB_ICON_RADIUS = 7;
+const GRUB_ICON_SPACING = 16;
+const FIGHT_RING_RADIUS = 46;
+const FIGHT_RING_PULSE = 10;
+const FIGHT_PULSE_SPEED = 0.01;
+const FIGHT_RING_WIDTH = 3;
+const ELEMENT_COLORS = Object.freeze({
+  Infernal: 0xe8603c,
+  Mountain: 0xb08d57,
+  Ocean: 0x3fb6c9,
+  Cloud: 0xc7d3e0,
+  Hextech: 0x4fd1c5,
+  Chemtech: 0x8fcf3a,
+});
 const WARD_RING_ALPHA = 0.35;
 
 export async function createMapRenderer(hostElement, gameState) {
@@ -71,8 +92,12 @@ export async function createMapRenderer(hostElement, gameState) {
   const campLayer = new Graphics();
   const minionLayer = new Graphics();
   const wardLayer = new Graphics();
+  const structureLayer = new Graphics();
+  const objectiveLayer = new Graphics();
+  const fightLayer = new Graphics();
+  let shownStructureSignature = '';
   const coinLayer = new Container();
-  world.addChild(drawTerrain(), drawStructures(gameState), campLayer, minionLayer, fog.sprite, wardLayer, coinLayer);
+  world.addChild(drawTerrain(), structureLayer, objectiveLayer, campLayer, minionLayer, fog.sprite, wardLayer, fightLayer, coinLayer);
   app.stage.addChild(world);
 
   const coinsByChampionState = await createChampionCoins(gameState, coinLayer);
@@ -96,6 +121,13 @@ export async function createMapRenderer(hostElement, gameState) {
     drawJungleCamps(campLayer, currentGameState);
     drawMinionWaves(minionLayer, currentGameState, playerVisionSources);
     drawOwnWards(wardLayer, currentGameState);
+    drawObjectives(objectiveLayer, currentGameState);
+    drawFights(fightLayer, currentGameState, playerVisionSources);
+    const structureSignature = structureSignatureOf(currentGameState);
+    if (structureSignature !== shownStructureSignature) {
+      shownStructureSignature = structureSignature;
+      drawStructures(structureLayer, currentGameState);
+    }
     const recallPulseAlpha = RECALL_PULSE_MIN_ALPHA + (1 - RECALL_PULSE_MIN_ALPHA) * (0.5 + 0.5 * Math.sin(performance.now() * RECALL_PULSE_SPEED));
     for (const [championState, { coin, recallRing }] of coinsByChampionState) {
       const isOwnChampion = championState.team === currentGameState.playerSide;
@@ -140,18 +172,63 @@ function strokePath(graphics, points, width, color) {
   graphics.stroke({ width, color, cap: 'round', join: 'round' });
 }
 
-function drawStructures(gameState) {
-  const structuresGraphics = new Graphics();
+function structureSignatureOf(gameState) {
+  return Object.values(gameState.teams)
+    .flatMap(teamState => teamState.structures.map(structure => (structure.isStanding ? '1' : '0')))
+    .join('');
+}
+
+function drawStructures(graphics, gameState) {
+  graphics.clear();
   for (const teamState of Object.values(gameState.teams)) {
-    const teamColor = MAP_COLORS[teamState.team];
     for (const structure of teamState.structures) {
-      drawStructure(structuresGraphics, structure, teamColor);
+      drawStructure(graphics, structure, structure.isStanding ? MAP_COLORS[teamState.team] : MAP_COLORS.destroyedStructure);
     }
   }
-  return structuresGraphics;
+}
+
+function drawObjectives(graphics, gameState) {
+  graphics.clear();
+  const { dragon, elder, grubs, herald, baron } = gameState.objectives;
+  if (dragon.isAlive) {
+    graphics.circle(dragon.pit.x, dragon.pit.y, DRAGON_ICON_RADIUS).fill(ELEMENT_COLORS[dragon.element] ?? MAP_COLORS.elder);
+  }
+  if (elder.isAlive) {
+    graphics.circle(elder.pit.x, elder.pit.y, DRAGON_ICON_RADIUS).fill(MAP_COLORS.elder);
+  }
+  if (baron.isAlive) {
+    graphics.circle(baron.pit.x, baron.pit.y, BARON_ICON_RADIUS).fill(MAP_COLORS.voidCreature);
+  }
+  if (herald.isAlive) {
+    graphics.circle(herald.pit.x, herald.pit.y, DRAGON_ICON_RADIUS).fill(MAP_COLORS.voidCreature);
+  }
+  if (grubs.isAlive) {
+    for (const offset of [-GRUB_ICON_SPACING, 0, GRUB_ICON_SPACING]) {
+      graphics.circle(grubs.pit.x + offset, grubs.pit.y, GRUB_ICON_RADIUS).fill(MAP_COLORS.voidCreature);
+    }
+  }
+}
+
+function drawDestroyedStructure(graphics, structure) {
+  graphics.circle(structure.x, structure.y, INHIBITOR_RADIUS).stroke({ width: DESTROYED_STRUCTURE_STROKE, color: MAP_COLORS.destroyedStructure });
+}
+
+function drawFights(graphics, gameState, playerVisionSources) {
+  graphics.clear();
+  const pulse = Math.sin(performance.now() * FIGHT_PULSE_SPEED) * FIGHT_RING_PULSE;
+  for (const fight of gameState.fights) {
+    if (!isPositionVisible(fight.location, playerVisionSources)) {
+      continue;
+    }
+    graphics.circle(fight.location.x, fight.location.y, FIGHT_RING_RADIUS + pulse).stroke({ width: FIGHT_RING_WIDTH, color: MAP_COLORS.fight });
+  }
 }
 
 function drawStructure(graphics, structure, teamColor) {
+  if (teamColor === MAP_COLORS.destroyedStructure) {
+    drawDestroyedStructure(graphics, structure);
+    return;
+  }
   if (structure.type === STRUCTURE_TYPE.TOWER) {
     graphics.poly([
       structure.x, structure.y - TOWER_HALF_SIZE,

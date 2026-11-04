@@ -2,6 +2,8 @@ import { TEAM, opposingTeam } from '../config/teams.js';
 import { ROLE } from '../config/roles.js';
 import { MINION_FIRST_SPAWN_SECONDS, JUNGLE_CAMP_FIRST_SPAWN_SECONDS } from '../config/gameRules.js';
 import { TRINKET_MAX_CHARGES } from '../config/combatRules.js';
+import { OUTER_TOWER_PLATES } from '../config/structureRules.js';
+import { createObjectivesState } from './objectives.js';
 import { BUILD_PATH_ITEM_IDS, JUNGLE_STARTING_ITEM_ID, STARTING_ITEM_ID_BY_BUILD } from '../config/itemBuilds.js';
 import { FOUNTAIN_POSITIONS, STRUCTURE_TYPE, jungleCampsFor, structuresFor } from './mapLayout.js';
 import { LANES, laneLength } from './laneGeometry.js';
@@ -28,6 +30,14 @@ export function createInitialGameState({ loadouts, playerSide, itemCatalog, seed
     wards: [],
     events: [],
     isFirstBloodTaken: false,
+    platesHaveFallen: false,
+    objectives: createObjectivesState(seed),
+    riftElement: null,
+    fights: [],
+    nextFightId: 1,
+    goldHistory: [],
+    callLog: [],
+    winner: null,
   };
   for (const championState of allChampionStates(gameState)) {
     buyStartingItem(championState, itemCatalog);
@@ -55,7 +65,19 @@ function createTeamState(team, loadout) {
     kills: 0,
     drakes: [],
     voidGrubs: 0,
-    structures: structuresFor(team).map(structure => ({ ...structure, isStanding: true })),
+    soulElement: null,
+    elderUntilSeconds: 0,
+    baronUntilSeconds: 0,
+    baronsTaken: 0,
+    eldersTaken: 0,
+    heraldsTaken: 0,
+    structures: structuresFor(team).map(structure => ({
+      ...structure,
+      isStanding: true,
+      healthRatio: 1,
+      platesLeft: structure.tier === 'outer' ? OUTER_TOWER_PLATES : 0,
+      respawnAtSeconds: null,
+    })),
     champions: loadout.map(entry => createChampionState(team, entry)),
   };
 }
@@ -89,6 +111,10 @@ function createChampionState(team, loadoutEntry) {
     deathStreak: 0,
     trinketCharges: TRINKET_MAX_CHARGES,
     trinketRechargeSecondsLeft: 0,
+    ultimateCooldownSeconds: 0,
+    inFightId: null,
+    canRejoinFightAtSeconds: 0,
+    exhaustedUntilSeconds: 0,
     isAlive: true,
     isVisibleToPlayer: true,
     lastSeen: null,

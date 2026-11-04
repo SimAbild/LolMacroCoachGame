@@ -1,0 +1,39 @@
+export const TEAMFIGHT_MIN_PARTICIPANTS = 5;
+export const TEAMFIGHT_JOIN_RANGE = 200;
+export const TEAMFIGHT_MAX_SECONDS = 30;
+export const TEAMFIGHT_BASE_DAMAGE_PER_SECOND = 0.11;
+export const TEAMFIGHT_TARGET_FOCUS = 1.5;
+export const ESCAPED_CHAMPION_REJOIN_DELAY_SECONDS = 8;
+
+export const LEVEL_POWER_PER_LEVEL = 0.08;
+export const ITEM_GOLD_PER_FULL_POWER = 10000;
+export const TEAMFIGHT_RATING_BASE = 0.7;
+export const TEAMFIGHT_RATING_PER_POINT = 0.06;
+export const TANK_TOUGHNESS = 0.6;
+export const BUILD_TOUGHNESS = Object.freeze({ tank: 0.5, bruiser: 0.25, support: 0.1, adDps: 0, apDps: 0 });
+export const DEFENSE_TOUGHNESS_DIVISOR = 20;
+
+export const ULTIMATE_COOLDOWN_SECONDS = 90;
+export const ULTIMATE_MAX_DELAY_SECONDS = 3;
+export const ULTIMATE_BURST_DAMAGE = 0.22;
+export const ULTIMATE_EXTRA_TARGET_RATING = 7;
+export const ULTIMATE_MAX_TARGETS = 3;
+export const IGNITE_BURST_DAMAGE = 0.1;
+export const IGNITE_TARGET_HEALTH = 0.4;
+export const SELF_HEAL_AMOUNT = 0.15;
+export const SELF_HEAL_HEALTH = 0.3;
+export const EXHAUST_DAMAGE_FACTOR = 0.5;
+export const EXHAUST_SECONDS = 2.5;
+export const ESCAPE_HEALTH = 0.2;
+export const ESCAPE_CHANCE = 0.5;
+export const IGNITE_COOLDOWN_SECONDS = 180;
+
+export const RETREAT_SECONDS_IN_FIGHT = 2.5;
+export const RETREAT_DAMAGE_FACTOR = 0.5;
+export const RETREAT_TRAVEL_SECONDS = 8;
+export const ENGAGE_TRIGGER_DISTANCE = 70;
+export const GROUP_STANDOFF_DISTANCE = 40;
+export const GROUP_SPREAD = 16;
+export const CONTEST_RALLY_DISTANCE = 260;
+export const CONTEST_RALLY_RADIUS = 80;
+export const CONTEST_RALLY_MIN_CHAMPIONS = 3;

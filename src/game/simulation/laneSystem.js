@@ -5,8 +5,12 @@ import {
   MINION_TRADE_KILLS_PER_SECOND_PER_MINION, MINION_WALK_SPEED, MINION_WAVE_INTERVAL_SECONDS, PUSH_SPEED_PER_MINION_ADVANTAGE,
   SHARED_LANE_EXPERIENCE_RATIO, TOWER_HOLD_DISTANCE, TOWER_MINION_KILLS_PER_SECOND,
 } from '../../config/gameRules.js';
-import { LANE_BY_ROLE, STRUCTURE_TYPE } from '../mapLayout.js';
-import { laneDistanceOfPoint, laneLength, pointAtLaneDistance } from '../laneGeometry.js';
+import { LANE_BY_ROLE } from '../mapLayout.js';
+import { laneLength, pointAtLaneDistance } from '../laneGeometry.js';
+import { frontStructureOf, isInhibitorDown, laneDistanceOfStructure } from '../structures.js';
+import { SUPER_MINIONS_PER_WAVE } from '../../config/structureRules.js';
+import { BARON_PUSH_MULTIPLIER } from '../../config/objectiveRules.js';
+import { hasBaron } from '../teamPower.js';
 import { ACTIVITY } from '../activities.js';
 import { allChampionStates } from '../gameState.js';
 import { grantExperience, grantGold } from './economy.js';
@@ -17,7 +21,7 @@ const TEAMS = [TEAM.BLUE, TEAM.RED];
 
 export function updateLanes(gameState, tickSeconds) {
   for (const laneState of gameState.lanes) {
-    spawnWaveIfDue(laneState, gameState.gameSeconds);
+    spawnWaveIfDue(gameState, laneState);
     deliverArrivedWaves(laneState, gameState.gameSeconds);
     const minionDeaths = { [TEAM.BLUE]: 0, [TEAM.RED]: 0 };
     const championsAtWave = championsAtWaveByTeam(gameState, laneState);
@@ -28,6 +32,8 @@ export function updateLanes(gameState, tickSeconds) {
     moveWaveFront(gameState, laneState, tickSeconds, championsAtWave);
   }
 }
+
+export { waveFrontLimits };
 
 export function waveFrontPosition(laneState) {
   return pointAtLaneDistance(laneState.lane, laneState.frontDistance);
@@ -44,18 +50,21 @@ export function directionTowardEnemy(team) {
   return team === TEAM.BLUE ? 1 : -1;
 }
 
-function spawnWaveIfDue(laneState, gameSeconds) {
+function spawnWaveIfDue(gameState, laneState) {
+  const { gameSeconds } = gameState;
   if (gameSeconds < laneState.nextWaveSeconds) {
     return;
   }
   laneState.wavesSpawned += 1;
   const isCannonWave = laneState.wavesSpawned % CANNON_WAVE_EVERY === 0;
-  const minionCount = MINIONS_PER_WAVE + (isCannonWave ? 1 : 0);
+  const baseMinionCount = MINIONS_PER_WAVE + (isCannonWave ? 1 : 0);
+  const minionCountFor = team => baseMinionCount
+    + (isInhibitorDown(gameState, opposingTeam(team), laneState.lane) ? SUPER_MINIONS_PER_WAVE : 0);
   const distanceFromBlueBase = laneState.frontDistance;
   const distanceFromRedBase = laneLength(laneState.lane) - laneState.frontDistance;
   laneState.incomingWaves.push(
-    { team: TEAM.BLUE, minionCount, arrivesAtSeconds: gameSeconds + distanceFromBlueBase / MINION_WALK_SPEED },
-    { team: TEAM.RED, minionCount, arrivesAtSeconds: gameSeconds + distanceFromRedBase / MINION_WALK_SPEED },
+    { team: TEAM.BLUE, minionCount: minionCountFor(TEAM.BLUE), arrivesAtSeconds: gameSeconds + distanceFromBlueBase / MINION_WALK_SPEED },
+    { team: TEAM.RED, minionCount: minionCountFor(TEAM.RED), arrivesAtSeconds: gameSeconds + distanceFromRedBase / MINION_WALK_SPEED },
   );
   laneState.nextWaveSeconds += MINION_WAVE_INTERVAL_SECONDS;
 }
@@ -115,7 +124,9 @@ function moveWaveFront(gameState, laneState, tickSeconds, championsAtWave) {
   const redMinions = laneState.minions[TEAM.RED];
   let velocityTowardRed = 0;
   if (blueMinions > 0 && redMinions > 0) {
-    velocityTowardRed = (blueMinions - redMinions) * PUSH_SPEED_PER_MINION_ADVANTAGE;
+    const blueStrength = blueMinions * (hasBaron(gameState, TEAM.BLUE) ? BARON_PUSH_MULTIPLIER : 1);
+    const redStrength = redMinions * (hasBaron(gameState, TEAM.RED) ? BARON_PUSH_MULTIPLIER : 1);
+    velocityTowardRed = (blueStrength - redStrength) * PUSH_SPEED_PER_MINION_ADVANTAGE;
   } else if (blueMinions > 0) {
     velocityTowardRed = MINION_WALK_SPEED;
   } else if (redMinions > 0) {
@@ -135,7 +146,8 @@ function shovePushSpeed(laneState, championsAtWave, team) {
 }
 
 function isShoving(championState) {
-  return championState.activeAction?.kind === ACTION_KIND.SHOVE;
+  const actionKind = championState.activeAction?.kind;
+  return actionKind === ACTION_KIND.SHOVE || actionKind === ACTION_KIND.GROUP;
 }
 
 function killMinions(laneState, team, requestedKills, minionDeaths) {
@@ -151,7 +163,9 @@ function championsAtWaveByTeam(gameState, laneState) {
   for (const championState of allChampionStates(gameState)) {
     const isInThisLane = LANE_BY_ROLE[championState.role] === laneState.lane;
     const isNearWave = Math.hypot(championState.position.x - frontPosition.x, championState.position.y - frontPosition.y) <= FARM_RANGE;
-    if (isInThisLane && championState.activity === ACTIVITY.LANING && isNearWave) {
+    const isLaningHere = isInThisLane && championState.activity === ACTIVITY.LANING;
+    const isGroupedHere = championState.activeAction?.kind === ACTION_KIND.GROUP && championState.activeAction.lane === laneState.lane;
+    if ((isLaningHere || isGroupedHere) && !championState.inFightId && isNearWave) {
       championsAtWave[championState.team].push(championState);
     }
   }
@@ -159,14 +173,12 @@ function championsAtWaveByTeam(gameState, laneState) {
 }
 
 function waveFrontLimits(gameState, laneState) {
-  const outerTowerDistance = team => {
-    const standingTowerDistances = gameState.teams[team].structures
-      .filter(structure => structure.type === STRUCTURE_TYPE.TOWER && structure.lane === laneState.lane && structure.isStanding)
-      .map(structure => laneDistanceOfPoint(laneState.lane, structure));
-    return team === TEAM.BLUE ? Math.max(0, ...standingTowerDistances) : Math.min(laneLength(laneState.lane), ...standingTowerDistances);
-  };
+  const blueFront = frontStructureOf(gameState, TEAM.BLUE, laneState.lane);
+  const redFront = frontStructureOf(gameState, TEAM.RED, laneState.lane);
+  const blueFrontDistance = blueFront ? laneDistanceOfStructure(blueFront, laneState.lane) : 0;
+  const redFrontDistance = redFront ? laneDistanceOfStructure(redFront, laneState.lane) : laneLength(laneState.lane);
   return {
-    blueLimit: outerTowerDistance(TEAM.BLUE) + TOWER_HOLD_DISTANCE,
-    redLimit: outerTowerDistance(TEAM.RED) - TOWER_HOLD_DISTANCE,
+    blueLimit: blueFrontDistance + TOWER_HOLD_DISTANCE,
+    redLimit: redFrontDistance - TOWER_HOLD_DISTANCE,
   };
 }

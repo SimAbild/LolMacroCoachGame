@@ -8,6 +8,17 @@ export const ACTION_KIND = Object.freeze({
   INVADE: 'invade',
   SETUP_OBJECTIVE: 'setupObjective',
   WARD: 'ward',
+  GROUP: 'group',
+  CONTEST: 'contest',
+  ENGAGE: 'engage',
+  RETREAT: 'retreat',
+});
+
+export const TEAM_CALL = Object.freeze({
+  ENGAGE: 'engage',
+  CONTEST_OBJECTIVE: 'contestObjective',
+  GROUP_MID: 'groupMid',
+  BACK_OFF: 'backOff',
 });
 
 export const CALL_HELP_ACTION_ID = 'callHelp';
@@ -50,8 +61,8 @@ export const ROLE_ACTIONS = Object.freeze({
 });
 
 export const TEAM_CALLS = Object.freeze([
-  { id: 'engage', label: 'Engage' },
-  { id: 'contestObjective', label: 'Contest objective' },
-  { id: 'groupMid', label: 'Group mid' },
-  { id: 'backOff', label: 'Back off' },
+  { id: TEAM_CALL.ENGAGE, label: 'Engage' },
+  { id: TEAM_CALL.CONTEST_OBJECTIVE, label: 'Contest objective' },
+  { id: TEAM_CALL.GROUP_MID, label: 'Group mid' },
+  { id: TEAM_CALL.BACK_OFF, label: 'Back off' },
 ]);

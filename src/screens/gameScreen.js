@@ -13,8 +13,11 @@ import { createCoordinationOverlay } from './game/coordinationOverlay.js';
 import { mountHomeScreen } from './homeScreen.js';
 import { createEventFeed } from './game/eventFeed.js';
 import { cancelAction, issueAction } from '../game/simulation/actionSystem.js';
+import { issueTeamCall } from '../game/simulation/teamCallSystem.js';
+import { createObjectiveTimers } from './game/objectiveTimers.js';
+import { mountEndScreen } from './endScreen.js';
 
-const TEAM_CALLS_PENDING_MESSAGE = 'Team calls arrive with teamfights and objectives in milestone 4.';
+const END_SCREEN_DELAY_MS = 2500;
 const PANEL_REFRESH_INTERVAL_MS = 200;
 
 export function mountGameScreen(root, { router, gameData, playerSide, loadouts }) {
@@ -27,10 +30,18 @@ export function mountGameScreen(root, { router, gameData, playerSide, loadouts }
   let mapRenderer = null;
   let isMounted = true;
   let lastPanelRefreshMs = 0;
+  let endScreenTimer = null;
+  const objectiveTimers = createObjectiveTimers();
 
   const clock = createGameClock(gameSecondsDelta => {
     simulation.advance(gameSecondsDelta);
     mapRenderer?.update(gameState);
+    if (gameState.winner && !endScreenTimer) {
+      clock.stop();
+      refreshPanels();
+      endScreenTimer = setTimeout(() => router.show(mountEndScreen, { gameData, gameState }), END_SCREEN_DELAY_MS);
+      return;
+    }
     const nowMs = performance.now();
     if (nowMs - lastPanelRefreshMs >= PANEL_REFRESH_INTERVAL_MS) {
       lastPanelRefreshMs = nowMs;
@@ -74,6 +85,7 @@ export function mountGameScreen(root, { router, gameData, playerSide, loadouts }
   return () => {
     isMounted = false;
     clock.stop();
+    clearTimeout(endScreenTimer);
     mapRenderer?.destroy();
   };
 
@@ -97,9 +109,16 @@ export function mountGameScreen(root, { router, gameData, playerSide, loadouts }
 
   function createTeamCallBar() {
     const buttons = TEAM_CALLS.map(teamCall => createButton(teamCall.label, () => {
-      showToast(`Team call: ${teamCall.label}. ${TEAM_CALLS_PENDING_MESSAGE}`);
+      const result = issueTeamCall(gameState, playerSide, teamCall.id);
+      if (result.isIssued) {
+        logPlayerCall(teamCall.label);
+      } else {
+        showToast(result.reason);
+      }
+      refreshPanels();
     }, 'team-call'));
     return createElement('div', { className: 'team-calls' },
+      objectiveTimers.element,
       createElement('span', { className: 'team-calls__label', text: 'Team calls' }),
       ...buttons,
     );
@@ -108,6 +127,7 @@ export function mountGameScreen(root, { router, gameData, playerSide, loadouts }
   function refreshPanels() {
     topBar.update(gameState);
     eventFeed.update(gameState);
+    objectiveTimers.update(gameState);
     for (const [championState, panel] of panelsByChampionState) {
       panel.update(displayedStateFor(championState, playerSide));
     }
@@ -115,11 +135,17 @@ export function mountGameScreen(root, { router, gameData, playerSide, loadouts }
 
   function issueChampionAction(championState, actionDefinition, options) {
     const result = issueAction(gameState, championState, actionDefinition, options);
-    if (!result.isIssued) {
+    if (result.isIssued) {
+      logPlayerCall(`${championState.champion.name}: ${actionDefinition.label}`);
+    } else {
       showToast(result.reason);
     }
     showCoordinationLink(championState, null);
     refreshPanels();
+  }
+
+  function logPlayerCall(label) {
+    gameState.callLog.push({ gameSeconds: gameState.gameSeconds, label });
   }
 
   function cancelChampionAction(championState) {

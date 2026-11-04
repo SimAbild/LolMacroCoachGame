@@ -22,6 +22,7 @@ function snapshotOf(championState) {
     resourceRatio: championState.resourceRatio,
     items: championState.items.map(item => ({ ...item })),
     summonerSpells: championState.summonerSpells.map(spell => ({ ...spell })),
+    ultimateCooldownSeconds: championState.ultimateCooldownSeconds,
     activity: championState.activity,
     activitySecondsLeft: championState.activitySecondsLeft,
   };

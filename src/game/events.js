@@ -4,6 +4,9 @@ export const EVENT_KIND = Object.freeze({
   KILL: 'kill',
   FIGHT: 'fight',
   CALL: 'call',
+  STRUCTURE: 'structure',
+  OBJECTIVE: 'objective',
+  TEAMFIGHT: 'teamfight',
 });
 
 export function addEvent(gameState, { kind, team, text }) {
