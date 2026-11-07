@@ -19,6 +19,7 @@ import { createTeamCallBar } from './game/teamCallBar.js';
 import { createObjectiveTimers } from './game/objectiveTimers.js';
 import { mountEndScreen } from './endScreen.js';
 import { attachGameShortcuts } from './game/gameShortcuts.js';
+import { createMapLegend } from './game/mapLegend.js';
 
 const END_SCREEN_DELAY_MS = 2500;
 const SLOW_MOTION_FACTOR = 0.25;
@@ -72,7 +73,9 @@ export function mountGameScreen(root, { router, gameData, playerSide, loadouts }
     createElement('div', { className: 'spinner spinner--small', attributes: { 'aria-hidden': 'true' } }),
     createElement('span', { text: 'Loading map…' }),
   );
-  const mapFrame = createElement('div', { className: 'map-frame' }, mapHost, mapStatus, eventFeed.element, alertBanner.element);
+  const mapLegend = createMapLegend(playerSide);
+  const mapFrame = createElement('div', { className: 'map-frame' },
+    mapHost, mapStatus, eventFeed.element, alertBanner.element, mapLegend.element);
   let isSlowMotionEnabled = true;
   let shownAlertCount = 0;
 
@@ -122,8 +125,11 @@ export function mountGameScreen(root, { router, gameData, playerSide, loadouts }
       clock.start();
     });
 
+  const removeDebugHook = exposeDebugHook();
+
   return () => {
     isMounted = false;
+    removeDebugHook();
     unmountController.abort();
     dismissAllToasts();
     restoreToastHost();
@@ -159,6 +165,22 @@ export function mountGameScreen(root, { router, gameData, playerSide, loadouts }
     } else {
       clock.resume(PAUSE_REASON.DIALOG);
     }
+  }
+
+  // Open the game with ?debug in the URL to reach its state from the browser console as window.lmcDebug.
+  function exposeDebugHook() {
+    if (!new URLSearchParams(window.location.search).has('debug')) {
+      return () => {};
+    }
+    window.lmcDebug = {
+      gameState,
+      simulation,
+      clock,
+      worldToClient: point => mapRenderer?.worldToClient(point) ?? null,
+    };
+    return () => {
+      delete window.lmcDebug;
+    };
   }
 
   // Picking a speed also lifts the player's own pause, like most management games.

@@ -12,26 +12,9 @@ import { displayedStateFor } from '../game/simulation/scoutingSystem.js';
 import { WARD_VISION_RADIUS } from '../config/combatRules.js';
 import { castVisionRay } from '../game/navigation.js';
 import { prefersReducedMotion } from '../ui/reducedMotion.js';
-
-const MAP_COLORS = Object.freeze({
-  background: 0x0b1116,
-  jungle: 0x18241f,
-  jungleEdge: 0x0f1814,
-  lane: 0x3b4a42,
-  river: 0x1c4a5e,
-  pit: 0x24596e,
-  camp: 0x2b3b33,
-  campAlive: 0xc9a227,
-  ward: 0xf2c94c,
-  destroyedStructure: 0x3a4650,
-  fight: 0xf2a51d,
-  elder: 0xe8e3d0,
-  voidCreature: 0x9b5de5,
-  recallRing: 0x8fd3ff,
-  coinText: 0xffffff,
-  [TEAM.BLUE]: 0x3a9be8,
-  [TEAM.RED]: 0xe0505b,
-});
+import { OBJECTIVE_KEY } from '../config/objectiveRules.js';
+import { formatGameTime } from '../ui/formatGameTime.js';
+import { ELEMENT_COLORS, MAP_COLORS } from './mapStyle.js';
 
 const BASE_TINT = Object.freeze({ [TEAM.BLUE]: 0x13304a, [TEAM.RED]: 0x3b1a21 });
 const INITIAL_CANVAS_SIZE = 600;
@@ -70,15 +53,30 @@ const FIGHT_RING_RADIUS = 46;
 const FIGHT_RING_PULSE = 10;
 const FIGHT_PULSE_SPEED = 0.01;
 const FIGHT_RING_WIDTH = 3;
-const ELEMENT_COLORS = Object.freeze({
-  Infernal: 0xe8603c,
-  Mountain: 0xb08d57,
-  Ocean: 0x3fb6c9,
-  Cloud: 0xc7d3e0,
-  Hextech: 0x4fd1c5,
-  Chemtech: 0x8fcf3a,
-});
 const WARD_RING_ALPHA = 0.35;
+const CAMP_OUTLINE_WIDTH = 2;
+const CAMP_RESPAWNING_ALPHA = 0.55;
+const LABEL_FONT_FAMILY = "'Barlow Condensed', 'Arial Narrow', sans-serif";
+const PIT_LABEL_FONT_SIZE = 22;
+const PIT_COUNTDOWN_FONT_SIZE = 20;
+const PIT_LABEL_OFFSET = 30;
+const PIT_RING_RADIUS = 24;
+const PIT_RING_WIDTH = 2;
+const PIT_RING_ALPHA = 0.7;
+const LABEL_OUTLINE_WIDTH = 4;
+// A pit shows its name and a countdown once its next objective is less than this far away.
+const PIT_COUNTDOWN_SECONDS = 60;
+// The objectives that share a pit, most important first.
+const PIT_OBJECTIVE_KEYS = Object.freeze({
+  dragonPit: [OBJECTIVE_KEY.ELDER, OBJECTIVE_KEY.DRAGON],
+  baronPit: [OBJECTIVE_KEY.BARON, OBJECTIVE_KEY.HERALD, OBJECTIVE_KEY.GRUBS],
+});
+const PIT_LABELS = Object.freeze({
+  [OBJECTIVE_KEY.ELDER]: 'ELDER',
+  [OBJECTIVE_KEY.BARON]: 'BARON',
+  [OBJECTIVE_KEY.HERALD]: 'HERALD',
+  [OBJECTIVE_KEY.GRUBS]: 'GRUBS',
+});
 
 export async function createMapRenderer(hostElement, gameState, { mapImageUrl }) {
   const app = new Application();
@@ -91,6 +89,7 @@ export async function createMapRenderer(hostElement, gameState, { mapImageUrl })
     autoDensity: true,
   });
   hostElement.append(app.canvas);
+  await loadLabelFont();
 
   const world = new Container();
   const fog = createFogLayer();
@@ -102,7 +101,14 @@ export async function createMapRenderer(hostElement, gameState, { mapImageUrl })
   const fightLayer = new Graphics();
   let shownStructureSignature = '';
   const coinLayer = new Container();
-  world.addChild(await createTerrain(mapImageUrl), structureLayer, objectiveLayer, campLayer, minionLayer, fog.sprite, wardLayer, fightLayer, coinLayer);
+  // Pit labels sit above the fog: objective timers are public knowledge, like in the real game.
+  const pitMarkers = [
+    createPitMarker(DRAGON_PIT, PIT_OBJECTIVE_KEYS.dragonPit),
+    createPitMarker(BARON_PIT, PIT_OBJECTIVE_KEYS.baronPit),
+  ];
+  const pitLayer = new Container();
+  pitLayer.addChild(...pitMarkers.map(marker => marker.container));
+  world.addChild(await createTerrain(mapImageUrl), structureLayer, objectiveLayer, campLayer, minionLayer, fog.sprite, wardLayer, fightLayer, pitLayer, coinLayer);
   app.stage.addChild(world);
 
   const coinsByChampionState = await createChampionCoins(gameState, coinLayer);
@@ -127,6 +133,9 @@ export async function createMapRenderer(hostElement, gameState, { mapImageUrl })
     drawMinionWaves(minionLayer, currentGameState, playerVisionSources);
     drawOwnWards(wardLayer, currentGameState);
     drawObjectives(objectiveLayer, currentGameState);
+    for (const marker of pitMarkers) {
+      marker.update(currentGameState);
+    }
     drawFights(fightLayer, currentGameState, playerVisionSources);
     const structureSignature = structureSignatureOf(currentGameState);
     if (structureSignature !== shownStructureSignature) {
@@ -144,12 +153,25 @@ export async function createMapRenderer(hostElement, gameState, { mapImageUrl })
     }
   }
 
+  // Converts a map position to viewport pixels, e.g. to point the tutorial at the dragon pit.
+  // Reads the canvas box each time, so it stays right after resizes and scrolling.
+  function worldToClient({ x, y }) {
+    const canvas = app.canvas;
+    const box = canvas.getBoundingClientRect();
+    const scale = canvas.clientWidth / MAP_SIZE;
+    return {
+      x: box.left + canvas.clientLeft + x * scale,
+      y: box.top + canvas.clientTop + y * scale,
+      scale,
+    };
+  }
+
   function destroy() {
     resizeObserver.disconnect();
     app.destroy(true, { children: true });
   }
 
-  return { update, destroy };
+  return { update, destroy, worldToClient };
 }
 
 async function createTerrain(mapImageUrl) {
@@ -271,8 +293,12 @@ function drawStructure(graphics, structure, teamColor) {
 function drawJungleCamps(graphics, gameState) {
   graphics.clear();
   for (const camp of gameState.jungleCamps) {
-    const color = isCampAlive(camp, gameState.gameSeconds) ? MAP_COLORS.campAlive : MAP_COLORS.camp;
-    graphics.circle(camp.position.x, camp.position.y, CAMP_RADIUS).fill(color);
+    const { x, y } = camp.position;
+    if (isCampAlive(camp, gameState.gameSeconds)) {
+      graphics.circle(x, y, CAMP_RADIUS).fill(MAP_COLORS.campAlive).stroke({ width: CAMP_OUTLINE_WIDTH, color: MAP_COLORS.campOutline });
+    } else {
+      graphics.circle(x, y, CAMP_RADIUS - 1).stroke({ width: CAMP_OUTLINE_WIDTH, color: MAP_COLORS.camp, alpha: CAMP_RESPAWNING_ALPHA });
+    }
   }
 }
 
@@ -399,8 +425,102 @@ function createCoin(championState, texture) {
 function createInitialsLabel(championName) {
   const label = new Text({
     text: championName.slice(0, 2).toUpperCase(),
-    style: { fill: MAP_COLORS.coinText, fontSize: COIN_FONT_SIZE, fontWeight: '700', fontFamily: 'Arial' },
+    style: { fill: MAP_COLORS.coinText, fontSize: COIN_FONT_SIZE, fontWeight: '700', fontFamily: LABEL_FONT_FAMILY },
   });
   label.anchor.set(0.5);
   return label;
+}
+
+// Pixi draws text on its own canvas and never redraws when a web font arrives later,
+// so the label font must be loaded before the first label is created.
+async function loadLabelFont() {
+  try {
+    await document.fonts.load(`600 ${PIT_LABEL_FONT_SIZE}px 'Barlow Condensed'`);
+  } catch {
+    // The fallback font in LABEL_FONT_FAMILY is used instead.
+  }
+}
+
+function createLabel(fontSize) {
+  const label = new Text({
+    text: '',
+    style: {
+      fill: MAP_COLORS.label,
+      fontSize,
+      fontWeight: '600',
+      fontFamily: LABEL_FONT_FAMILY,
+      letterSpacing: 1,
+      stroke: { color: MAP_COLORS.labelShadow, width: LABEL_OUTLINE_WIDTH, join: 'round' },
+    },
+  });
+  label.anchor.set(0.5);
+  return label;
+}
+
+// One marker per pit: a ring and countdown while the next objective is coming up,
+// and the objective's name under the pit while it is up or coming up.
+function createPitMarker(pit, objectiveKeys) {
+  const container = new Container();
+  container.position.set(pit.x, pit.y);
+  const ring = new Graphics();
+  const nameLabel = createLabel(PIT_LABEL_FONT_SIZE);
+  nameLabel.position.set(0, PIT_LABEL_OFFSET);
+  const countdownLabel = createLabel(PIT_COUNTDOWN_FONT_SIZE);
+  container.addChild(ring, countdownLabel, nameLabel);
+  let shownSignature = null;
+
+  function update(gameState) {
+    const focus = pitFocus(gameState, objectiveKeys);
+    const signature = focus ? `${focus.objective.key}:${focus.objective.element ?? ''}:${focus.secondsLeft}` : '';
+    if (signature === shownSignature) {
+      return;
+    }
+    shownSignature = signature;
+    container.visible = Boolean(focus);
+    if (!focus) {
+      return;
+    }
+    const { objective, secondsLeft } = focus;
+    const color = objectiveColor(objective);
+    nameLabel.text = pitLabelFor(objective);
+    nameLabel.style.fill = color;
+    const isComingUp = secondsLeft > 0;
+    countdownLabel.visible = isComingUp;
+    countdownLabel.text = isComingUp ? formatGameTime(secondsLeft) : '';
+    ring.clear();
+    if (isComingUp) {
+      ring.circle(0, 0, PIT_RING_RADIUS).stroke({ width: PIT_RING_WIDTH, color, alpha: PIT_RING_ALPHA });
+    }
+  }
+
+  return { container, update };
+}
+
+// The objective a pit is about right now: one that is up, or the next one to spawn within a minute.
+function pitFocus(gameState, objectiveKeys) {
+  const objectives = objectiveKeys.map(key => gameState.objectives[key]);
+  const aliveObjective = objectives.find(objective => objective.isAlive);
+  if (aliveObjective) {
+    return { objective: aliveObjective, secondsLeft: 0 };
+  }
+  const upcoming = objectives
+    .filter(objective => objective.spawnAtSeconds !== null)
+    .map(objective => ({ objective, secondsLeft: Math.ceil(objective.spawnAtSeconds - gameState.gameSeconds) }))
+    .filter(({ secondsLeft }) => secondsLeft > 0 && secondsLeft <= PIT_COUNTDOWN_SECONDS)
+    .sort((first, second) => first.secondsLeft - second.secondsLeft);
+  return upcoming[0] ?? null;
+}
+
+function objectiveColor(objective) {
+  if (objective.key === OBJECTIVE_KEY.DRAGON) {
+    return ELEMENT_COLORS[objective.element] ?? MAP_COLORS.elder;
+  }
+  return objective.key === OBJECTIVE_KEY.ELDER ? MAP_COLORS.elder : MAP_COLORS.voidCreature;
+}
+
+function pitLabelFor(objective) {
+  if (objective.key === OBJECTIVE_KEY.DRAGON) {
+    return `${objective.element ?? ''} DRAKE`.trim().toUpperCase();
+  }
+  return PIT_LABELS[objective.key];
 }

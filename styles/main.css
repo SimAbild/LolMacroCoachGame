@@ -815,3 +815,30 @@ h1, h2 { font-family: var(--font-display); margin: 0; letter-spacing: 0.02em; }
   }
   .spinner { animation-duration: 2s !important; animation-iteration-count: infinite !important; }
 }
+
+/* Map legend: in the corner opposite the event feed */
+.map-legend {
+  position: absolute;
+  z-index: var(--z-map-overlay);
+  max-width: 230px;
+  font-size: 12px;
+  background: var(--color-overlay);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+}
+.game-screen[data-player-side="blue"] .map-legend { bottom: 10px; left: 10px; }
+.game-screen[data-player-side="red"] .map-legend { top: 10px; right: 10px; }
+.map-legend__toggle {
+  padding: 5px 10px;
+  font: 600 13px var(--font-display);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  list-style-position: inside;
+  transition: var(--transition-control);
+}
+.map-legend__toggle:hover, .map-legend[open] .map-legend__toggle { color: var(--color-gold); }
+.map-legend__list { display: grid; gap: 4px; margin: 0; padding: 2px 10px 9px; list-style: none; }
+.map-legend__item { display: flex; align-items: center; gap: 8px; color: var(--color-text); }
+.map-legend__swatch { flex: none; width: 16px; height: 16px; }
