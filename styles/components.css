@@ -1,5 +1,6 @@
-/* Shared UI components used across screens: tooltip (more follow in later milestones). */
+/* Shared UI components used across screens: tooltip, confirm dialog and toast stack. */
 
+/* Tooltip */
 .tooltip {
   position: fixed;
   top: 0;
@@ -31,6 +32,84 @@
 .tooltip__title[hidden] { display: none; }
 .tooltip__body { display: block; }
 
+/* Confirm dialog (native <dialog>, so it lives in the browser's top layer above everything) */
+.dialog-card {
+  width: min(420px, calc(100vw - 32px));
+  padding: 0;
+  color: var(--color-text);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-top: 3px solid var(--color-gold);
+  border-radius: var(--radius);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6);
+}
+.dialog-card::backdrop { background: rgba(3, 6, 10, 0.68); }
+.dialog-card[open] { animation: dialog-in 180ms ease-out; }
+.dialog-card[open]::backdrop { animation: backdrop-in 180ms ease-out; }
+.dialog-card.is-closing { animation: dialog-out 140ms ease-in forwards; }
+.dialog-card.is-closing::backdrop { animation: backdrop-out 140ms ease-in forwards; }
+.dialog-card__content { padding: 20px 22px 18px; }
+.dialog-card__title {
+  margin: 0 0 8px;
+  font: 700 22px var(--font-display);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.dialog-card__body { margin: 0; color: var(--color-text-muted); line-height: 1.5; }
+.dialog-card__actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 22px; }
+.dialog-card__actions .button { padding: 9px 18px; }
+@keyframes dialog-in { from { opacity: 0; transform: translateY(10px) scale(0.98); } }
+@keyframes dialog-out { to { opacity: 0; transform: translateY(6px) scale(0.98); } }
+@keyframes backdrop-in { from { opacity: 0; } }
+@keyframes backdrop-out { to { opacity: 0; } }
+
+/* Toast stack: newest at the bottom, at most three at a time (see src/ui/toast.js) */
+.toast-stack {
+  position: fixed;
+  left: 50%;
+  bottom: 28px;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: min(560px, calc(100vw - 32px));
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+.toast {
+  --toast-accent: var(--color-blue);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 100%;
+  padding: 11px 16px 11px 14px;
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border);
+  border-left: 3px solid var(--toast-accent);
+  border-radius: var(--radius);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  animation: toast-in 160ms ease-out;
+}
+.toast--warning { --toast-accent: var(--color-gold); }
+.toast--error { --toast-accent: var(--color-red); }
+.toast__count {
+  padding: 1px 7px;
+  font: 700 13px var(--font-display);
+  color: var(--toast-accent);
+  background: rgba(255, 255, 255, 0.07);
+  border-radius: 999px;
+}
+.toast__count[hidden] { display: none; }
+.toast.is-bumped { animation: toast-bump 220ms ease-out; }
+.toast.is-leaving { animation: toast-out 160ms ease-in forwards; }
+@keyframes toast-in { from { opacity: 0; transform: translateY(8px); } }
+@keyframes toast-bump { 40% { transform: scale(1.04); } }
+@keyframes toast-out { to { opacity: 0; transform: translateY(6px); } }
+
 @media (prefers-reduced-motion: reduce) {
   .tooltip { transition: none; transform: none; }
+  .dialog-card[open], .dialog-card[open]::backdrop,
+  .dialog-card.is-closing, .dialog-card.is-closing::backdrop,
+  .toast, .toast.is-bumped, .toast.is-leaving { animation: none; }
 }

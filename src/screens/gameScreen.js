@@ -1,5 +1,6 @@
 import { createElement } from '../ui/dom.js';
-import { showToast } from '../ui/toast.js';
+import { TOAST_VARIANT, dismissAllToasts, setToastHost, showToast } from '../ui/toast.js';
+import { DIALOG_TONE, confirmDialog } from '../ui/dialog.js';
 import { TEAM } from '../config/teams.js';
 import { createInitialGameState } from '../game/gameState.js';
 import { PAUSE_REASON, createGameClock } from '../game/gameClock.js';
@@ -23,6 +24,7 @@ const END_SCREEN_DELAY_MS = 2500;
 const SLOW_MOTION_FACTOR = 0.25;
 const SLOW_MOTION_REAL_SECONDS = 2.5;
 const PANEL_REFRESH_INTERVAL_MS = 200;
+const ERROR_TOAST_MS = 6000;
 
 export function mountGameScreen(root, { router, gameData, playerSide, loadouts }) {
   const gameState = createInitialGameState({ loadouts, playerSide, itemCatalog: gameData.items });
@@ -35,6 +37,8 @@ export function mountGameScreen(root, { router, gameData, playerSide, loadouts }
   let isMounted = true;
   let lastPanelRefreshMs = 0;
   let endScreenTimer = null;
+  // Aborted on unmount: closes a dialog that is still open when the screen changes under it.
+  const unmountController = new AbortController();
   const objectiveTimers = createObjectiveTimers();
 
   const clock = createGameClock(gameSecondsDelta => {
@@ -60,11 +64,12 @@ export function mountGameScreen(root, { router, gameData, playerSide, loadouts }
     onSlowMotionToggle: isEnabled => {
       isSlowMotionEnabled = isEnabled;
     },
-    onLeave: () => router.show(mountHomeScreen),
+    onLeave: confirmLeave,
   });
   const mapHost = createElement('div', { className: 'map-host' });
   const eventFeed = createEventFeed(playerSide);
   const alertBanner = createAlertBanner();
+  const mapFrame = createElement('div', { className: 'map-frame' }, mapHost, eventFeed.element, alertBanner.element);
   let isSlowMotionEnabled = true;
   let shownAlertCount = 0;
 
@@ -73,7 +78,7 @@ export function mountGameScreen(root, { router, gameData, playerSide, loadouts }
     createElement('div', { className: 'game-body' },
       createTeamColumn(TEAM.BLUE),
       createElement('main', { className: 'map-area' },
-        createElement('div', { className: 'map-frame' }, mapHost, eventFeed.element, alertBanner.element),
+        mapFrame,
         createTeamCallBar({ objectiveTimersElement: objectiveTimers.element, onIntent: handleIntent }).element,
       ),
       createTeamColumn(TEAM.RED),
@@ -81,6 +86,7 @@ export function mountGameScreen(root, { router, gameData, playerSide, loadouts }
     overlay.element,
   );
   root.append(screen);
+  const restoreToastHost = setToastHost(mapFrame);
 
   topBar.update(gameState);
   const unsubscribeClock = clock.subscribe(clockState => topBar.setClockState(clockState));
@@ -97,10 +103,16 @@ export function mountGameScreen(root, { router, gameData, playerSide, loadouts }
         renderer.destroy();
       }
     })
-    .catch(error => showToast(`The map could not be drawn: ${error.message}`));
+    .catch(error => showToast(`The map could not be drawn: ${error.message}`, {
+      variant: TOAST_VARIANT.ERROR,
+      durationMs: ERROR_TOAST_MS,
+    }));
 
   return () => {
     isMounted = false;
+    unmountController.abort();
+    dismissAllToasts();
+    restoreToastHost();
     clock.stop();
     unsubscribeClock();
     detachShortcuts();
@@ -108,6 +120,32 @@ export function mountGameScreen(root, { router, gameData, playerSide, loadouts }
     alertBanner.destroy();
     mapRenderer?.destroy();
   };
+
+  // The game holds still while the player decides. The dialog has its own pause reason,
+  // so cancelling only lifts that one: a game the player had paused before stays paused.
+  async function confirmLeave() {
+    if (gameState.winner) {
+      router.show(mountHomeScreen);
+      return;
+    }
+    clock.pause(PAUSE_REASON.DIALOG);
+    const isLeaving = await confirmDialog({
+      title: 'Leave the game?',
+      body: 'The game is paused. If you leave now, this game ends and you go back to the home screen.',
+      confirmLabel: 'Leave game',
+      cancelLabel: 'Keep playing',
+      tone: DIALOG_TONE.DANGER,
+      signal: unmountController.signal,
+    });
+    if (!isMounted) {
+      return;
+    }
+    if (isLeaving) {
+      router.show(mountHomeScreen);
+    } else {
+      clock.resume(PAUSE_REASON.DIALOG);
+    }
+  }
 
   // Picking a speed also lifts the player's own pause, like most management games.
   function changeSpeed(speed) {
@@ -136,7 +174,7 @@ export function mountGameScreen(root, { router, gameData, playerSide, loadouts }
   function handleIntent(intent) {
     const result = executeCommand(gameState, intent);
     if (!result.isIssued) {
-      showToast(result.reason);
+      showToast(result.reason, { variant: TOAST_VARIANT.WARNING });
     }
     clearCoordinationLinks();
     refreshPanels();

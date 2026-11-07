@@ -55,22 +55,8 @@ h1, h2 { font-family: var(--font-display); margin: 0; letter-spacing: 0.02em; }
 .button--primary { background: var(--color-gold); border-color: var(--color-gold-dark); color: #1b1203; }
 .button--primary:hover:not(:disabled) { background: #ffb733; }
 .button--large { font-size: 20px; padding: 14px 44px; }
-
-.toast {
-  position: fixed;
-  left: 50%;
-  bottom: 28px;
-  transform: translateX(-50%);
-  max-width: min(560px, calc(100vw - 32px));
-  padding: 12px 18px;
-  background: var(--color-surface-raised);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-  z-index: 100;
-  animation: toast-in 160ms ease-out;
-}
-@keyframes toast-in { from { opacity: 0; transform: translate(-50%, 8px); } }
+.button--danger { background: var(--color-red-dark); border-color: var(--color-red); color: #fff; }
+.button--danger:hover:not(:disabled) { background: #8a2430; }
 
 /* Home */
 .home-screen, .matchmaking-screen {
@@ -669,6 +655,15 @@ h1, h2 { font-family: var(--font-display); margin: 0; letter-spacing: 0.02em; }
   border: 1px solid var(--color-gold);
 }
 .alert-banner.is-entering { animation: alert-in 220ms ease-out; }
+.alert-banner.is-leaving { animation: alert-out 260ms ease-in forwards; }
 @keyframes alert-in { from { opacity: 0; transform: translate(-50%, -8px); } }
+@keyframes alert-out { to { opacity: 0; transform: translate(-50%, -6px); } }
+@media (prefers-reduced-motion: reduce) {
+  .alert-banner.is-entering, .alert-banner.is-leaving { animation: none; }
+}
 .speed-button--toggle { margin-left: 6px; }
 .game-screen[data-player-side="blue"] .alert-banner { top: auto; bottom: 12px; }
+
+/* In a game the toast stack lives inside the map, on the edge the alert banner does not use. */
+.map-frame > .toast-stack { position: absolute; bottom: 12px; z-index: 6; width: min(440px, calc(100% - 24px)); }
+.game-screen[data-player-side="blue"] .map-frame > .toast-stack { top: 12px; bottom: auto; flex-direction: column-reverse; }
