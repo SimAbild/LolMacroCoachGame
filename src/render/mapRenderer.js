@@ -11,6 +11,7 @@ import { directionTowardEnemy } from '../game/simulation/laneSystem.js';
 import { displayedStateFor } from '../game/simulation/scoutingSystem.js';
 import { WARD_VISION_RADIUS } from '../config/combatRules.js';
 import { castVisionRay } from '../game/navigation.js';
+import { prefersReducedMotion } from '../ui/reducedMotion.js';
 
 const MAP_COLORS = Object.freeze({
   background: 0x0b1116,
@@ -132,7 +133,7 @@ export async function createMapRenderer(hostElement, gameState, { mapImageUrl })
       shownStructureSignature = structureSignature;
       drawStructures(structureLayer, currentGameState);
     }
-    const recallPulseAlpha = RECALL_PULSE_MIN_ALPHA + (1 - RECALL_PULSE_MIN_ALPHA) * (0.5 + 0.5 * Math.sin(performance.now() * RECALL_PULSE_SPEED));
+    const recallPulseAlpha = RECALL_PULSE_MIN_ALPHA + (1 - RECALL_PULSE_MIN_ALPHA) * (0.5 + 0.5 * pulseWave(RECALL_PULSE_SPEED));
     for (const [championState, { coin, recallRing }] of coinsByChampionState) {
       const isOwnChampion = championState.team === currentGameState.playerSide;
       coin.visible = championState.isAlive && (isOwnChampion || championState.isVisibleToPlayer);
@@ -224,13 +225,19 @@ function drawObjectives(graphics, gameState) {
   }
 }
 
+// A value between -1 and 1 that swings over real time (so it keeps moving while the game is paused).
+// With reduced motion it stays at 0: rings keep their middle size and alpha instead of pulsing.
+function pulseWave(speed) {
+  return prefersReducedMotion() ? 0 : Math.sin(performance.now() * speed);
+}
+
 function drawDestroyedStructure(graphics, structure) {
   graphics.circle(structure.x, structure.y, INHIBITOR_RADIUS).stroke({ width: DESTROYED_STRUCTURE_STROKE, color: MAP_COLORS.destroyedStructure });
 }
 
 function drawFights(graphics, gameState, playerVisionSources) {
   graphics.clear();
-  const pulse = Math.sin(performance.now() * FIGHT_PULSE_SPEED) * FIGHT_RING_PULSE;
+  const pulse = pulseWave(FIGHT_PULSE_SPEED) * FIGHT_RING_PULSE;
   for (const fight of gameState.fights) {
     if (!isPositionVisible(fight.location, playerVisionSources)) {
       continue;

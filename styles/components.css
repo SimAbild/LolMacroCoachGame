@@ -1,23 +1,24 @@
-/* Shared UI components used across screens: tooltip, confirm dialog and toast stack. */
+/* Shared UI components used across screens: tooltip, confirm dialog and toast stack.
+   Colours, layers and timings come from the tokens in main.css (:root). */
 
 /* Tooltip */
 .tooltip {
   position: fixed;
   top: 0;
   left: 0;
-  z-index: 90;
+  z-index: var(--z-tooltip);
   max-width: 270px;
   padding: 8px 11px 9px;
   background: var(--color-surface-raised);
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.5);
+  box-shadow: var(--shadow-popover);
   color: var(--color-text);
   font: 400 12.5px/1.45 var(--font-body);
   pointer-events: none;
   opacity: 0;
   transform: translateY(3px);
-  transition: opacity 120ms ease-out, transform 120ms ease-out;
+  transition: opacity var(--duration-fast) var(--ease-out), transform var(--duration-fast) var(--ease-out);
 }
 .tooltip[data-side="bottom"] { transform: translateY(-3px); }
 .tooltip.is-visible { opacity: 1; transform: none; }
@@ -41,13 +42,14 @@
   border: 1px solid var(--color-border);
   border-top: 3px solid var(--color-gold);
   border-radius: var(--radius);
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6);
+  box-shadow: var(--shadow-modal);
 }
+/* Older browsers do not let ::backdrop inherit custom properties, so this colour is written out. */
 .dialog-card::backdrop { background: rgba(3, 6, 10, 0.68); }
-.dialog-card[open] { animation: dialog-in 180ms ease-out; }
-.dialog-card[open]::backdrop { animation: backdrop-in 180ms ease-out; }
-.dialog-card.is-closing { animation: dialog-out 140ms ease-in forwards; }
-.dialog-card.is-closing::backdrop { animation: backdrop-out 140ms ease-in forwards; }
+.dialog-card[open] { animation: dialog-in var(--duration-medium) var(--ease-out); }
+.dialog-card[open]::backdrop { animation: backdrop-in var(--duration-medium) var(--ease-out); }
+.dialog-card.is-closing { animation: dialog-out var(--duration-fast) var(--ease-in) forwards; }
+.dialog-card.is-closing::backdrop { animation: backdrop-out var(--duration-fast) var(--ease-in) forwards; }
 .dialog-card__content { padding: 20px 22px 18px; }
 .dialog-card__title {
   margin: 0 0 8px;
@@ -63,12 +65,12 @@
 @keyframes backdrop-in { from { opacity: 0; } }
 @keyframes backdrop-out { to { opacity: 0; } }
 
-/* Toast stack: newest at the bottom, at most three at a time (see src/ui/toast.js) */
+/* Toast stack: at most three at a time (see src/ui/toast.js) */
 .toast-stack {
   position: fixed;
   left: 50%;
   bottom: 28px;
-  z-index: 100;
+  z-index: var(--z-toast);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -88,8 +90,8 @@
   border: 1px solid var(--color-border);
   border-left: 3px solid var(--toast-accent);
   border-radius: var(--radius);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-  animation: toast-in 160ms ease-out;
+  box-shadow: var(--shadow-popover);
+  animation: toast-in var(--duration-medium) var(--ease-out);
 }
 .toast--warning { --toast-accent: var(--color-gold); }
 .toast--error { --toast-accent: var(--color-red); }
@@ -97,19 +99,12 @@
   padding: 1px 7px;
   font: 700 13px var(--font-display);
   color: var(--toast-accent);
-  background: rgba(255, 255, 255, 0.07);
+  background: color-mix(in srgb, var(--color-text) 7%, transparent);
   border-radius: 999px;
 }
 .toast__count[hidden] { display: none; }
-.toast.is-bumped { animation: toast-bump 220ms ease-out; }
-.toast.is-leaving { animation: toast-out 160ms ease-in forwards; }
+.toast.is-bumped { animation: toast-bump var(--duration-medium) var(--ease-out); }
+.toast.is-leaving { animation: toast-out var(--duration-fast) var(--ease-in) forwards; }
 @keyframes toast-in { from { opacity: 0; transform: translateY(8px); } }
 @keyframes toast-bump { 40% { transform: scale(1.04); } }
 @keyframes toast-out { to { opacity: 0; transform: translateY(6px); } }
-
-@media (prefers-reduced-motion: reduce) {
-  .tooltip { transition: none; transform: none; }
-  .dialog-card[open], .dialog-card[open]::backdrop,
-  .dialog-card.is-closing, .dialog-card.is-closing::backdrop,
-  .toast, .toast.is-bumped, .toast.is-leaving { animation: none; }
-}

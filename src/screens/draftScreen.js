@@ -44,7 +44,7 @@ export function mountDraftScreen(root, { router, gameData, playerSide }) {
     },
   });
   const centerArea = createElement('div', { className: 'draft-center' }, championPicker);
-  const primaryButton = createButton('Lock in', onPrimaryButtonClick, 'button button--lock');
+  const primaryButton = createButton('Lock in', onPrimaryButtonClick, 'button button--primary button--lock');
 
   for (const champion of gameData.champions) {
     const tile = createChampionTile(champion);
