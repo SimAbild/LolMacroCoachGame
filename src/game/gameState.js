@@ -21,6 +21,8 @@ export function createInitialGameState({
     playerSide,
     seed,
     random: createSeededRandom(seed),
+    scriptedRolls: {},
+    tickCount: 0,
     gameSeconds: 0,
     itemCatalog,
     teams: {

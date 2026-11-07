@@ -11,6 +11,15 @@ export function createSeededRandom(seed) {
   };
 }
 
+export const SCRIPTED_ROLL = Object.freeze({ PLAY_CATCH: 'playCatch' });
+
+// A script (the tutorial) can queue fixed outcomes per roll key in gameState.scriptedRolls.
+// Returns null when nothing is queued, so callers fall back to the random roll.
+export function takeScriptedRoll(gameState, key) {
+  const queuedOutcomes = gameState.scriptedRolls?.[key];
+  return queuedOutcomes?.length ? queuedOutcomes.shift() : null;
+}
+
 export function createRandomSeed() {
   return Math.floor(Math.random() * UINT32_RANGE);
 }

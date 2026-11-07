@@ -1,35 +1,41 @@
 # LoL Macro Coach
 
-Et browserspil baseret på League of Legends, inspireret af Team Fight Manager 2. Du er coach: du drafter holdet og laver macro-calls (ganks, objectives, teamfights og wards), mens champions spiller selv.
+A browser game based on League of Legends, inspired by Team Fight Manager 2. You are the coach: you draft the team and make the macro calls (ganks, objectives, teamfights and wards) while the champions play themselves.
 
-Fan-projekt. Ikke godkendt af eller tilknyttet Riot Games.
+Fan project. Not endorsed by or affiliated with Riot Games.
 
-## Kør lokalt
+## Run locally
 
-Spillet er statiske filer uden build-step. Start en lokal server i projektmappen (PowerShell):
+The game is static files with no build step. Start a local server in the project folder (PowerShell):
 
 ```powershell
 python -m http.server 8000
 ```
 
-Åbn derefter http://localhost:8000.
+Then open http://localhost:8000.
 
-## Teknologi
+## Technology
 
-- Ren JavaScript (ES modules), DOM + CSS til UI
-- PixiJS 8.22.0 til kortet (ligger i `vendor/`)
-- Champion-data og ikoner fra Riots Data Dragon
-- Champion-roller fra OP.GG lane meta (`src/data/championRoles.js`)
-- Hostes på GitHub Pages fra `main`-branchen
+- Plain JavaScript (ES modules), DOM + CSS for the UI
+- PixiJS 8.22.0 for the map (in `vendor/`)
+- Champion data and icons from Riot's Data Dragon
+- Champion roles from OP.GG lane meta (`src/data/championRoles.js`)
+- Hosted on GitHub Pages from the `main` branch
+
+## Tools
+
+- `node tools/tuneAi.mjs`: tunes the AI weights with self-play.
+- `node tools/checkDeterminism.mjs`: checks that a seeded game replays identically however real time is split into frames, as long as input is given while the simulation is halted on an exact tick.
 
 ## Status
 
-- Milepæl 1: forside, matchmaking, turnerings-draft mod AI, swap-fase og kampskærmens layout med fog of war.
-- Milepæl 2: simuleringskerne med fast tick-rate (10 ticks per in-game sekund) og seeded random. Minion-bølger og lane push, champions går fra fountain til lane, farmer, trader, recaller og køber items ud fra build-typen. Junglere clearer camps, der respawner. Fjendens items, HP og level vises som sidst set, når de er i fog.
-- Milepæl 3: calls bliver udført. Ganks, dives, roams, Call help, invade, wards, shove og play safe. Chancen for en gank eller dive beregnes ved ankomst ud fra lane push, vision (blev du spottet?), ratings, Flash, HP, levels, counter-gank, antal og gold. Kills med first blood, bounties, shutdowns og assists; respawn-timer efter level. Kill feed viser udfald og de vigtigste modifiers. AI-modstanderen ganker og warder selv.
-- Milepæl 4: tårne med HP og plates (falder 14:00), inhibitors med respawn og super minions, nexus-tårne og nexus. Drakes med elementer, rift-element efter 2. drake, soul, Elder, Void Grubs, Rift Herald og Baron med varianter. Løbende teamfights med ultimates og summoner spells. Team calls: Engage, Contest objective (holdet samles før det går ind), Group mid og Back off. Kampen slutter, når en nexus falder, og slutskærmen viser KDA, gold, objectives og en gold-graf med dine calls markeret. AI-modstanderen contester objectives, grupperer sent og trækker sig fra tabte fights.
-- Rigtigt minimap: Riots minimap fra Data Dragon som baggrund, vægge og gangbare områder som et 128x128-grid, A* pathfinding og fog of war, hvor vægge blokerer vision.
-- Naturlige plays: ganks, roams, Call help og dives har setup. Laneren spiller safe for at baite eller shover bølgen ind til et dive; junglen går gennem junglen til et baghold ved siden af lanen; mid og bot shover bølgen før de roamer. Spottes junglen, trækker målet sig. Kampene udspiller sig rumligt med flugt, Flash, Ghost og tårnskud.
-- Milepæl 5: utility-AI. Hvert fjerde sekund vejer AI-coachen ganks, roams, wards, objective-setup, contest, group, engage, dives og shove ud fra lane push, HP, Flash, levels, gold, antal i live og hvor fjendens jungler sidst blev set. Vægtene ligger i `src/config/aiWeights.js` og kan tunes med self-play (`node tools/tuneAi.mjs`). Champions bliver forsigtige, når fjendens jungler har været væk længe, og deres bølge er skubbet frem. Alerts ved objectives, fights, tårne i fare og når fjendens jungler dukker op igen, med slow-mo (kan slås fra).
+- Milestone 1: home screen, matchmaking, tournament draft against the AI, swap phase, and the game screen layout with fog of war.
+- Milestone 2: simulation core with a fixed tick rate (10 ticks per in-game second) and seeded randomness. Minion waves and lane push. Champions walk from the fountain to lane, farm, trade, recall and buy items based on their build type. Junglers clear camps that respawn. Enemy items, HP and level are shown as last seen while they are in fog.
+- Milestone 3: calls are carried out. Ganks, dives, roams, Call help, invade, wards, shove and play safe. The chance of a gank or dive is calculated on arrival from lane push, vision (were you spotted?), ratings, Flash, HP, levels, counter-gank, numbers and gold. Kills with first blood, bounties, shutdowns and assists; respawn timer by level. The kill feed shows the outcome and the most important modifiers. The AI opponent ganks and wards on its own.
+- Milestone 4: towers with HP and plates (fall at 14:00), inhibitors with respawn and super minions, nexus towers and the nexus. Drakes with elements, rift element after the 2nd drake, soul, Elder, Void Grubs, Rift Herald and Baron with variants. Ongoing teamfights with ultimates and summoner spells. Team calls: Engage, Contest objective (the team gathers before going in), Group mid and Back off. The game ends when a nexus falls, and the end screen shows KDA, gold, objectives and a gold chart with your calls marked. The AI opponent contests objectives, groups late and retreats from lost fights.
+- Real minimap: Riot's minimap from Data Dragon as background, walls and walkable areas as a 128x128 grid, A* pathfinding and fog of war where walls block vision.
+- Natural plays: ganks, roams, Call help and dives have a setup. The laner plays safe to bait or shoves the wave in for a dive; the jungler goes through the jungle to an ambush beside the lane; mid and bot shove the wave before they roam. If the jungler is spotted, the target backs off. Fights play out spatially with escapes, Flash, Ghost and tower shots.
+- Milestone 5: utility AI. Every four seconds the AI coach weighs ganks, roams, wards, objective setup, contest, group, engage, dives and shove based on lane push, HP, Flash, levels, gold, numbers alive and where the enemy jungler was last seen. The weights live in `src/config/aiWeights.js` and can be tuned with self-play (`node tools/tuneAi.mjs`). Champions get careful when the enemy jungler has been missing for a while and their wave is pushed up. Alerts for objectives, fights, towers in danger and when the enemy jungler shows up again, with slow motion (can be turned off).
+- Milestone 6: pause (button or Space) and speed keys 1/2/3. The map keeps animating while paused, and several things can pause at once without lifting each other's pause. The simulation can halt on an exact tick (`shouldHalt`), and game time is counted in whole ticks, so seeded games replay identically. This is the groundwork for the scripted tutorial.
 
-Tal og tider til simuleringen ligger i `src/config/gameRules.js`.
+Numbers and timings for the simulation live in `src/config/gameRules.js`.

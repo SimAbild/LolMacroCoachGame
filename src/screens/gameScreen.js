@@ -3,7 +3,7 @@ import { showToast } from '../ui/toast.js';
 import { TEAM } from '../config/teams.js';
 import { TEAM_CALLS } from '../config/actions.js';
 import { createInitialGameState } from '../game/gameState.js';
-import { createGameClock } from '../game/gameClock.js';
+import { PAUSE_REASON, createGameClock } from '../game/gameClock.js';
 import { createSimulation } from '../game/simulation/simulation.js';
 import { displayedStateFor } from '../game/simulation/scoutingSystem.js';
 import { createMapRenderer } from '../render/mapRenderer.js';
@@ -18,6 +18,7 @@ import { cancelAction, issueAction } from '../game/simulation/actionSystem.js';
 import { issueTeamCall } from '../game/simulation/teamCallSystem.js';
 import { createObjectiveTimers } from './game/objectiveTimers.js';
 import { mountEndScreen } from './endScreen.js';
+import { attachGameShortcuts } from './game/gameShortcuts.js';
 
 const END_SCREEN_DELAY_MS = 2500;
 const SLOW_MOTION_FACTOR = 0.25;
@@ -55,7 +56,8 @@ export function mountGameScreen(root, { router, gameData, playerSide, loadouts }
   });
   const topBar = createTopBar({
     playerSide,
-    onSpeedChange: speed => clock.setSpeed(speed),
+    onSpeedChange: changeSpeed,
+    onPauseToggle: () => clock.toggleUserPause(),
     onSlowMotionToggle: isEnabled => {
       isSlowMotionEnabled = isEnabled;
     },
@@ -82,6 +84,11 @@ export function mountGameScreen(root, { router, gameData, playerSide, loadouts }
   root.append(screen);
 
   topBar.update(gameState);
+  const unsubscribeClock = clock.subscribe(clockState => topBar.setClockState(clockState));
+  const detachShortcuts = attachGameShortcuts({
+    onTogglePause: () => clock.toggleUserPause(),
+    onSpeedChange: changeSpeed,
+  });
   clock.start();
   createMapRenderer(mapHost, gameState, { mapImageUrl: minimapImageUrl(gameData.version) })
     .then(renderer => {
@@ -96,10 +103,18 @@ export function mountGameScreen(root, { router, gameData, playerSide, loadouts }
   return () => {
     isMounted = false;
     clock.stop();
+    unsubscribeClock();
+    detachShortcuts();
     clearTimeout(endScreenTimer);
     alertBanner.destroy();
     mapRenderer?.destroy();
   };
+
+  // Picking a speed also lifts the player's own pause, like most management games.
+  function changeSpeed(speed) {
+    clock.setSpeed(speed);
+    clock.resume(PAUSE_REASON.USER);
+  }
 
   function createTeamColumn(team) {
     const column = createElement('aside', { className: `team-column team-column--${team}` });

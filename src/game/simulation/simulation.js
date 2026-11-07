@@ -1,4 +1,4 @@
-import { TICK_SECONDS } from '../../config/gameRules.js';
+import { TICKS_PER_GAME_SECOND, TICK_SECONDS } from '../../config/gameRules.js';
 import { updateLanes } from './laneSystem.js';
 import { updateJungle } from './jungleSystem.js';
 import { updateBehavior } from './behaviorSystem.js';
@@ -37,7 +37,9 @@ const SYSTEMS_IN_TICK_ORDER = Object.freeze([
   updateGoldHistory,
 ]);
 
-export function createSimulation(gameState) {
+// shouldHalt is checked after every tick. When it returns true the loop stops on that exact tick
+// and the leftover time is dropped, so input given while halted lands on the same tick every run.
+export function createSimulation(gameState, { shouldHalt = null } = {}) {
   let unsimulatedSeconds = 0;
 
   function advance(gameSecondsDelta) {
@@ -45,15 +47,34 @@ export function createSimulation(gameState) {
     while (unsimulatedSeconds >= TICK_SECONDS && !gameState.winner) {
       runTick();
       unsimulatedSeconds -= TICK_SECONDS;
+      if (shouldHalt?.(gameState)) {
+        unsimulatedSeconds = 0;
+        return true;
+      }
     }
+    return false;
+  }
+
+  function runTicks(tickCount) {
+    let ticksRun = 0;
+    while (ticksRun < tickCount && !gameState.winner) {
+      runTick();
+      ticksRun += 1;
+      if (shouldHalt?.(gameState)) {
+        break;
+      }
+    }
+    unsimulatedSeconds = 0;
+    return ticksRun;
   }
 
   function runTick() {
-    gameState.gameSeconds += TICK_SECONDS;
+    gameState.tickCount += 1;
+    gameState.gameSeconds = gameState.tickCount / TICKS_PER_GAME_SECOND;
     for (const updateSystem of SYSTEMS_IN_TICK_ORDER) {
       updateSystem(gameState, TICK_SECONDS);
     }
   }
 
-  return { advance };
+  return { advance, runTicks };
 }

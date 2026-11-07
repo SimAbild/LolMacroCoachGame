@@ -15,6 +15,7 @@ import { allChampionStates } from '../gameState.js';
 import { LANE_BY_ROLE, STRUCTURE_TYPE } from '../mapLayout.js';
 import { pointAtLaneDistance } from '../laneGeometry.js';
 import { nearestWalkable } from '../navigation.js';
+import { SCRIPTED_ROLL, takeScriptedRoll } from '../random.js';
 import { isPositionVisible, teamVisionSources } from '../vision.js';
 import { computeFightChance, describeTopModifiers, gatherFight } from './fightSystem.js';
 import { directionTowardEnemy, lanePushFor, waveFrontLimits } from './laneSystem.js';
@@ -241,7 +242,9 @@ function engage(gameState, play, attackers, target, initiators) {
     }
   }
   const { chance, modifiers } = computeFightChance(gameState, fight, { wasSpotted: play.wasSpotted });
-  const isCaught = gameState.random() < chance;
+  // The random draw always happens, so a scripted outcome doesn't shift later random numbers.
+  const roll = gameState.random();
+  const isCaught = takeScriptedRoll(gameState, SCRIPTED_ROLL.PLAY_CATCH) ?? roll < chance;
   if (isCaught) {
     target.rootedUntilSeconds = gameState.gameSeconds + CATCH_ROOT_BASE_SECONDS
       + initiator.champion.ratings.gank * CATCH_ROOT_PER_GANK_RATING;

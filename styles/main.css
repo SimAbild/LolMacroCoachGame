@@ -395,6 +395,22 @@ h1, h2 { font-family: var(--font-display); margin: 0; letter-spacing: 0.02em; }
   cursor: pointer;
 }
 .speed-button.is-active { color: #1b1203; background: var(--color-gold); border-color: var(--color-gold-dark); }
+.speed-button--pause { display: inline-flex; align-items: center; justify-content: center; min-width: 28px; margin-right: 6px; }
+.speed-button--pause svg { width: 12px; height: 12px; fill: currentColor; }
+.scoreboard.is-paused .speed-button[data-speed].is-active { opacity: 0.5; }
+.scoreboard__timer.is-paused { color: var(--color-text-muted); }
+.scoreboard__paused {
+  font: 700 12px var(--font-display);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #1b1203;
+  background: var(--color-gold);
+  border-radius: 999px;
+  padding: 2px 9px;
+  animation: paused-blink 1.6s ease-in-out infinite;
+}
+.scoreboard__paused[hidden] { display: none; }
+@keyframes paused-blink { 50% { opacity: 0.55; } }
 
 .game-body { display: grid; grid-template-columns: minmax(250px, 300px) 1fr minmax(250px, 300px); gap: 14px; min-height: 0; }
 .team-column { display: flex; flex-direction: column; gap: 8px; min-height: 0; overflow-y: auto; }
