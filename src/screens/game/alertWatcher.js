@@ -14,5 +14,9 @@ export function createAlertWatcher({ banner, onMajorAlert }) {
     }
   }
 
-  return { showNewAlerts };
+  function markAllShown(gameState) {
+    shownAlertCount = gameState.alerts.length;
+  }
+
+  return { showNewAlerts, markAllShown };
 }

@@ -3,6 +3,9 @@ import { ROLE } from '../config/roles.js';
 import { DRAFT_STEPS } from '../config/draftOrder.js';
 
 export const TUTORIAL_SIDE = TEAM.BLUE;
+// A fixed seed, and no AI coach for Red: the guided game plays out the same way every time,
+// and nothing happens that the tutorial has not set up.
+const TUTORIAL_GAME_OPTIONS = Object.freeze({ seed: 20261107, aiControlledTeams: Object.freeze([]) });
 
 // One entry per draft step, in DRAFT_STEPS order. Picks name the role the champion will play.
 // Red bans junglers, blue bans threats; blue ends up with Volibear and Malphite in the wrong
@@ -24,7 +27,7 @@ const DRAFT_SCRIPT = Object.freeze([
 
 // Everything the guided game is set up from.
 export function createScenario(champions) {
-  return { draftScript: resolveDraftScript(champions), gameOptions: {} };
+  return { draftScript: resolveDraftScript(champions), gameOptions: TUTORIAL_GAME_OPTIONS };
 }
 
 // Data Dragon changes with every patch. A scripted champion that is missing is replaced by an

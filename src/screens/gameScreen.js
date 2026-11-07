@@ -11,7 +11,7 @@ import { attachGameShortcuts } from './game/gameShortcuts.js';
 import { exposeDebugHook } from './game/debugHook.js';
 import { INTENT } from '../core/intents.js';
 import { NO_TUTORIAL } from '../tutorial/noTutorial.js';
-import { STEP_KIND } from '../tutorial/tutorialRunner.js';
+import { createGameTutorialApi } from './game/gameTutorialApi.js';
 import { mountHomeScreen } from './homeScreen.js';
 import { mountEndScreen } from './endScreen.js';
 
@@ -19,14 +19,13 @@ const END_SCREEN_DELAY_MS = 2500;
 const SLOW_MOTION_FACTOR = 0.25;
 const SLOW_MOTION_REAL_SECONDS = 2.5;
 const PANEL_REFRESH_INTERVAL_MS = 200;
-// Tutorial steps the game holds still for: the player reads, or makes the one highlighted call.
-const TUTORIAL_HOLD_KINDS = new Set([STEP_KIND.DIALOG, STEP_KIND.DO, STEP_KIND.SKIP]);
 
 // The game's lifecycle: state, simulation and clock, what happens each frame, and how it ends.
 // The DOM is built by gameLayout.js.
 export function mountGameScreen(root, { router, gameData, playerSide, loadouts, tutorial = NO_TUTORIAL }) {
   const gameState = createInitialGameState({ loadouts, playerSide, itemCatalog: gameData.items, ...tutorial.gameOptions });
-  const simulation = createSimulation(gameState);
+  // In the tutorial, a watch step ends on the exact tick its condition comes true.
+  const simulation = createSimulation(gameState, { shouldHalt: state => tutorial.isWaitOver({ gameState: state }) });
   const clock = createGameClock(onFrame);
   // Aborted on unmount: stops async work (map loading, an open dialog) from touching a screen that is gone.
   const unmountController = new AbortController();
@@ -78,29 +77,15 @@ export function mountGameScreen(root, { router, gameData, playerSide, loadouts, 
       clock.subscribe(clockState => layout.topBar.setClockState(clockState)),
       attachGameShortcuts({ onTogglePause: togglePause, onSpeedChange: changeSpeed }),
       exposeDebugHook({ gameState, simulation, clock, worldToClient: layout.mapPanel.worldToClient }),
-      tutorial.attach('game', createTutorialApi()),
+      tutorial.attach('game', createGameTutorialApi({ gameState, simulation, clock, layout, alertWatcher })),
     ];
   }
 
-  // What the tutorial may ask of the game. It pauses with its own reason, so the player's
-  // Space cannot lift a tutorial hold.
-  function createTutorialApi() {
-    return {
-      context: () => ({ gameState }),
-      onStepShown: step => {
-        if (TUTORIAL_HOLD_KINDS.has(step.kind)) {
-          clock.pause(PAUSE_REASON.TUTORIAL);
-        } else {
-          clock.resume(PAUSE_REASON.TUTORIAL);
-        }
-      },
-      onDialogOpen: () => clock.pause(PAUSE_REASON.DIALOG),
-      onDialogClose: () => clock.resume(PAUSE_REASON.DIALOG),
-    };
-  }
-
   function onFrame(gameSecondsDelta) {
-    simulation.advance(gameSecondsDelta);
+    const isHalted = simulation.advance(gameSecondsDelta);
+    if (isHalted) {
+      tutorial.advanceAfterWait({ gameState });
+    }
     layout.mapPanel.update(gameState);
     alertWatcher.showNewAlerts(gameState);
     if (gameState.winner) {

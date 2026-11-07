@@ -1,17 +1,23 @@
 import { DIALOG_TONE, confirmDialog } from '../ui/dialog.js';
+import { rectFrom } from '../ui/geometry.js';
 import { ScriptedDraftAi } from '../draft/scriptedDraftAi.js';
 import { mountHomeScreen } from '../screens/homeScreen.js';
-import { createTutorialRunner } from './tutorialRunner.js';
+import { STEP_KIND, createTutorialRunner } from './tutorialRunner.js';
 import { createCoachMark } from './ui/coachMark.js';
 
 // Connects the tutorial steps to the screens. The draft, game and end screens receive this
-// object as `tutorial` and call attach / canAct / notify; a normal game gets NO_TUTORIAL instead.
-// Each screen attaches with an api: { context() } plus optional hooks: onStepShown(step), and
-// onDialogOpen() / onDialogClose() so a running game can pause while "Exit tutorial" asks.
+// object as `tutorial` and call attach / allows / notify; a normal game gets NO_TUTORIAL instead.
+// A screen attaches with an api: { context() } plus optional hooks:
+//   onStepShown(step)             e.g. the game holds still for dialogs
+//   checksWaitsEachTick           the game ends watch steps itself, on the exact tick (see isWaitOver)
+//   fastForwardTo(seconds), afterSkip()   for skip steps
+//   worldToClient(point)          for map targets
+//   onDialogOpen(), onDialogClose()       so a running game pauses while "Exit tutorial" asks
 export function createTutorialDirector({ router, steps, scenario }) {
   const coachMark = createCoachMark({ findTargetRects, onNext: () => runner.next(), onExit: confirmExit });
   const runner = createTutorialRunner(steps, { onStepEntered: showStepIfOnScreen, onFinished: finish });
   const warnedMissingTargets = new Set();
+  const startedStepIds = new Set();
   let attachedScreen = null;
   let waitFrameId = null;
 
@@ -28,18 +34,45 @@ export function createTutorialDirector({ router, steps, scenario }) {
 
   // A step is only shown once the screen it belongs to is attached.
   function showStepIfOnScreen(step) {
-    if (!step || step.screen !== attachedScreen?.screenId) {
+    if (!isOnAttachedScreen(step)) {
       coachMark.hide();
       return;
     }
+    startStepOnce(step);
     attachedScreen.api.onStepShown?.(step);
     scrollTargetsIntoView(step);
     coachMark.show(step);
+    if (step.kind === STEP_KIND.SKIP) {
+      skipAhead(step);
+    }
   }
 
-  // While a screen is attached, its own watch steps are checked once per frame.
+  function isOnAttachedScreen(step) {
+    return Boolean(step) && step.screen === attachedScreen?.screenId;
+  }
+
+  // onEnter sets up a step (e.g. starts its deadline) and must run once, even if the screen re-attaches.
+  function startStepOnce(step) {
+    if (!startedStepIds.has(step.id)) {
+      startedStepIds.add(step.id);
+      step.onEnter?.(attachedScreen.api.context());
+    }
+  }
+
+  async function skipAhead(step) {
+    const { api } = attachedScreen;
+    await api.fastForwardTo(step.toSeconds);
+    if (runner.currentStep() === step && attachedScreen?.api === api) {
+      step.patch?.(api.context());
+      api.afterSkip?.();
+      runner.advance();
+    }
+  }
+
+  // Screens without a simulation (the draft) have their watch steps checked once per frame.
   function checkWaitEachFrame() {
-    if (runner.currentStep()?.screen === attachedScreen.screenId) {
+    const step = runner.currentStep();
+    if (isOnAttachedScreen(step) && !attachedScreen.api.checksWaitsEachTick) {
       runner.advanceIfWaitOver(attachedScreen.api.context());
     }
     if (attachedScreen) {
@@ -48,23 +81,31 @@ export function createTutorialDirector({ router, steps, scenario }) {
   }
 
   function findTargetRects(step) {
-    return targetSelectorsOf(step).flatMap(selector => {
-      const rects = [...document.querySelectorAll(selector)]
-        .map(element => element.getBoundingClientRect())
-        .filter(rect => rect.width > 0 && rect.height > 0);
+    return targetsOf(step).flatMap(target => {
+      const rects = typeof target === 'string' ? elementRects(target) : mapPointRects(target);
       if (rects.length === 0) {
-        warnOnceAboutMissingTarget(step, selector);
+        warnOnceAboutMissingTarget(step, target);
       }
       return rects;
     });
   }
 
-  // A missing target means the step text points at nothing: worth a console warning while developing.
-  function warnOnceAboutMissingTarget(step, selector) {
-    const key = `${step.id}|${selector}`;
+  function mapPointRects({ mapPoint, radius }) {
+    const center = attachedScreen?.api.worldToClient?.(mapPoint);
+    if (!center) {
+      return [];
+    }
+    const size = radius * center.scale;
+    return [rectFrom({ left: center.x - size, top: center.y - size, width: size * 2, height: size * 2 })];
+  }
+
+  // A missing target means the step points at nothing: worth a console warning while developing.
+  function warnOnceAboutMissingTarget(step, target) {
+    const description = typeof target === 'string' ? target : `map point ${JSON.stringify(target.mapPoint)}`;
+    const key = `${step.id}|${description}`;
     if (!warnedMissingTargets.has(key)) {
       warnedMissingTargets.add(key);
-      console.warn(`[tutorial] step "${step.id}": nothing on screen matches ${selector}`);
+      console.warn(`[tutorial] step "${step.id}": nothing on screen matches ${description}`);
     }
   }
 
@@ -90,34 +131,45 @@ export function createTutorialDirector({ router, steps, scenario }) {
     coachMark.destroy();
   }
 
+  // Like canAct, but a blocked action also shakes the card, so the player sees where to look.
+  function allows(intent) {
+    const isAllowed = runner.canAct(intent);
+    if (!isAllowed) {
+      coachMark.shake();
+    }
+    return isAllowed;
+  }
+
   return {
     isActive: true,
     gameOptions: scenario.gameOptions,
     createDraftAi: () => new ScriptedDraftAi(scenario.draftScript),
     attach,
     canAct: intent => runner.canAct(intent),
-    // Like canAct, but a blocked action also shakes the card, so the player sees where to look.
-    allows: intent => {
-      const isAllowed = runner.canAct(intent);
-      if (!isAllowed) {
-        coachMark.shake();
-      }
-      return isAllowed;
-    },
+    allows,
     notify: intent => runner.notify(intent),
+    // The game asks after every tick whether to halt, so a watch step ends on the exact tick.
+    isWaitOver: context => isOnAttachedScreen(runner.currentStep()) && runner.isWaitOver(context),
+    advanceAfterWait: context => runner.advanceIfWaitOver(context),
     start: () => runner.start(),
     // The player left in another way (e.g. Leave in the game): just clean up.
     end: finish,
   };
 }
 
-function targetSelectorsOf(step) {
+function targetsOf(step) {
   return step?.target ? [].concat(step.target) : [];
+}
+
+function elementRects(selector) {
+  return [...document.querySelectorAll(selector)]
+    .map(element => element.getBoundingClientRect())
+    .filter(rect => rect.width > 0 && rect.height > 0);
 }
 
 // Targets inside scrolling areas (like the champion grid) are scrolled into view once.
 function scrollTargetsIntoView(step) {
-  for (const selector of targetSelectorsOf(step)) {
+  for (const selector of targetsOf(step).filter(target => typeof target === 'string')) {
     document.querySelector(selector)?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
   }
 }

@@ -57,10 +57,12 @@ export function createTutorialRunner(steps, { onStepEntered, onFinished }) {
       }
     },
     isWaitOver: context => isWaitOver(steps[currentIndex], context),
-    // A watch or free step moves on once its condition holds.
+    // A watch or free step moves on once its condition holds. Its `next` may be a function of the
+    // outcome, so a step can branch (for example: did the gank get the kill or not?).
     advanceIfWaitOver: context => {
-      if (isWaitOver(steps[currentIndex], context)) {
-        advance();
+      const step = steps[currentIndex];
+      if (isWaitOver(step, context)) {
+        advance(typeof step.next === 'function' ? step.next(context) : step.next);
       }
     },
     advance,
