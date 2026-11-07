@@ -18,8 +18,24 @@ const TICK_LABEL_GAP = 22;
 const TICK_LABEL_VERTICAL_CENTER = 4;
 const FOCUS_DOT_RADIUS = 4;
 
+// The gold difference over the game as an area chart (blue above the line, red below),
+// with a diamond for every call the player made and a crosshair readout on hover.
 export function createGoldChart(gameState) {
-  const samples = gameState.goldHistory;
+  const scale = createChartScale(gameState.goldHistory);
+  const svg = svgElement('svg', { viewBox: `0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`, class: 'gold-chart', role: 'img' });
+  svg.append(svgElement('title', {}, 'Gold difference over time, positive means Blue is ahead'));
+  svg.append(...gridAndAxes(scale));
+  svg.append(...goldAreaShapes(scale));
+  svg.append(...gameState.callLog.map(call => callMarker(call, scale)));
+  const tooltip = createElement('div', { className: 'chart-tooltip' });
+  tooltip.hidden = true;
+  attachHoverReadout(svg, tooltip, scale);
+  const wrapper = createElement('div', { className: 'gold-chart-wrapper' }, svg, tooltip);
+  return createElement('div', { className: 'gold-chart-block' }, wrapper, createDataTable(scale.samples, scale.differences));
+}
+
+// Maps game time to x and gold difference to y. The y range is symmetric around zero.
+function createChartScale(samples) {
   const lastSeconds = samples[samples.length - 1]?.gameSeconds ?? 1;
   const differences = samples.map(sample => sample[TEAM.BLUE] - sample[TEAM.RED]);
   const goldRange = Math.max(MIN_GOLD_RANGE, ...differences.map(Math.abs));
@@ -27,15 +43,15 @@ export function createGoldChart(gameState) {
   const plotHeight = CHART_HEIGHT - PADDING.top - PADDING.bottom;
   const xFor = seconds => PADDING.left + (seconds / lastSeconds) * plotWidth;
   const yFor = difference => PADDING.top + plotHeight / 2 - (difference / goldRange) * (plotHeight / 2);
+  return { samples, differences, lastSeconds, goldRange, plotWidth, xFor, yFor };
+}
+
+// The same area is drawn twice and clipped at the zero line: blue above it, red below it.
+function goldAreaShapes({ samples, differences, lastSeconds, xFor, yFor }) {
   const zeroY = yFor(0);
-
-  const svg = svgElement('svg', { viewBox: `0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`, class: 'gold-chart', role: 'img' });
-  svg.append(svgElement('title', {}, 'Gold difference over time, positive means Blue is ahead'));
-  svg.append(...gridAndAxes({ goldRange, lastSeconds, xFor, yFor, plotWidth }));
-
   const linePoints = samples.map((sample, index) => `${xFor(sample.gameSeconds)},${yFor(differences[index])}`).join(' ');
   const areaPath = `M ${xFor(0)} ${zeroY} L ${linePoints.replaceAll(' ', ' L ')} L ${xFor(lastSeconds)} ${zeroY} Z`;
-  svg.append(
+  return [
     svgElement('clipPath', { id: 'gold-above' }, svgElement('rect', { x: 0, y: 0, width: CHART_WIDTH, height: zeroY })),
     svgElement('clipPath', { id: 'gold-below' }, svgElement('rect', { x: 0, y: zeroY, width: CHART_WIDTH, height: CHART_HEIGHT - zeroY })),
     svgElement('path', { d: areaPath, class: 'gold-chart__area gold-chart__area--blue', 'clip-path': 'url(#gold-above)' }),
@@ -43,59 +59,56 @@ export function createGoldChart(gameState) {
     svgElement('polyline', { points: linePoints, class: 'gold-chart__line' }),
     svgElement('text', { x: PADDING.left + LABEL_INSET, y: PADDING.top + LABEL_BASELINE_OFFSET, class: 'gold-chart__label' }, `${TEAM_LABELS.blue} ahead`),
     svgElement('text', { x: PADDING.left + LABEL_INSET, y: CHART_HEIGHT - PADDING.bottom - LABEL_INSET, class: 'gold-chart__label' }, `${TEAM_LABELS.red} ahead`),
-  );
+  ];
+}
 
-  for (const call of gameState.callLog) {
-    const x = xFor(call.gameSeconds);
-    const y = CHART_HEIGHT - PADDING.bottom;
-    const marker = svgElement('path', {
-      d: `M ${x} ${y - CALL_MARKER_SIZE} L ${x + CALL_MARKER_SIZE} ${y} L ${x} ${y + CALL_MARKER_SIZE} L ${x - CALL_MARKER_SIZE} ${y} Z`,
-      class: 'gold-chart__call',
-    });
-    marker.append(svgElement('title', {}, `${formatGameTime(call.gameSeconds)} · ${call.label}`));
-    svg.append(marker);
-  }
+function callMarker(call, { xFor }) {
+  const x = xFor(call.gameSeconds);
+  const y = CHART_HEIGHT - PADDING.bottom;
+  const marker = svgElement('path', {
+    d: `M ${x} ${y - CALL_MARKER_SIZE} L ${x + CALL_MARKER_SIZE} ${y} L ${x} ${y + CALL_MARKER_SIZE} L ${x - CALL_MARKER_SIZE} ${y} Z`,
+    class: 'gold-chart__call',
+  });
+  marker.append(svgElement('title', {}, `${formatGameTime(call.gameSeconds)} · ${call.label}`));
+  return marker;
+}
 
+// A crosshair and dot snap to the sample nearest the pointer, with the exact value in a tooltip.
+function attachHoverReadout(svg, tooltip, scale) {
   const crosshair = svgElement('line', { y1: PADDING.top, y2: CHART_HEIGHT - PADDING.bottom, class: 'gold-chart__crosshair' });
   const focusDot = svgElement('circle', { r: FOCUS_DOT_RADIUS, class: 'gold-chart__focus' });
-  crosshair.style.display = 'none';
-  focusDot.style.display = 'none';
   svg.append(crosshair, focusDot);
-
-  const tooltip = createElement('div', { className: 'chart-tooltip' });
-  tooltip.hidden = true;
-  const wrapper = createElement('div', { className: 'gold-chart-wrapper' }, svg, tooltip);
-
+  const setReadoutVisible = isVisible => {
+    crosshair.style.display = isVisible ? '' : 'none';
+    focusDot.style.display = isVisible ? '' : 'none';
+    tooltip.hidden = !isVisible;
+  };
+  setReadoutVisible(false);
   svg.addEventListener('pointermove', event => {
-    if (samples.length === 0) {
-      return;
+    if (scale.samples.length > 0) {
+      showReadoutAt(event, { svg, crosshair, focusDot, tooltip, scale });
+      setReadoutVisible(true);
     }
-    const bounds = svg.getBoundingClientRect();
-    const chartX = ((event.clientX - bounds.left) / bounds.width) * CHART_WIDTH;
-    const hoveredSeconds = ((chartX - PADDING.left) / plotWidth) * lastSeconds;
-    const nearestIndex = nearestSampleIndex(samples, hoveredSeconds);
-    const sample = samples[nearestIndex];
-    const difference = differences[nearestIndex];
-    const x = xFor(sample.gameSeconds);
-    crosshair.setAttribute('x1', x);
-    crosshair.setAttribute('x2', x);
-    focusDot.setAttribute('cx', x);
-    focusDot.setAttribute('cy', yFor(difference));
-    crosshair.style.display = '';
-    focusDot.style.display = '';
-    const leader = difference >= 0 ? TEAM_LABELS.blue : TEAM_LABELS.red;
-    tooltip.textContent = `${formatGameTime(sample.gameSeconds)} · ${leader} +${formatThousands(Math.abs(difference))}`;
-    tooltip.hidden = false;
-    tooltip.style.left = `${event.clientX - bounds.left + TOOLTIP_OFFSET}px`;
-    tooltip.style.top = `${event.clientY - bounds.top + TOOLTIP_OFFSET}px`;
   });
-  svg.addEventListener('pointerleave', () => {
-    crosshair.style.display = 'none';
-    focusDot.style.display = 'none';
-    tooltip.hidden = true;
-  });
+  svg.addEventListener('pointerleave', () => setReadoutVisible(false));
+}
 
-  return createElement('div', { className: 'gold-chart-block' }, wrapper, createDataTable(samples, differences));
+function showReadoutAt(event, { svg, crosshair, focusDot, tooltip, scale }) {
+  const bounds = svg.getBoundingClientRect();
+  const chartX = ((event.clientX - bounds.left) / bounds.width) * CHART_WIDTH;
+  const hoveredSeconds = ((chartX - PADDING.left) / scale.plotWidth) * scale.lastSeconds;
+  const nearestIndex = nearestSampleIndex(scale.samples, hoveredSeconds);
+  const sample = scale.samples[nearestIndex];
+  const difference = scale.differences[nearestIndex];
+  const x = scale.xFor(sample.gameSeconds);
+  crosshair.setAttribute('x1', x);
+  crosshair.setAttribute('x2', x);
+  focusDot.setAttribute('cx', x);
+  focusDot.setAttribute('cy', scale.yFor(difference));
+  const leader = difference >= 0 ? TEAM_LABELS.blue : TEAM_LABELS.red;
+  tooltip.textContent = `${formatGameTime(sample.gameSeconds)} · ${leader} +${formatThousands(Math.abs(difference))}`;
+  tooltip.style.left = `${event.clientX - bounds.left + TOOLTIP_OFFSET}px`;
+  tooltip.style.top = `${event.clientY - bounds.top + TOOLTIP_OFFSET}px`;
 }
 
 function gridAndAxes({ goldRange, lastSeconds, xFor, yFor, plotWidth }) {

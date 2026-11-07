@@ -15,102 +15,121 @@ const ICONS = Object.freeze({
   play: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5l11 7-11 7z"/></svg>',
 });
 
+// The scoreboard along the top: Leave, both teams' stats, the kill score, and the clock controls.
 export function createTopBar({ playerSide, onSpeedChange, onPauseToggle, onSlowMotionToggle, onLeave }) {
-  const teamStats = { [TEAM.BLUE]: createTeamStats(TEAM.BLUE), [TEAM.RED]: createTeamStats(TEAM.RED) };
-  const blueKills = createElement('span', { className: 'scoreboard__kills scoreboard__kills--blue' });
-  const redKills = createElement('span', { className: 'scoreboard__kills scoreboard__kills--red' });
-  const timer = createElement('span', { className: 'scoreboard__timer' });
-  const pausedPill = createElement('span', { className: 'scoreboard__paused', text: 'Paused' });
-  pausedPill.hidden = true;
-
-  const pauseButton = createButton('', onPauseToggle, 'speed-button speed-button--pause');
-  pauseButton.dataset.anchor = 'pause';
-  pauseButton.setAttribute('aria-pressed', 'false');
-
-  const speedButtons = GAME_SPEEDS.map(speed => {
-    const button = createButton(`${speed}x`, () => onSpeedChange(speed), 'speed-button');
-    button.dataset.speed = String(speed);
-    button.title = `Speed ${speed}x (key ${speed})`;
-    return button;
-  });
-
-  const slowMotionButton = createButton('Slow-mo', () => {
-    const isEnabled = !slowMotionButton.classList.contains('is-active');
-    slowMotionButton.classList.toggle('is-active', isEnabled);
-    slowMotionButton.setAttribute('aria-pressed', String(isEnabled));
-    onSlowMotionToggle(isEnabled);
-  }, 'speed-button speed-button--toggle is-active');
-  slowMotionButton.title = 'Slow down on important moments';
-  slowMotionButton.dataset.anchor = 'slow-motion';
-  slowMotionButton.setAttribute('aria-pressed', 'true');
-
+  const teamStats = { [TEAM.BLUE]: createTeamStats(TEAM.BLUE, playerSide), [TEAM.RED]: createTeamStats(TEAM.RED, playerSide) };
+  const kills = {
+    [TEAM.BLUE]: createElement('span', { className: 'scoreboard__kills scoreboard__kills--blue' }),
+    [TEAM.RED]: createElement('span', { className: 'scoreboard__kills scoreboard__kills--red' }),
+  };
+  const clockControls = createClockControls({ onSpeedChange, onPauseToggle, onSlowMotionToggle });
   const leaveButton = createButton('Leave', onLeave, 'scoreboard__leave');
   leaveButton.dataset.anchor = 'leave';
-
   const element = createElement('div', { className: 'scoreboard' },
     leaveButton,
     teamStats[TEAM.BLUE].element,
-    createElement('div', { className: 'scoreboard__center' }, blueKills, createElement('span', { className: 'scoreboard__divider', text: '—' }), redKills),
+    createElement('div', { className: 'scoreboard__center' },
+      kills[TEAM.BLUE], createElement('span', { className: 'scoreboard__divider', text: '—' }), kills[TEAM.RED]),
     teamStats[TEAM.RED].element,
-    createElement('div', { className: 'scoreboard__clock', dataset: { anchor: 'clock' } },
-      pausedPill,
-      timer,
-      createElement('div', { className: 'speed-buttons' }, pauseButton, ...speedButtons, slowMotionButton),
-    ),
+    clockControls.element,
   );
 
-  setClockState({ speed: GAME_SPEEDS[0], isPaused: false, pauseReasons: [] });
+  function update(gameState) {
+    for (const team of [TEAM.BLUE, TEAM.RED]) {
+      teamStats[team].update(gameState);
+      kills[team].textContent = String(gameState.teams[team].kills);
+    }
+    clockControls.showTime(gameState.gameSeconds);
+  }
+
+  return { element, update, setClockState: clockControls.setClockState };
+}
+
+function createTeamStats(team, playerSide) {
+  const youSuffix = team === playerSide ? ' (you)' : '';
+  const values = { towers: createStatValue(), gold: createStatValue(), grubs: createStatValue() };
+  const drakeSlots = Array.from({ length: DRAKES_FOR_SOUL }, () => createElement('span', { className: 'drake-slot' }));
+  const element = createElement('div', { className: `scoreboard__team scoreboard__team--${team}` },
+    createElement('span', { className: 'scoreboard__team-name', text: `${TEAM_LABELS[team].toUpperCase()}${youSuffix}` }),
+    createStat('tower', 'Towers destroyed', values.towers),
+    createStat('gold', 'Total gold', values.gold),
+    createStat('grub', 'Void grubs', values.grubs),
+    createElement('span', { className: 'drake-slots', attributes: { title: 'Drakes' } }, ...drakeSlots),
+  );
+
+  // A drake slot takes the colour of the element of the drake taken in that slot.
+  function update(gameState) {
+    const teamState = gameState.teams[team];
+    values.towers.textContent = String(destroyedEnemyTowerCount(gameState, team));
+    values.gold.textContent = formatGold(totalTeamGold(teamState));
+    values.grubs.textContent = String(teamState.voidGrubs);
+    drakeSlots.forEach((slot, index) => {
+      slot.dataset.element = teamState.drakes[index] ?? '';
+    });
+  }
+
+  return { element, update };
+}
+
+// Game time, the "Paused" pill, pause, speeds 1x/2x/3x and the slow-motion toggle.
+function createClockControls({ onSpeedChange, onPauseToggle, onSlowMotionToggle }) {
+  const timer = createElement('span', { className: 'scoreboard__timer' });
+  const pausedPill = createElement('span', { className: 'scoreboard__paused', text: 'Paused' });
+  const pauseButton = createButton('', onPauseToggle, 'speed-button speed-button--pause');
+  pauseButton.dataset.anchor = 'pause';
+  const speedButtons = GAME_SPEEDS.map(speed => createSpeedButton(speed, onSpeedChange));
+  const element = createElement('div', { className: 'scoreboard__clock', dataset: { anchor: 'clock' } },
+    pausedPill,
+    timer,
+    createElement('div', { className: 'speed-buttons' }, pauseButton, ...speedButtons, createSlowMotionButton(onSlowMotionToggle)),
+  );
 
   // Only pauses the player can lift show as "Paused"; tutorial halts are shown by the tutorial itself.
   function setClockState({ speed, pauseReasons }) {
     const isUserPaused = pauseReasons.includes(PAUSE_REASON.USER);
     const showsPaused = isUserPaused || pauseReasons.includes(PAUSE_REASON.DIALOG);
-    pauseButton.innerHTML = isUserPaused ? ICONS.play : ICONS.pause;
-    pauseButton.classList.toggle('is-active', isUserPaused);
-    pauseButton.setAttribute('aria-pressed', String(isUserPaused));
-    pauseButton.setAttribute('aria-label', isUserPaused ? 'Resume' : 'Pause');
-    pauseButton.title = isUserPaused ? 'Resume (Space)' : 'Pause (Space)';
+    showPauseButtonState(pauseButton, isUserPaused);
     for (const button of speedButtons) {
       button.classList.toggle('is-active', Number(button.dataset.speed) === speed);
     }
     pausedPill.hidden = !showsPaused;
-    timer.classList.toggle('is-paused', showsPaused);
     element.classList.toggle('is-paused', showsPaused);
   }
 
-  function createTeamStats(team) {
-    const youSuffix = team === playerSide ? ' (you)' : '';
-    const towers = createElement('span', { className: 'stat__value' });
-    const gold = createElement('span', { className: 'stat__value' });
-    const grubs = createElement('span', { className: 'stat__value' });
-    const drakeSlots = Array.from({ length: DRAKES_FOR_SOUL }, () => createElement('span', { className: 'drake-slot' }));
-    const statsElement = createElement('div', { className: `scoreboard__team scoreboard__team--${team}` },
-      createElement('span', { className: 'scoreboard__team-name', text: `${TEAM_LABELS[team].toUpperCase()}${youSuffix}` }),
-      createStat('tower', 'Towers destroyed', towers),
-      createStat('gold', 'Total gold', gold),
-      createStat('grub', 'Void grubs', grubs),
-      createElement('span', { className: 'drake-slots', attributes: { title: 'Drakes' } }, ...drakeSlots),
-    );
-    return { element: statsElement, towers, gold, grubs, drakeSlots };
-  }
+  setClockState({ speed: GAME_SPEEDS[0], pauseReasons: [] });
+  return { element, setClockState, showTime: gameSeconds => { timer.textContent = formatGameTime(gameSeconds); } };
+}
 
-  function update(gameState) {
-    for (const team of [TEAM.BLUE, TEAM.RED]) {
-      const teamState = gameState.teams[team];
-      const stats = teamStats[team];
-      stats.towers.textContent = String(destroyedEnemyTowerCount(gameState, team));
-      stats.gold.textContent = formatGold(totalTeamGold(teamState));
-      stats.grubs.textContent = String(teamState.voidGrubs);
-      stats.drakeSlots.forEach((slot, index) => {
-        slot.dataset.element = teamState.drakes[index] ?? '';
-      });
-    }
-    blueKills.textContent = String(gameState.teams[TEAM.BLUE].kills);
-    redKills.textContent = String(gameState.teams[TEAM.RED].kills);
-    timer.textContent = formatGameTime(gameState.gameSeconds);
-  }
+function showPauseButtonState(pauseButton, isUserPaused) {
+  pauseButton.innerHTML = isUserPaused ? ICONS.play : ICONS.pause;
+  pauseButton.classList.toggle('is-active', isUserPaused);
+  pauseButton.setAttribute('aria-pressed', String(isUserPaused));
+  pauseButton.setAttribute('aria-label', isUserPaused ? 'Resume' : 'Pause');
+  pauseButton.title = isUserPaused ? 'Resume (Space)' : 'Pause (Space)';
+}
 
-  return { element, update, setClockState };
+function createSpeedButton(speed, onSpeedChange) {
+  const button = createButton(`${speed}x`, () => onSpeedChange(speed), 'speed-button');
+  button.dataset.speed = String(speed);
+  button.title = `Speed ${speed}x (key ${speed})`;
+  return button;
+}
+
+function createSlowMotionButton(onSlowMotionToggle) {
+  const button = createButton('Slow-mo', () => {
+    const isEnabled = !button.classList.contains('is-active');
+    button.classList.toggle('is-active', isEnabled);
+    button.setAttribute('aria-pressed', String(isEnabled));
+    onSlowMotionToggle(isEnabled);
+  }, 'speed-button speed-button--toggle is-active');
+  button.title = 'Slow down on important moments';
+  button.dataset.anchor = 'slow-motion';
+  button.setAttribute('aria-pressed', 'true');
+  return button;
+}
+
+function createStatValue() {
+  return createElement('span', { className: 'stat__value' });
 }
 
 function createStat(iconName, title, valueElement) {

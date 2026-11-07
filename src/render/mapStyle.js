@@ -25,6 +25,9 @@ export const MAP_COLORS = Object.freeze({
   [TEAM.RED]: 0xe0505b,
 });
 
+// Map labels use the display font of the UI; Arial Narrow if it has not loaded.
+export const LABEL_FONT_FAMILY = "'Barlow Condensed', 'Arial Narrow', sans-serif";
+
 export const ELEMENT_COLORS = Object.freeze({
   Infernal: 0xe8603c,
   Mountain: 0xb08d57,

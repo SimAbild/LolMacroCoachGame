@@ -8,20 +8,11 @@ const TUTORIAL_READY = false;
 
 let gameDataPromise = null;
 
+// The buttons stay disabled until the champion data from Data Dragon has loaded.
 export function mountHomeScreen(root, { router }) {
-  let loadedGameData = null;
+  const loaded = { gameData: null };
   const statusLine = createElement('p', { className: 'home-status', text: 'Loading champions…' });
-  const playButton = createButton('Play', () => {
-    router.show(mountMatchmakingScreen, { gameData: loadedGameData });
-  }, 'button button--primary button--large');
-  playButton.dataset.anchor = 'play';
-  const howToPlayButton = TUTORIAL_READY
-    ? createButton('How to play', () => {}, 'button button--outline button--large')
-    : null;
-  const buttons = [playButton, howToPlayButton].filter(Boolean);
-  for (const button of buttons) {
-    button.disabled = true;
-  }
+  const buttons = createHomeButtons(router, loaded);
   const isNewPlayer = TUTORIAL_READY && !readFlag(STORAGE_KEY.TUTORIAL_COMPLETED);
 
   root.append(createElement('section', { className: 'home-screen' },
@@ -35,19 +26,37 @@ export function mountHomeScreen(root, { router }) {
     statusLine,
     createElement('p', { className: 'home-disclaimer', text: 'Fan project. Not endorsed by Riot Games.' }),
   ));
+  loadGameDataOnce({ statusLine, buttons, loaded });
+}
 
+function createHomeButtons(router, loaded) {
+  const playButton = createButton('Play', () => {
+    router.show(mountMatchmakingScreen, { gameData: loaded.gameData });
+  }, 'button button--primary button--large');
+  playButton.dataset.anchor = 'play';
+  const howToPlayButton = TUTORIAL_READY
+    ? createButton('How to play', () => {}, 'button button--outline button--large')
+    : null;
+  const buttons = [playButton, howToPlayButton].filter(Boolean);
+  buttons.forEach(button => {
+    button.disabled = true;
+  });
+  return buttons;
+}
+
+// The data is fetched once per page load and reused when the player comes back to this screen.
+// A failed fetch is forgotten, so coming back to the home screen tries again.
+async function loadGameDataOnce({ statusLine, buttons, loaded }) {
   gameDataPromise ??= loadGameData();
-  gameDataPromise
-    .then(gameData => {
-      loadedGameData = gameData;
-      for (const button of buttons) {
-        button.disabled = false;
-      }
-      statusLine.textContent = `${gameData.champions.length} champions · patch ${gameData.version}`;
-    })
-    .catch(error => {
-      gameDataPromise = null;
-      statusLine.textContent = `Could not load champions from Data Dragon. ${error.message}`;
-      statusLine.classList.add('home-status--error');
+  try {
+    loaded.gameData = await gameDataPromise;
+    buttons.forEach(button => {
+      button.disabled = false;
     });
+    statusLine.textContent = `${loaded.gameData.champions.length} champions · patch ${loaded.gameData.version}`;
+  } catch (error) {
+    gameDataPromise = null;
+    statusLine.textContent = `Could not load champions from Data Dragon. ${error.message}`;
+    statusLine.classList.add('home-status--error');
+  }
 }
