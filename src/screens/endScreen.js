@@ -5,10 +5,12 @@ import { ROLE_LABELS } from '../config/roles.js';
 import { destroyedEnemyTowerCount } from '../game/gameState.js';
 import { createGoldChart } from './end/goldChart.js';
 import { mountHomeScreen } from './homeScreen.js';
+import { mountMatchmakingScreen } from './matchmakingScreen.js';
+import { mountGameScreen } from './gameScreen.js';
 
 const GOLD_PER_THOUSAND = 1000;
 
-export function mountEndScreen(root, { router, gameData, gameState }) {
+export function mountEndScreen(root, { router, gameData, gameState, loadouts }) {
   const playerWon = gameState.winner === gameState.playerSide;
   root.append(createElement('section', { className: 'end-screen', dataset: { result: playerWon ? 'victory' : 'defeat' } },
     createElement('header', { className: 'end-header' },
@@ -27,8 +29,18 @@ export function mountEndScreen(root, { router, gameData, gameState }) {
       createTeamSummary(gameState, gameData, TEAM.BLUE),
       createTeamSummary(gameState, gameData, TEAM.RED),
     ),
-    createButton('Play again', () => router.show(mountHomeScreen), 'button button--primary button--large'),
+    createEndActions(),
   ));
+
+  // Rematch replays the same draft and side with a new random seed, so the game plays out differently.
+  function createEndActions() {
+    const playerSide = gameState.playerSide;
+    return createElement('div', { className: 'end-actions' },
+      createButton('Rematch', () => router.show(mountGameScreen, { gameData, playerSide, loadouts }), 'button button--primary button--large'),
+      createButton('New draft', () => router.show(mountMatchmakingScreen, { gameData }), 'button button--large'),
+      createButton('Home', () => router.show(mountHomeScreen), 'button button--large'),
+    );
+  }
 }
 
 function createTeamSummary(gameState, gameData, team) {

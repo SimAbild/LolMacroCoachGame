@@ -45,6 +45,8 @@ export function mountDraftScreen(root, { router, gameData, playerSide }) {
   });
   const centerArea = createElement('div', { className: 'draft-center' }, championPicker);
   const primaryButton = createButton('Lock in', onPrimaryButtonClick, 'button button--primary button--lock');
+  primaryButton.dataset.anchor = 'lock-in';
+  const footerHint = createElement('p', { className: 'draft-hint' });
 
   for (const champion of gameData.champions) {
     const tile = createChampionTile(champion);
@@ -65,7 +67,7 @@ export function mountDraftScreen(root, { router, gameData, playerSide }) {
     ),
     createElement('footer', { className: 'draft-footer' },
       createBanRow(TEAM.BLUE, BLUE_BAN_DISPLAY_ORDER),
-      primaryButton,
+      createElement('div', { className: 'draft-footer__center' }, primaryButton, footerHint),
       createBanRow(TEAM.RED, RED_BAN_DISPLAY_ORDER),
     ),
   ));
@@ -276,15 +278,19 @@ export function mountDraftScreen(root, { router, gameData, playerSide }) {
     if (view.screenPhase === SCREEN_PHASE.SWAP) {
       primaryButton.textContent = 'Start game';
       primaryButton.disabled = false;
+      footerHint.textContent = '';
       return;
     }
     if (!isPlayersTurn()) {
       primaryButton.textContent = 'Enemy is choosing…';
       primaryButton.disabled = true;
+      footerHint.textContent = '';
       return;
     }
-    primaryButton.textContent = draftState.currentStep.action === DRAFT_ACTION.BAN ? 'Ban' : 'Lock in';
+    const verb = draftState.currentStep.action === DRAFT_ACTION.BAN ? 'Ban' : 'Lock in';
+    primaryButton.textContent = verb;
     primaryButton.disabled = !view.selectedChampionId;
+    footerHint.textContent = `Tip: double-click a champion to ${verb.toLowerCase()} at once`;
   }
 }
 

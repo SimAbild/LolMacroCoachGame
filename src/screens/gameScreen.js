@@ -24,7 +24,6 @@ const END_SCREEN_DELAY_MS = 2500;
 const SLOW_MOTION_FACTOR = 0.25;
 const SLOW_MOTION_REAL_SECONDS = 2.5;
 const PANEL_REFRESH_INTERVAL_MS = 200;
-const ERROR_TOAST_MS = 6000;
 
 export function mountGameScreen(root, { router, gameData, playerSide, loadouts }) {
   const gameState = createInitialGameState({ loadouts, playerSide, itemCatalog: gameData.items });
@@ -48,7 +47,7 @@ export function mountGameScreen(root, { router, gameData, playerSide, loadouts }
     if (gameState.winner && !endScreenTimer) {
       clock.stop();
       refreshPanels();
-      endScreenTimer = setTimeout(() => router.show(mountEndScreen, { gameData, gameState }), END_SCREEN_DELAY_MS);
+      endScreenTimer = setTimeout(() => router.show(mountEndScreen, { gameData, gameState, loadouts }), END_SCREEN_DELAY_MS);
       return;
     }
     const nowMs = performance.now();
@@ -69,7 +68,11 @@ export function mountGameScreen(root, { router, gameData, playerSide, loadouts }
   const mapHost = createElement('div', { className: 'map-host' });
   const eventFeed = createEventFeed(playerSide);
   const alertBanner = createAlertBanner();
-  const mapFrame = createElement('div', { className: 'map-frame' }, mapHost, eventFeed.element, alertBanner.element);
+  const mapStatus = createElement('div', { className: 'map-status', attributes: { role: 'status' } },
+    createElement('div', { className: 'spinner spinner--small', attributes: { 'aria-hidden': 'true' } }),
+    createElement('span', { text: 'Loading map…' }),
+  );
+  const mapFrame = createElement('div', { className: 'map-frame' }, mapHost, mapStatus, eventFeed.element, alertBanner.element);
   let isSlowMotionEnabled = true;
   let shownAlertCount = 0;
 
@@ -94,19 +97,30 @@ export function mountGameScreen(root, { router, gameData, playerSide, loadouts }
     onTogglePause: () => clock.toggleUserPause(),
     onSpeedChange: changeSpeed,
   });
-  clock.start();
+  // The clock starts once the map is ready, so no game time passes while the map is still loading.
+  // If the map fails, the game still runs: the panels and calls work without it.
   createMapRenderer(mapHost, gameState, { mapImageUrl: minimapImageUrl(gameData.version) })
     .then(renderer => {
-      if (isMounted) {
-        mapRenderer = renderer;
-      } else {
+      if (!isMounted) {
         renderer.destroy();
+        return;
       }
+      mapRenderer = renderer;
+      mapHost.classList.add('is-ready');
+      mapStatus.remove();
+      clock.start();
     })
-    .catch(error => showToast(`The map could not be drawn: ${error.message}`, {
-      variant: TOAST_VARIANT.ERROR,
-      durationMs: ERROR_TOAST_MS,
-    }));
+    .catch(error => {
+      if (!isMounted) {
+        return;
+      }
+      mapStatus.classList.add('map-status--error');
+      mapStatus.replaceChildren(
+        createElement('strong', { text: 'The map could not be drawn.' }),
+        createElement('span', { text: error.message }),
+      );
+      clock.start();
+    });
 
   return () => {
     isMounted = false;

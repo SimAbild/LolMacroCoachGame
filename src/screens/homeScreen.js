@@ -1,16 +1,28 @@
 import { createButton, createElement } from '../ui/dom.js';
 import { loadGameData } from '../data/gameDataRepository.js';
+import { STORAGE_KEY, readFlag } from '../core/storage.js';
 import { mountMatchmakingScreen } from './matchmakingScreen.js';
+
+// Turned on when the guided tutorial exists (Milestone 12).
+const TUTORIAL_READY = false;
 
 let gameDataPromise = null;
 
 export function mountHomeScreen(root, { router }) {
   let loadedGameData = null;
   const statusLine = createElement('p', { className: 'home-status', text: 'Loading champions…' });
-  const findOpponentButton = createButton('Find opponent', () => {
+  const playButton = createButton('Play', () => {
     router.show(mountMatchmakingScreen, { gameData: loadedGameData });
   }, 'button button--primary button--large');
-  findOpponentButton.disabled = true;
+  playButton.dataset.anchor = 'play';
+  const howToPlayButton = TUTORIAL_READY
+    ? createButton('How to play', () => {}, 'button button--outline button--large')
+    : null;
+  const buttons = [playButton, howToPlayButton].filter(Boolean);
+  for (const button of buttons) {
+    button.disabled = true;
+  }
+  const isNewPlayer = TUTORIAL_READY && !readFlag(STORAGE_KEY.TUTORIAL_COMPLETED);
 
   root.append(createElement('section', { className: 'home-screen' },
     createElement('div', { className: 'home-logo' },
@@ -18,7 +30,8 @@ export function mountHomeScreen(root, { router }) {
       createElement('h1', { className: 'home-logo__title', text: 'Macro Coach' }),
     ),
     createElement('p', { className: 'home-tagline', text: 'Draft your team. Make the calls. Destroy the nexus.' }),
-    findOpponentButton,
+    createElement('div', { className: 'home-actions' }, ...buttons),
+    isNewPlayer ? createElement('p', { className: 'home-hint', text: 'New here? Start with How to play.' }) : null,
     statusLine,
     createElement('p', { className: 'home-disclaimer', text: 'Fan project. Not endorsed by Riot Games.' }),
   ));
@@ -27,7 +40,9 @@ export function mountHomeScreen(root, { router }) {
   gameDataPromise
     .then(gameData => {
       loadedGameData = gameData;
-      findOpponentButton.disabled = false;
+      for (const button of buttons) {
+        button.disabled = false;
+      }
       statusLine.textContent = `${gameData.champions.length} champions · patch ${gameData.version}`;
     })
     .catch(error => {
