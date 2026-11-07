@@ -1,36 +1,50 @@
 import { createButton, createElement } from '../ui/dom.js';
 import { TEAM, opposingTeam } from '../config/teams.js';
 import { DRAFT_ACTION } from '../config/draftOrder.js';
+import { INTENT } from '../core/intents.js';
 import { DraftState } from '../draft/draftState.js';
 import { DraftAi } from '../draft/draftAi.js';
-import { createLoadoutFromRoleMap, createLoadoutWithAutomaticRoles } from '../draft/teamLoadout.js';
+import { applyLoadoutIntent, createDraftLoadouts } from '../draft/teamLoadout.js';
+import { NO_TUTORIAL } from '../tutorial/noTutorial.js';
 import { createLoadoutPanel } from './draft/loadoutPanel.js';
 import { createChampionPicker } from './draft/championPicker.js';
 import { createDraftBoard } from './draft/draftBoard.js';
 import { mountGameScreen } from './gameScreen.js';
 
 const AI_THINKING_MS = 900;
+// How often a waiting AI turn asks the tutorial again whether it may go.
+const AI_RETRY_MS = 250;
 const SCREEN_PHASE = Object.freeze({ DRAFT: 'draft', SWAP: 'swap' });
 
 // The draft's flow: whose turn it is, the AI's turns, locking in, and the swap phase after it.
 // The board, the picker and the loadout panel draw themselves from the state passed to them.
-export function mountDraftScreen(root, { router, gameData, playerSide }) {
+// Every player action is an intent the tutorial may allow or block (a normal draft allows all).
+export function mountDraftScreen(root, { router, gameData, playerSide, tutorial = NO_TUTORIAL }) {
   const aiTeam = opposingTeam(playerSide);
   const draftState = new DraftState(gameData.champions);
-  const draftAi = new DraftAi(aiTeam);
+  const draftAi = tutorial.createDraftAi?.(aiTeam) ?? new DraftAi(aiTeam);
   const view = { screenPhase: SCREEN_PHASE.DRAFT, selectedChampionId: null, loadouts: null };
   let aiTimer = null;
 
   const board = createDraftBoard({ playerSide });
-  const picker = createChampionPicker({ champions: gameData.champions, onSelect: selectChampion, onLockIn: lockInByDoubleClick });
-  const loadoutPanel = createLoadoutPanel({ version: gameData.version, onLoadoutChange: changePlayerLoadout });
+  const picker = createChampionPicker({
+    champions: gameData.champions,
+    onSelect: selectChampion,
+    onLockIn: lockInByDoubleClick,
+    canChangeFilters: () => tutorial.allows({ type: INTENT.DRAFT_FILTER }),
+  });
+  const loadoutPanel = createLoadoutPanel({ version: gameData.version, onIntent: changePlayerLoadout });
   const centerArea = createElement('div', { className: 'draft-center' }, picker.element);
   const footer = createFooter();
 
   root.append(createScreenElement());
   render();
+  const detachTutorial = tutorial.attach('draft', { context: () => ({ draftState, loadouts: view.loadouts }) });
   scheduleAiTurnIfNeeded();
-  return () => clearTimeout(aiTimer);
+  return () => {
+    clearTimeout(aiTimer);
+    detachTutorial();
+  };
 
   function createScreenElement() {
     return createElement('section', { className: 'draft-screen', dataset: { playerSide } },
@@ -45,7 +59,10 @@ export function mountDraftScreen(root, { router, gameData, playerSide }) {
   }
 
   function selectChampion(championId) {
-    if (isPlayersTurn() && draftState.isChampionAvailable(championId)) {
+    if (!isPlayersTurn() || !draftState.isChampionAvailable(championId)) {
+      return;
+    }
+    if (tutorial.allows({ type: INTENT.DRAFT_SELECT, championId })) {
       view.selectedChampionId = championId;
       render();
     }
@@ -60,29 +77,47 @@ export function mountDraftScreen(root, { router, gameData, playerSide }) {
 
   function onPrimaryButtonClick() {
     if (view.screenPhase === SCREEN_PHASE.SWAP) {
-      router.show(mountGameScreen, { gameData, playerSide, loadouts: view.loadouts });
+      startGame();
     } else {
       lockInPlayerSelection();
     }
   }
 
+  function startGame() {
+    const intent = { type: INTENT.START_GAME };
+    if (tutorial.allows(intent)) {
+      tutorial.notify(intent);
+      router.show(mountGameScreen, { gameData, playerSide, loadouts: view.loadouts, tutorial });
+    }
+  }
+
   function lockInPlayerSelection() {
-    if (!isPlayersTurn() || !view.selectedChampionId) {
+    const intent = { type: INTENT.DRAFT_LOCK, championId: view.selectedChampionId };
+    if (!isPlayersTurn() || !view.selectedChampionId || !tutorial.allows(intent)) {
       return;
     }
     draftState.lockIn(view.selectedChampionId);
     view.selectedChampionId = null;
     afterLockIn();
+    tutorial.notify(intent);
   }
 
+  // The AI thinks for a moment before each turn. In the tutorial it also waits until the
+  // current step lets the opponent move, so it never acts in the middle of an explanation.
   function scheduleAiTurnIfNeeded() {
     if (draftState.isComplete || draftState.currentStep.team !== aiTeam) {
       return;
     }
-    aiTimer = setTimeout(() => {
-      draftState.lockIn(draftAi.chooseChampion(draftState).id);
-      afterLockIn();
-    }, AI_THINKING_MS);
+    aiTimer = setTimeout(takeAiTurnWhenAllowed, AI_THINKING_MS);
+  }
+
+  function takeAiTurnWhenAllowed() {
+    if (!tutorial.canAct({ type: INTENT.DRAFT_AI_TURN })) {
+      aiTimer = setTimeout(takeAiTurnWhenAllowed, AI_RETRY_MS);
+      return;
+    }
+    draftState.lockIn(draftAi.chooseChampion(draftState).id);
+    afterLockIn();
   }
 
   function afterLockIn() {
@@ -93,18 +128,18 @@ export function mountDraftScreen(root, { router, gameData, playerSide }) {
     scheduleAiTurnIfNeeded();
   }
 
-  // The player's roles start as a best guess and can be swapped; the AI's roles are the ones it drafted for.
   function enterSwapPhase() {
     view.screenPhase = SCREEN_PHASE.SWAP;
-    view.loadouts = {
-      [playerSide]: createLoadoutWithAutomaticRoles(draftState.picksFor(playerSide)),
-      [aiTeam]: createLoadoutFromRoleMap(draftState.picksFor(aiTeam), draftAi.roleByChampionId),
-    };
+    view.loadouts = createDraftLoadouts(draftState, { playerSide, aiTeam, aiRoleByChampionId: draftAi.roleByChampionId });
     centerArea.replaceChildren(loadoutPanel.element);
   }
 
-  function changePlayerLoadout(changedLoadout) {
-    view.loadouts[playerSide] = changedLoadout;
+  // A blocked change still renders, which puts a changed <select> back to its old value.
+  function changePlayerLoadout(intent) {
+    if (tutorial.allows(intent)) {
+      view.loadouts[playerSide] = applyLoadoutIntent(view.loadouts[playerSide], intent);
+      tutorial.notify(intent);
+    }
     render();
   }
 

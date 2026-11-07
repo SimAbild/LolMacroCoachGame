@@ -1,10 +1,8 @@
 import { createButton, createElement } from '../ui/dom.js';
 import { loadGameData } from '../data/gameDataRepository.js';
 import { STORAGE_KEY, readFlag } from '../core/storage.js';
+import { startTutorial } from '../tutorial/startTutorial.js';
 import { mountMatchmakingScreen } from './matchmakingScreen.js';
-
-// Turned on when the guided tutorial exists (Milestone 12).
-const TUTORIAL_READY = false;
 
 let gameDataPromise = null;
 
@@ -13,7 +11,7 @@ export function mountHomeScreen(root, { router }) {
   const loaded = { gameData: null };
   const statusLine = createElement('p', { className: 'home-status', text: 'Loading champions…' });
   const buttons = createHomeButtons(router, loaded);
-  const isNewPlayer = TUTORIAL_READY && !readFlag(STORAGE_KEY.TUTORIAL_COMPLETED);
+  const isNewPlayer = !readFlag(STORAGE_KEY.TUTORIAL_COMPLETED);
 
   root.append(createElement('section', { className: 'home-screen' },
     createElement('div', { className: 'home-logo' },
@@ -34,10 +32,11 @@ function createHomeButtons(router, loaded) {
     router.show(mountMatchmakingScreen, { gameData: loaded.gameData });
   }, 'button button--primary button--large');
   playButton.dataset.anchor = 'play';
-  const howToPlayButton = TUTORIAL_READY
-    ? createButton('How to play', () => {}, 'button button--outline button--large')
-    : null;
-  const buttons = [playButton, howToPlayButton].filter(Boolean);
+  const howToPlayButton = createButton('How to play', () => {
+    startTutorial({ router, gameData: loaded.gameData });
+  }, 'button button--outline button--large');
+  howToPlayButton.dataset.anchor = 'how-to-play';
+  const buttons = [playButton, howToPlayButton];
   buttons.forEach(button => {
     button.disabled = true;
   });

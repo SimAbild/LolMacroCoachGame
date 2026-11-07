@@ -3,7 +3,8 @@ import { ROLES, ROLE_LABELS, ROLE_SHORT_LABELS } from '../../config/roles.js';
 
 // The champion grid with role filters and a search box. A click asks to select a champion,
 // a double-click asks to lock it in; the draft screen decides whether that is allowed.
-export function createChampionPicker({ champions, onSelect, onLockIn }) {
+// canChangeFilters() lets the tutorial keep the filters fixed, so its targets stay visible.
+export function createChampionPicker({ champions, onSelect, onLockIn, canChangeFilters }) {
   const filters = { role: null, searchText: '' };
   const tilesById = new Map();
   const roleFilterButtons = new Map();
@@ -37,6 +38,10 @@ export function createChampionPicker({ champions, onSelect, onLockIn }) {
       attributes: { type: 'search', placeholder: 'Search champion', 'aria-label': 'Search champion' },
     });
     searchInput.addEventListener('input', () => {
+      if (!canChangeFilters()) {
+        searchInput.value = filters.searchText;
+        return;
+      }
       filters.searchText = searchInput.value.trim().toLowerCase();
       render(lastDraftView);
     });
@@ -45,8 +50,10 @@ export function createChampionPicker({ champions, onSelect, onLockIn }) {
 
   function createRoleFilter(role) {
     const button = createButton(ROLE_SHORT_LABELS[role], () => {
-      filters.role = filters.role === role ? null : role;
-      render(lastDraftView);
+      if (canChangeFilters()) {
+        filters.role = filters.role === role ? null : role;
+        render(lastDraftView);
+      }
     }, 'role-filter');
     button.title = ROLE_LABELS[role];
     roleFilterButtons.set(role, button);

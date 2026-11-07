@@ -27,6 +27,7 @@ Then open http://localhost:8000.
 - `node tools/tuneAi.mjs`: tunes the AI weights with self-play.
 - `node tools/checkDeterminism.mjs`: checks that a seeded game replays identically however real time is split into frames, as long as input is given while the simulation is halted on an exact tick.
 - `node tools/checkGoldenMaster.mjs`: safety net for refactoring. Plays three seeded games to the end and compares a fingerprint of each with `tools/goldenMaster.json`; a refactor that keeps the behaviour keeps every fingerprint. After an intended gameplay change, save a new baseline with `--update`.
+- `node tools/checkTutorial.mjs`: plays the guided tutorial headless with the same steps as the browser and checks that every step allows its own action and that the result matches the text (roles, builds, spells).
 
 ## Status
 
@@ -43,5 +44,7 @@ Then open http://localhost:8000.
 - Milestone 9: visual finish. Every colour, layer (z-index) and timing is a design token in `:root` at the top of `styles/main.css`; hex values only live there. All buttons share hover, press and keyboard-focus styles. With "reduce motion" turned on in the operating system, animations finish at once (the map's pulses stand still too). Screens narrower than 1100 px put the map on top and the two teams side by side below it. Favicon, theme colour and the bold Inter weight were added.
 - Milestone 10: home screen with Play (and room for How to play), end screen with Rematch (same draft and side, new seed), New draft and Home. The map shows a loading state and the game clock only starts once the map is ready. The draft shows a double-click tip on your turn.
 - Milestone 11: a collapsible map legend, built from the same colours the map draws with (`src/render/mapStyle.js`). The dragon and baron pits show the objective's name and a countdown in the last minute before it spawns. Jungle camps are clearly up (gold) or respawning (hollow ring). Open the game with `?debug` to reach `window.lmcDebug` (game state, simulation, clock and `worldToClient`) from the console.
+- Refactor: the simulation and UI follow clean code principles (small single-purpose functions and modules, parameter objects, lookup tables instead of growing switches, no duplicated helpers). The golden master proves the simulation plays exactly as before.
+- Milestone 12: How to play. A guided game (`src/tutorial/`) that starts with a scripted draft and swap phase. A dark layer with holes highlights what to look at, and only the highlighted action works; anything else makes the card shake. The steps run on a runner without DOM (`tutorialRunner.js`), so `node tools/checkTutorial.mjs` plays the same steps headless and checks the result. After the draft the game is free play for now.
 
 Numbers and timings for the simulation live in `src/config/gameRules.js`.

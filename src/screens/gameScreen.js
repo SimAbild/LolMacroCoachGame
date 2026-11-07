@@ -9,6 +9,9 @@ import { createAlertWatcher } from './game/alertWatcher.js';
 import { confirmLeaveGame } from './game/leaveGame.js';
 import { attachGameShortcuts } from './game/gameShortcuts.js';
 import { exposeDebugHook } from './game/debugHook.js';
+import { INTENT } from '../core/intents.js';
+import { NO_TUTORIAL } from '../tutorial/noTutorial.js';
+import { STEP_KIND } from '../tutorial/tutorialRunner.js';
 import { mountHomeScreen } from './homeScreen.js';
 import { mountEndScreen } from './endScreen.js';
 
@@ -16,11 +19,13 @@ const END_SCREEN_DELAY_MS = 2500;
 const SLOW_MOTION_FACTOR = 0.25;
 const SLOW_MOTION_REAL_SECONDS = 2.5;
 const PANEL_REFRESH_INTERVAL_MS = 200;
+// Tutorial steps the game holds still for: the player reads, or makes the one highlighted call.
+const TUTORIAL_HOLD_KINDS = new Set([STEP_KIND.DIALOG, STEP_KIND.DO, STEP_KIND.SKIP]);
 
 // The game's lifecycle: state, simulation and clock, what happens each frame, and how it ends.
 // The DOM is built by gameLayout.js.
-export function mountGameScreen(root, { router, gameData, playerSide, loadouts }) {
-  const gameState = createInitialGameState({ loadouts, playerSide, itemCatalog: gameData.items });
+export function mountGameScreen(root, { router, gameData, playerSide, loadouts, tutorial = NO_TUTORIAL }) {
+  const gameState = createInitialGameState({ loadouts, playerSide, itemCatalog: gameData.items, ...tutorial.gameOptions });
   const simulation = createSimulation(gameState);
   const clock = createGameClock(onFrame);
   // Aborted on unmount: stops async work (map loading, an open dialog) from touching a screen that is gone.
@@ -58,7 +63,7 @@ export function mountGameScreen(root, { router, gameData, playerSide, loadouts }
     return {
       onIntent: handleIntent,
       onSpeedChange: changeSpeed,
-      onPauseToggle: () => clock.toggleUserPause(),
+      onPauseToggle: togglePause,
       onSlowMotionToggle: isEnabled => {
         settings.isSlowMotionEnabled = isEnabled;
       },
@@ -71,9 +76,27 @@ export function mountGameScreen(root, { router, gameData, playerSide, loadouts }
     return [
       setToastHost(layout.mapPanel.element),
       clock.subscribe(clockState => layout.topBar.setClockState(clockState)),
-      attachGameShortcuts({ onTogglePause: () => clock.toggleUserPause(), onSpeedChange: changeSpeed }),
+      attachGameShortcuts({ onTogglePause: togglePause, onSpeedChange: changeSpeed }),
       exposeDebugHook({ gameState, simulation, clock, worldToClient: layout.mapPanel.worldToClient }),
+      tutorial.attach('game', createTutorialApi()),
     ];
+  }
+
+  // What the tutorial may ask of the game. It pauses with its own reason, so the player's
+  // Space cannot lift a tutorial hold.
+  function createTutorialApi() {
+    return {
+      context: () => ({ gameState }),
+      onStepShown: step => {
+        if (TUTORIAL_HOLD_KINDS.has(step.kind)) {
+          clock.pause(PAUSE_REASON.TUTORIAL);
+        } else {
+          clock.resume(PAUSE_REASON.TUTORIAL);
+        }
+      },
+      onDialogOpen: () => clock.pause(PAUSE_REASON.DIALOG),
+      onDialogClose: () => clock.resume(PAUSE_REASON.DIALOG),
+    };
   }
 
   function onFrame(gameSecondsDelta) {
@@ -94,10 +117,15 @@ export function mountGameScreen(root, { router, gameData, playerSide, loadouts }
     endScreenTimer = setTimeout(() => router.show(mountEndScreen, { gameData, gameState, loadouts }), END_SCREEN_DELAY_MS);
   }
 
-  // Every button the player presses ends up here as a plain intent object.
+  // Every call button the player presses ends up here as a plain intent object.
   function handleIntent(intent) {
+    if (!tutorial.allows(intent)) {
+      return;
+    }
     const commandResult = executeCommand(gameState, intent);
-    if (!commandResult.isIssued) {
+    if (commandResult.isIssued) {
+      tutorial.notify(intent);
+    } else {
       showToast(commandResult.reason, { variant: TOAST_VARIANT.WARNING });
     }
     layout.clearCoordinationLinks();
@@ -106,8 +134,16 @@ export function mountGameScreen(root, { router, gameData, playerSide, loadouts }
 
   // Picking a speed also lifts the player's own pause, like most management games.
   function changeSpeed(speed) {
-    clock.setSpeed(speed);
-    clock.resume(PAUSE_REASON.USER);
+    if (tutorial.allows({ type: INTENT.SET_SPEED, speed })) {
+      clock.setSpeed(speed);
+      clock.resume(PAUSE_REASON.USER);
+    }
+  }
+
+  function togglePause() {
+    if (tutorial.allows({ type: INTENT.TOGGLE_PAUSE })) {
+      clock.toggleUserPause();
+    }
   }
 
   function slowDownIfEnabled() {
@@ -121,6 +157,7 @@ export function mountGameScreen(root, { router, gameData, playerSide, loadouts }
     const isGameOver = Boolean(gameState.winner);
     const isConfirmed = isGameOver || await confirmLeaveGame({ clock, signal: unmountController.signal });
     if (isConfirmed && !unmountController.signal.aborted) {
+      tutorial.end();
       router.show(mountHomeScreen);
     }
   }
