@@ -6,6 +6,7 @@ import { chooseObjectiveToContest } from '../objectives.js';
 import { isPositionVisible, visionSourcesFor } from '../vision.js';
 import { cancelAction, startRetreat, startTeamAction } from './actionSystem.js';
 import { orderRetreat } from './teamfightSystem.js';
+import { distanceBetween } from '../geometry.js';
 
 const TEAM_ACTION_KINDS = Object.freeze([ACTION_KIND.GROUP, ACTION_KIND.CONTEST, ACTION_KIND.ENGAGE]);
 
@@ -85,6 +86,6 @@ function closestVisibleEnemy(gameState, team, members) {
   if (visibleEnemies.length === 0) {
     return null;
   }
-  const distanceToCentroid = enemy => Math.hypot(enemy.position.x - centroid.x, enemy.position.y - centroid.y);
+  const distanceToCentroid = enemy => distanceBetween(enemy.position, centroid);
   return visibleEnemies.reduce((closest, enemy) => (distanceToCentroid(enemy) < distanceToCentroid(closest) ? enemy : closest));
 }

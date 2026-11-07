@@ -6,6 +6,7 @@ import {
 import { ACTIVITY } from '../activities.js';
 import { allChampionStates } from '../gameState.js';
 import { grantExperience, grantGold } from './economy.js';
+import { distanceBetween } from '../geometry.js';
 
 export function updateJungle(gameState, tickSeconds) {
   const junglers = allChampionStates(gameState).filter(championState => championState.role === ROLE.JUNGLE);
@@ -33,7 +34,7 @@ export function chooseNextCamp(gameState, jungler) {
 
 function clearCampIfInRange(gameState, jungler, tickSeconds) {
   const camp = jungler.targetCamp;
-  const isAtCamp = Math.hypot(jungler.position.x - camp.position.x, jungler.position.y - camp.position.y) <= ARRIVAL_DISTANCE;
+  const isAtCamp = distanceBetween(jungler.position, camp.position) <= ARRIVAL_DISTANCE;
   if (!isAtCamp || !isCampAlive(camp, gameState.gameSeconds)) {
     return;
   }
@@ -50,6 +51,6 @@ function clearCampIfInRange(gameState, jungler, tickSeconds) {
 }
 
 function nearestCamp(camps, position) {
-  const distanceTo = camp => Math.hypot(camp.position.x - position.x, camp.position.y - position.y);
+  const distanceTo = camp => distanceBetween(camp.position, position);
   return camps.reduce((nearest, camp) => (distanceTo(camp) < distanceTo(nearest) ? camp : nearest));
 }

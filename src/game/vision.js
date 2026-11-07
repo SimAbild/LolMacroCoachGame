@@ -4,6 +4,7 @@ import {
 import { pointAtLaneDistance } from './laneGeometry.js';
 import { hasLineOfSight } from './navigation.js';
 import { WARD_VISION_RADIUS } from '../config/combatRules.js';
+import { distanceBetween } from './geometry.js';
 
 export function visionSourcesFor(gameState, team) {
   const teamState = gameState.teams[team];
@@ -33,8 +34,4 @@ export function teamVisionSources(gameState, team) {
 
 export function isPositionVisible(position, visionSources) {
   return visionSources.some(source => distanceBetween(position, source) <= source.radius && hasLineOfSight(source, position));
-}
-
-function distanceBetween(first, second) {
-  return Math.hypot(first.x - second.x, first.y - second.y);
 }

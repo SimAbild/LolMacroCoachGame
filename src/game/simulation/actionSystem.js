@@ -10,7 +10,7 @@ import {
 } from '../../config/gameRules.js';
 import { ACTIVITY } from '../activities.js';
 import { EVENT_KIND, addEvent } from '../events.js';
-import { allChampionStates } from '../gameState.js';
+import { allChampionStates, championById, laneStateFor, laneStateOf } from '../gameState.js';
 import { BARON_PIT, FOUNTAIN_POSITIONS, LANE_BY_ROLE, STRUCTURE_TYPE, wardSpotFor } from '../mapLayout.js';
 import { finishPlay, startPlay } from './playSystem.js';
 import { lanePushFor } from './laneSystem.js';
@@ -26,6 +26,7 @@ import { RECALL_HEALTH_THRESHOLD_DURING_CALL } from '../../config/gameRules.js';
 import { chooseObjectiveToContest, isObjectiveRelevant } from '../objectives.js';
 import { pointAtLaneDistance } from '../laneGeometry.js';
 import { directionTowardEnemy } from './laneSystem.js';
+import { distanceBetween } from '../geometry.js';
 
 const MAX_TRAVEL_SECONDS = 45;
 const TEAM_SIZE = 5;
@@ -167,7 +168,7 @@ function updateGroup(gameState, championState, action) {
     startRecall(championState);
     return;
   }
-  const laneState = gameState.lanes.find(candidate => candidate.lane === action.lane);
+  const laneState = laneStateFor(gameState, action.lane);
   const distanceBehindWave = (GROUP_STANDOFF_DISTANCE + action.spreadIndex * GROUP_SPREAD) * directionTowardEnemy(championState.team);
   championState.targetPosition = pointAtLaneDistance(action.lane, laneState.frontDistance - distanceBehindWave);
   action.statusText = 'Grouped mid';
@@ -177,31 +178,37 @@ function updateGroup(gameState, championState, action) {
   }
 }
 
+// Contest objective: the team first gathers on its own side of the pit, then goes in together.
 function updateContest(gameState, championState, action) {
   const objective = gameState.objectives[action.objectiveKey];
   const hasTakenTooLong = gameState.gameSeconds - (action.issuedAtSeconds ?? gameState.gameSeconds) > CONTEST_MAX_SECONDS;
   if (!isObjectiveRelevant(gameState, objective) || hasTakenTooLong) {
     endAction(gameState, championState);
-    return;
-  }
-  if (championState.healthRatio < RECALL_HEALTH_THRESHOLD_DURING_CALL) {
+  } else if (championState.healthRatio < RECALL_HEALTH_THRESHOLD_DURING_CALL) {
     startRecall(championState);
-    return;
+  } else if (action.hasRallied) {
+    championState.targetPosition = contestStandingPoint(objective, championState.team, action.spreadIndex);
+    action.statusText = contestStatusText(gameState, championState, { action, objective });
+  } else {
+    gatherForContest(gameState, championState, { action, objective });
   }
-  if (!action.hasRallied) {
-    const rallyPoint = contestRallyPoint(objective, championState.team);
-    championState.targetPosition = rallyPoint;
-    action.statusText = `${action.label} (gathering)`;
-    if (isTeamRallied(gameState, championState.team, objective, rallyPoint)) {
-      markTeamRallied(gameState, championState.team, objective);
-    }
-    return;
+}
+
+function gatherForContest(gameState, championState, { action, objective }) {
+  const rallyPoint = contestRallyPoint(objective, championState.team);
+  championState.targetPosition = rallyPoint;
+  action.statusText = `${action.label} (gathering)`;
+  if (isTeamRallied(gameState, championState.team, objective, rallyPoint)) {
+    markTeamRallied(gameState, championState.team, objective);
   }
-  championState.targetPosition = contestStandingPoint(objective, championState.team, action.spreadIndex);
+}
+
+function contestStatusText(gameState, championState, { action, objective }) {
+  if (!objective.isAlive) {
+    return `${action.label} (spawns in ${Math.ceil(objective.spawnAtSeconds - gameState.gameSeconds)}s)`;
+  }
   const distanceToPit = distanceBetween(championState.position, objective.pit);
-  action.statusText = objective.isAlive
-    ? `${action.label} (${distanceToPit <= OBJECTIVE_RANGE ? 'taking' : `${Math.ceil(distanceToPit / CHAMPION_MOVE_SPEED)}s`})`
-    : `${action.label} (spawns in ${Math.ceil(objective.spawnAtSeconds - gameState.gameSeconds)}s)`;
+  return `${action.label} (${distanceToPit <= OBJECTIVE_RANGE ? 'taking' : `${Math.ceil(distanceToPit / CHAMPION_MOVE_SPEED)}s`})`;
 }
 
 function contestStandingPoint(objective, team, spreadIndex) {
@@ -242,17 +249,26 @@ function isContestingObjective(championState, objective) {
   return championState.activeAction?.kind === ACTION_KIND.CONTEST && championState.activeAction.objectiveKey === objective.key;
 }
 
+// Engage: run at the target, and once the first engager is close, the whole team joins the fight.
 function updateEngage(gameState, championState, action) {
   if (action.phase === ENGAGE_PHASE.FIGHTING) {
-    const fight = gameState.fights.find(candidate => candidate.id === action.fightId);
-    if (!fight) {
-      endAction(gameState, championState);
-      return;
-    }
-    championState.targetPosition = fight.location;
-    action.statusText = 'Joining the fight';
+    followEngageFight(gameState, championState, action);
+  } else {
+    approachEngageTarget(gameState, championState, action);
+  }
+}
+
+function followEngageFight(gameState, championState, action) {
+  const fight = gameState.fights.find(candidate => candidate.id === action.fightId);
+  if (!fight) {
+    endAction(gameState, championState);
     return;
   }
+  championState.targetPosition = fight.location;
+  action.statusText = 'Joining the fight';
+}
+
+function approachEngageTarget(gameState, championState, action) {
   const target = championById(gameState, action.targetId);
   if (!target.isAlive || target.activity === ACTIVITY.IN_FOUNTAIN) {
     endAction(gameState, championState);
@@ -261,11 +277,13 @@ function updateEngage(gameState, championState, action) {
   championState.targetPosition = target.position;
   const distanceToTarget = distanceBetween(championState.position, target.position);
   action.statusText = `Engaging ${target.champion.name} (${Math.ceil(distanceToTarget / CHAMPION_MOVE_SPEED)}s)`;
-  if (distanceToTarget > ENGAGE_TRIGGER_DISTANCE) {
-    return;
+  if (distanceToTarget <= ENGAGE_TRIGGER_DISTANCE) {
+    sendEngagersIntoFight(gameState, championState.team, startTeamfight(gameState, target.position));
   }
-  const fight = startTeamfight(gameState, target.position);
-  for (const teammate of gameState.teams[championState.team].champions) {
+}
+
+function sendEngagersIntoFight(gameState, team, fight) {
+  for (const teammate of gameState.teams[team].champions) {
     if (teammate.activeAction?.kind === ACTION_KIND.ENGAGE) {
       teammate.activeAction.phase = ENGAGE_PHASE.FIGHTING;
       teammate.activeAction.fightId = fight.id;
@@ -304,6 +322,7 @@ function midpoint(first, second) {
   return { x: (first.x + second.x) / 2, y: (first.y + second.y) / 2 };
 }
 
+// Invade: walk to an enemy camp and clear it. If their jungler is there, it turns into a fight.
 function updateInvade(gameState, championState, action, tickSeconds) {
   const camp = action.camp;
   if (!isCampAlive(camp, gameState.gameSeconds)) {
@@ -312,7 +331,7 @@ function updateInvade(gameState, championState, action, tickSeconds) {
   }
   const distanceToCamp = distanceBetween(championState.position, camp.position);
   if (distanceToCamp > FIGHT_ENGAGE_DISTANCE) {
-    if (travelTick(gameState, championState, action, tickSeconds, camp.position)) {
+    if (travelTick(gameState, championState, { action, tickSeconds, destination: camp.position })) {
       action.statusText = `Invading (${Math.ceil(distanceToCamp / CHAMPION_MOVE_SPEED)}s)`;
     }
     return;
@@ -323,22 +342,28 @@ function updateInvade(gameState, championState, action, tickSeconds) {
     startTeamfight(gameState, enemyJungler.position, { label: 'Invade fight', team: championState.team });
     return;
   }
+  stealCamp(gameState, championState, { action, tickSeconds });
+}
+
+function stealCamp(gameState, championState, { action, tickSeconds }) {
+  const camp = action.camp;
   championState.targetPosition = camp.position;
   action.clearProgressSeconds += tickSeconds;
   action.statusText = 'Stealing camp';
-  if (action.clearProgressSeconds >= JUNGLE_CAMP_CLEAR_SECONDS) {
-    camp.respawnAtSeconds = gameState.gameSeconds + JUNGLE_CAMP_RESPAWN_SECONDS;
-    grantGold(championState, JUNGLE_CAMP_GOLD);
-    grantExperience(championState, JUNGLE_CAMP_EXPERIENCE);
-    addEvent(gameState, { kind: EVENT_KIND.CALL, team: championState.team, text: `${championState.champion.name} stole an enemy camp` });
-    endAction(gameState, championState);
+  if (action.clearProgressSeconds < JUNGLE_CAMP_CLEAR_SECONDS) {
+    return;
   }
+  camp.respawnAtSeconds = gameState.gameSeconds + JUNGLE_CAMP_RESPAWN_SECONDS;
+  grantGold(championState, JUNGLE_CAMP_GOLD);
+  grantExperience(championState, JUNGLE_CAMP_EXPERIENCE);
+  addEvent(gameState, { kind: EVENT_KIND.CALL, team: championState.team, text: `${championState.champion.name} stole an enemy camp` });
+  endAction(gameState, championState);
 }
 
 function updateWard(gameState, championState, action, tickSeconds) {
   const distanceToSpot = distanceBetween(championState.position, action.wardPosition);
   if (distanceToSpot > WARD_PLACE_DISTANCE) {
-    if (travelTick(gameState, championState, action, tickSeconds, action.wardPosition)) {
+    if (travelTick(gameState, championState, { action, tickSeconds, destination: action.wardPosition })) {
       action.statusText = `${action.label} (${Math.ceil(distanceToSpot / CHAMPION_MOVE_SPEED)}s)`;
     }
     return;
@@ -347,7 +372,8 @@ function updateWard(gameState, championState, action, tickSeconds) {
   endAction(gameState, championState);
 }
 
-function travelTick(gameState, championState, action, tickSeconds, destination) {
+// Moves on toward the destination; a trip that takes too long is called off. Returns false then.
+function travelTick(gameState, championState, { action, tickSeconds, destination }) {
   action.elapsedSeconds += tickSeconds;
   if (action.elapsedSeconds > MAX_TRAVEL_SECONDS) {
     abortAction(gameState, championState, `${action.label} called off: took too long`);
@@ -407,6 +433,7 @@ function endAction(gameState, championState) {
   }
 }
 
+// Why a call cannot be given right now, or null when it can. Kinds without a check are always allowed.
 function rejectionReason(gameState, championState, actionDefinition, helperRole) {
   const name = championState.champion.name;
   if (!championState.isAlive) {
@@ -415,23 +442,20 @@ function rejectionReason(gameState, championState, actionDefinition, helperRole)
   if (championState.activity === ACTIVITY.IN_FOUNTAIN) {
     return `${name} is in base`;
   }
-  switch (actionDefinition.kind) {
-    case ACTION_KIND.SETUP_OBJECTIVE:
-      return chooseObjectiveToContest(gameState) ? null : 'No objective is up or spawning soon';
-    case ACTION_KIND.DIVE:
-      return targetRejectionReason(laneOpponentOf(gameState, championState));
-    case ACTION_KIND.GANK:
-      return targetRejectionReason(enemyWithRole(gameState, championState.team, actionDefinition.targetRole));
-    case ACTION_KIND.CALL_HELP:
-      return helperRejectionReason(gameState, championState, helperRole);
-    case ACTION_KIND.INVADE:
-      return nearestAliveEnemyCamp(gameState, championState) ? null : 'No enemy camps are up';
-    case ACTION_KIND.WARD:
-      return championState.trinketCharges > 0 ? null : 'No ward charges (recharging)';
-    default:
-      return null;
-  }
+  const check = REJECTION_CHECKS[actionDefinition.kind];
+  return check ? check(gameState, championState, { actionDefinition, helperRole }) : null;
 }
+
+const REJECTION_CHECKS = Object.freeze({
+  [ACTION_KIND.SETUP_OBJECTIVE]: gameState => (chooseObjectiveToContest(gameState) ? null : 'No objective is up or spawning soon'),
+  [ACTION_KIND.DIVE]: (gameState, championState) => targetRejectionReason(laneOpponentOf(gameState, championState)),
+  [ACTION_KIND.GANK]: (gameState, championState, { actionDefinition }) => (
+    targetRejectionReason(enemyWithRole(gameState, championState.team, actionDefinition.targetRole))
+  ),
+  [ACTION_KIND.CALL_HELP]: (gameState, championState, { helperRole }) => helperRejectionReason(gameState, championState, helperRole),
+  [ACTION_KIND.INVADE]: (gameState, championState) => (nearestAliveEnemyCamp(gameState, championState) ? null : 'No enemy camps are up'),
+  [ACTION_KIND.WARD]: (gameState, championState) => (championState.trinketCharges > 0 ? null : 'No ward charges (recharging)'),
+});
 
 function helperRejectionReason(gameState, caller, helperRole) {
   const helper = allyWithRole(gameState, caller.team, helperRole);
@@ -464,14 +488,6 @@ function allyWithRole(gameState, team, role) {
   return gameState.teams[team].champions.find(candidate => candidate.role === role);
 }
 
-function championById(gameState, championId) {
-  return allChampionStates(gameState).find(candidate => candidate.id === championId);
-}
-
-function laneStateOf(gameState, championState) {
-  return gameState.lanes.find(laneState => laneState.lane === LANE_BY_ROLE[championState.role]);
-}
-
 function nearestAliveEnemyCamp(gameState, championState) {
   const aliveEnemyCamps = gameState.jungleCamps.filter(camp => camp.team !== championState.team && isCampAlive(camp, gameState.gameSeconds));
   if (aliveEnemyCamps.length === 0) {
@@ -480,8 +496,4 @@ function nearestAliveEnemyCamp(gameState, championState) {
   return aliveEnemyCamps.reduce((nearest, camp) => (
     distanceBetween(camp.position, championState.position) < distanceBetween(nearest.position, championState.position) ? camp : nearest
   ));
-}
-
-function distanceBetween(first, second) {
-  return Math.hypot(first.x - second.x, first.y - second.y);
 }

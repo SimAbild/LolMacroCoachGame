@@ -7,6 +7,7 @@ import { ACTIVITY } from '../activities.js';
 import { LANE_BY_ROLE } from '../mapLayout.js';
 import { isPlayingSafe } from '../stances.js';
 import { PLAY_SAFE_TRADE_DAMAGE_FACTOR } from '../../config/combatRules.js';
+import { distanceBetween } from '../geometry.js';
 
 const MIN_TRADE_INTENSITY = 0.4;
 const TRADE_INTENSITY_SPREAD = 1.2;
@@ -40,7 +41,7 @@ function isTradingWithLaneOpponent(championState, enemyChampions) {
   const lane = LANE_BY_ROLE[championState.role];
   return enemyChampions.some(enemy => LANE_BY_ROLE[enemy.role] === lane
     && enemy.activity === ACTIVITY.LANING
-    && Math.hypot(enemy.position.x - championState.position.x, enemy.position.y - championState.position.y) <= LANE_TRADE_RANGE);
+    && distanceBetween(enemy.position, championState.position) <= LANE_TRADE_RANGE);
 }
 
 function applyLaneTrade(gameState, championState, tickSeconds) {

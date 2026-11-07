@@ -5,7 +5,7 @@ import { TRINKET_MAX_CHARGES } from '../config/combatRules.js';
 import { OUTER_TOWER_PLATES } from '../config/structureRules.js';
 import { createObjectivesState } from './objectives.js';
 import { BUILD_PATH_ITEM_IDS, JUNGLE_STARTING_ITEM_ID, STARTING_ITEM_ID_BY_BUILD } from '../config/itemBuilds.js';
-import { FOUNTAIN_POSITIONS, STRUCTURE_TYPE, jungleCampsFor, structuresFor } from './mapLayout.js';
+import { FOUNTAIN_POSITIONS, LANE_BY_ROLE, STRUCTURE_TYPE, jungleCampsFor, structuresFor } from './mapLayout.js';
 import { LANES, laneLength } from './laneGeometry.js';
 import { ACTIVITY } from './activities.js';
 import { createRandomSeed, createSeededRandom } from './random.js';
@@ -60,6 +60,19 @@ export function allChampionStates(gameState) {
   return [...gameState.teams[TEAM.BLUE].champions, ...gameState.teams[TEAM.RED].champions];
 }
 
+export function championById(gameState, championId) {
+  return allChampionStates(gameState).find(championState => championState.id === championId);
+}
+
+export function laneStateFor(gameState, lane) {
+  return gameState.lanes.find(laneState => laneState.lane === lane);
+}
+
+// The lane a champion's role belongs to (null for the jungler).
+export function laneStateOf(gameState, championState) {
+  return laneStateFor(gameState, LANE_BY_ROLE[championState.role]);
+}
+
 export function totalTeamGold(teamState) {
   return teamState.champions.reduce((sum, championState) => sum + championState.totalGoldEarned, 0);
 }
@@ -74,6 +87,14 @@ function createTeamState(team, loadout) {
   return {
     team,
     kills: 0,
+    ...createObjectiveTally(),
+    structures: structuresFor(team).map(createStructureState),
+    champions: loadout.map(entry => createChampionState(team, entry)),
+  };
+}
+
+function createObjectiveTally() {
+  return {
     drakes: [],
     voidGrubs: 0,
     soulElement: null,
@@ -82,18 +103,34 @@ function createTeamState(team, loadout) {
     baronsTaken: 0,
     eldersTaken: 0,
     heraldsTaken: 0,
-    structures: structuresFor(team).map(structure => ({
-      ...structure,
-      isStanding: true,
-      healthRatio: 1,
-      platesLeft: structure.tier === 'outer' ? OUTER_TOWER_PLATES : 0,
-      respawnAtSeconds: null,
-    })),
-    champions: loadout.map(entry => createChampionState(team, entry)),
   };
 }
 
+function createStructureState(structure) {
+  return {
+    ...structure,
+    isStanding: true,
+    healthRatio: 1,
+    platesLeft: structure.tier === 'outer' ? OUTER_TOWER_PLATES : 0,
+    respawnAtSeconds: null,
+  };
+}
+
+// One flat object per champion, built from groups so each group is easy to find.
 function createChampionState(team, loadoutEntry) {
+  return {
+    ...createIdentity(team, loadoutEntry),
+    ...createEconomy(loadoutEntry),
+    ...createMovement(team),
+    ...createScore(),
+    ...createCombatState(),
+    isAlive: true,
+    isVisibleToPlayer: true,
+    lastSeen: null,
+  };
+}
+
+function createIdentity(team, loadoutEntry) {
   return {
     id: `${team}-${loadoutEntry.role}`,
     team,
@@ -101,6 +138,11 @@ function createChampionState(team, loadoutEntry) {
     champion: loadoutEntry.champion,
     buildType: loadoutEntry.buildType,
     summonerSpells: loadoutEntry.summonerSpells.map(spellId => ({ spellId, cooldownSeconds: 0 })),
+  };
+}
+
+function createEconomy(loadoutEntry) {
+  return {
     level: STARTING_LEVEL,
     experience: 0,
     healthRatio: 1,
@@ -109,17 +151,29 @@ function createChampionState(team, loadoutEntry) {
     totalGoldEarned: STARTING_GOLD,
     items: [],
     remainingBuildPath: [...BUILD_PATH_ITEM_IDS[loadoutEntry.buildType]],
+  };
+}
+
+function createMovement(team) {
+  return {
     position: { ...FOUNTAIN_POSITIONS[team] },
     targetPosition: null,
     activity: ACTIVITY.TRAVELING,
     activitySecondsLeft: 0,
     targetCamp: null,
     activeAction: null,
-    kills: 0,
-    deaths: 0,
-    assists: 0,
-    killStreak: 0,
-    deathStreak: 0,
+    moveSpeedFactor: 1,
+    path: null,
+    pathGoal: null,
+  };
+}
+
+function createScore() {
+  return { kills: 0, deaths: 0, assists: 0, killStreak: 0, deathStreak: 0 };
+}
+
+function createCombatState() {
+  return {
     trinketCharges: TRINKET_MAX_CHARGES,
     trinketRechargeSecondsLeft: 0,
     ultimateCooldownSeconds: 0,
@@ -131,12 +185,6 @@ function createChampionState(team, loadoutEntry) {
     isFleeing: false,
     fightTargetId: null,
     fightDestination: null,
-    moveSpeedFactor: 1,
-    path: null,
-    pathGoal: null,
-    isAlive: true,
-    isVisibleToPlayer: true,
-    lastSeen: null,
   };
 }
 

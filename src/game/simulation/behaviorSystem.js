@@ -15,8 +15,9 @@ import { opposingTeam } from '../../config/teams.js';
 import { DANGER_RANGE, DANGER_REACTION_SECONDS, MISSING_JUNGLER_SECONDS, PUSHED_FOR_CAUTION } from '../../config/playRules.js';
 import { secondsSinceSeen } from './intelSystem.js';
 import { isPositionVisible, teamVisionSources } from '../vision.js';
-import { ACTION_KIND } from '../../config/actions.js';
 import { PLAY_SAFE_EXTRA_STANDOFF } from '../../config/combatRules.js';
+import { distanceBetween } from '../geometry.js';
+import { laneStateOf } from '../gameState.js';
 
 const SUPPORT_DISTANCE_BEHIND_CARRY = 18;
 const SUPPORT_FOLLOWS_RECALL_RANGE = 120;
@@ -90,7 +91,7 @@ function isExposedToMissingJungler(gameState, championState) {
   if (!enemyJungler.isAlive || secondsSinceSeen(gameState, championState.team, enemyJungler.id) < MISSING_JUNGLER_SECONDS) {
     return false;
   }
-  const laneState = gameState.lanes.find(candidate => candidate.lane === LANE_BY_ROLE[championState.role]);
+  const laneState = laneStateOf(gameState, championState);
   return lanePushFor(gameState, laneState, championState.team) >= PUSHED_FOR_CAUTION;
 }
 
@@ -159,15 +160,11 @@ function supportPost(gameState, championState, teamState) {
 }
 
 function lanePost(gameState, championState, extraDistanceBehind) {
-  const laneState = gameState.lanes.find(candidate => candidate.lane === LANE_BY_ROLE[championState.role]);
+  const laneState = laneStateOf(gameState, championState);
   const distanceBehindWave = (LANE_STANDOFF_DISTANCE + extraDistanceBehind) * directionTowardEnemy(championState.team);
   return pointAtLaneDistance(laneState.lane, laneState.frontDistance - distanceBehindWave);
 }
 
 function carryOf(teamState) {
   return teamState.champions.find(candidate => candidate.role === ROLE.BOT);
-}
-
-function distanceBetween(first, second) {
-  return Math.hypot(first.x - second.x, first.y - second.y);
 }

@@ -17,6 +17,7 @@ import { allChampionStates } from '../gameState.js';
 import { grantExperience, grantGold } from './economy.js';
 import { ACTION_KIND } from '../../config/actions.js';
 import { SHOVE_EXTRA_PUSH_SPEED, SHOVE_FARM_MULTIPLIER } from '../../config/combatRules.js';
+import { distanceBetween } from '../geometry.js';
 
 const TEAMS = [TEAM.BLUE, TEAM.RED];
 
@@ -162,7 +163,7 @@ function championsAtWaveByTeam(gameState, laneState) {
   const championsAtWave = { [TEAM.BLUE]: [], [TEAM.RED]: [] };
   for (const championState of allChampionStates(gameState)) {
     const isInThisLane = LANE_BY_ROLE[championState.role] === laneState.lane;
-    const isNearWave = Math.hypot(championState.position.x - frontPosition.x, championState.position.y - frontPosition.y) <= FARM_RANGE;
+    const isNearWave = distanceBetween(championState.position, frontPosition) <= FARM_RANGE;
     const isLaningHere = isInThisLane && championState.activity === ACTIVITY.LANING;
     const isGroupedHere = championState.activeAction?.kind === ACTION_KIND.GROUP && championState.activeAction.lane === laneState.lane;
     if ((isLaningHere || isGroupedHere) && !championState.inFightId && isNearWave) {

@@ -6,6 +6,7 @@ import { upcomingObjectiveTimers } from '../objectives.js';
 import { describeStructure } from '../structures.js';
 import { isPositionVisible, teamVisionSources } from '../vision.js';
 import { describeArea } from '../areas.js';
+import { distanceBetween } from '../geometry.js';
 
 const OBJECTIVE_WARNING_SECONDS = 30;
 const JUNGLER_MISSING_BEFORE_ALERT_SECONDS = 30;
@@ -92,7 +93,7 @@ function warnAboutEnemyOnObjective(gameState, memory) {
   for (const objective of Object.values(gameState.objectives).filter(candidate => candidate.isAlive)) {
     const spawnKey = `${objective.key}:${objective.spawnAtSeconds}`;
     const enemiesAtPit = enemies.filter(enemy => enemy.isAlive
-      && Math.hypot(enemy.position.x - objective.pit.x, enemy.position.y - objective.pit.y) <= OBJECTIVE_THREAT_RANGE
+      && distanceBetween(enemy.position, objective.pit) <= OBJECTIVE_THREAT_RANGE
       && isPositionVisible(enemy.position, playerVision));
     if (enemiesAtPit.length >= ENEMIES_ON_OBJECTIVE_FOR_ALERT && !memory.warnedEnemyOnObjective.has(spawnKey)) {
       memory.warnedEnemyOnObjective.add(spawnKey);

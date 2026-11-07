@@ -1,4 +1,5 @@
 import { LANE_PATHS } from './mapLayout.js';
+import { distanceBetween } from './geometry.js';
 
 export const LANES = Object.freeze(Object.keys(LANE_PATHS));
 
@@ -29,7 +30,7 @@ export function laneDistanceOfPoint(lane, point) {
       x: segment.start.x + (segment.end.x - segment.start.x) * progress,
       y: segment.start.y + (segment.end.y - segment.start.y) * progress,
     };
-    const distanceToPoint = Math.hypot(point.x - projected.x, point.y - projected.y);
+    const distanceToPoint = distanceBetween(point, projected);
     if (distanceToPoint < closest.distanceToPoint) {
       closest = { distanceToPoint, laneDistance: segment.startDistance + segment.length * progress };
     }
@@ -43,7 +44,7 @@ function buildPolyline(points) {
   for (let index = 0; index < points.length - 1; index += 1) {
     const start = { x: points[index][0], y: points[index][1] };
     const end = { x: points[index + 1][0], y: points[index + 1][1] };
-    const length = Math.hypot(end.x - start.x, end.y - start.y);
+    const length = distanceBetween(start, end);
     segments.push({ start, end, length, startDistance });
     startDistance += length;
   }

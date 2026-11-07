@@ -1,0 +1,23 @@
+{
+  "patch": "16.22.1",
+  "fingerprints": [
+    {
+      "seed": 11,
+      "winner": "blue",
+      "minutes": 49.9,
+      "hash": "157c7d28ebddd126"
+    },
+    {
+      "seed": 2024,
+      "winner": "red",
+      "minutes": 34.5,
+      "hash": "62d440c2a349ca99"
+    },
+    {
+      "seed": 777,
+      "winner": "blue",
+      "minutes": 25.9,
+      "hash": "9817fb50179ef025"
+    }
+  ]
+}

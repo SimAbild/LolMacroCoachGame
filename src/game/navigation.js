@@ -1,5 +1,6 @@
 import { WALK_GRID_ROWS, WALK_GRID_SIZE } from '../data/walkGrid.js';
 import { MAP_SIZE } from './mapConstants.js';
+import { distanceBetween } from './geometry.js';
 
 const CELL_SIZE = MAP_SIZE / WALK_GRID_SIZE;
 const WALKABLE_CHARACTER = '.';
@@ -18,26 +19,35 @@ export function isWalkable(position) {
   return isWalkableCell(column, row);
 }
 
+// Searches outward in square rings around the position's cell for the closest walkable cell.
 export function nearestWalkable(position) {
   const { column, row } = cellOf(position);
   if (isWalkableCell(column, row)) {
     return { x: position.x, y: position.y };
   }
   for (let radius = 1; radius <= NEAREST_WALKABLE_MAX_RADIUS; radius += 1) {
-    for (let deltaRow = -radius; deltaRow <= radius; deltaRow += 1) {
-      for (let deltaColumn = -radius; deltaColumn <= radius; deltaColumn += 1) {
-        const isOnRing = Math.max(Math.abs(deltaRow), Math.abs(deltaColumn)) === radius;
-        if (isOnRing && isWalkableCell(column + deltaColumn, row + deltaRow)) {
-          return centerOf(column + deltaColumn, row + deltaRow);
-        }
-      }
+    const cell = firstWalkableCellOnRing(column, row, radius);
+    if (cell) {
+      return centerOf(cell.column, cell.row);
     }
   }
   return { x: position.x, y: position.y };
 }
 
+function firstWalkableCellOnRing(column, row, radius) {
+  for (let deltaRow = -radius; deltaRow <= radius; deltaRow += 1) {
+    for (let deltaColumn = -radius; deltaColumn <= radius; deltaColumn += 1) {
+      const isOnRing = Math.max(Math.abs(deltaRow), Math.abs(deltaColumn)) === radius;
+      if (isOnRing && isWalkableCell(column + deltaColumn, row + deltaRow)) {
+        return { column: column + deltaColumn, row: row + deltaRow };
+      }
+    }
+  }
+  return null;
+}
+
 export function hasLineOfSight(from, to) {
-  const distance = Math.hypot(to.x - from.x, to.y - from.y);
+  const distance = distanceBetween(from, to);
   const steps = Math.ceil(distance / (CELL_SIZE * LINE_SAMPLE_FRACTION));
   for (let step = 1; step < steps; step += 1) {
     const progress = step / steps;
@@ -76,41 +86,54 @@ export function findPath(from, to) {
   return smoothPath(from, waypoints);
 }
 
+// A* over the walk grid with 8-way movement. Returns the cells from start to goal, or null.
 function aStar(start, goal) {
+  const search = {
+    goal,
+    costSoFar: new Float32Array(WALK_GRID_SIZE * WALK_GRID_SIZE).fill(Infinity),
+    cameFrom: new Int32Array(WALK_GRID_SIZE * WALK_GRID_SIZE).fill(-1),
+    openHeap: new MinHeap(),
+  };
   const startIndex = indexOf(start.column, start.row);
   const goalIndex = indexOf(goal.column, goal.row);
-  const costSoFar = new Float32Array(WALK_GRID_SIZE * WALK_GRID_SIZE).fill(Infinity);
-  const cameFrom = new Int32Array(WALK_GRID_SIZE * WALK_GRID_SIZE).fill(-1);
-  const openHeap = new MinHeap();
-  costSoFar[startIndex] = 0;
-  openHeap.push(startIndex, octileDistance(start, goal));
-  while (openHeap.size > 0) {
-    const currentIndex = openHeap.pop();
+  search.costSoFar[startIndex] = 0;
+  search.openHeap.push(startIndex, octileDistance(start, goal));
+  while (search.openHeap.size > 0) {
+    const currentIndex = search.openHeap.pop();
     if (currentIndex === goalIndex) {
-      return reconstructPath(cameFrom, goalIndex);
+      return reconstructPath(search.cameFrom, goalIndex);
     }
-    const column = currentIndex % WALK_GRID_SIZE;
-    const row = Math.floor(currentIndex / WALK_GRID_SIZE);
-    for (const [deltaColumn, deltaRow] of NEIGHBOR_OFFSETS) {
-      const neighborColumn = column + deltaColumn;
-      const neighborRow = row + deltaRow;
-      if (!isWalkableCell(neighborColumn, neighborRow)) {
-        continue;
-      }
-      const isDiagonal = deltaColumn !== 0 && deltaRow !== 0;
-      if (isDiagonal && (!isWalkableCell(column + deltaColumn, row) || !isWalkableCell(column, row + deltaRow))) {
-        continue;
-      }
-      const neighborIndex = indexOf(neighborColumn, neighborRow);
-      const newCost = costSoFar[currentIndex] + (isDiagonal ? DIAGONAL_STEP_COST : STRAIGHT_STEP_COST);
-      if (newCost < costSoFar[neighborIndex]) {
-        costSoFar[neighborIndex] = newCost;
-        cameFrom[neighborIndex] = currentIndex;
-        openHeap.push(neighborIndex, newCost + octileDistance({ column: neighborColumn, row: neighborRow }, goal));
-      }
-    }
+    expandNeighbors(search, currentIndex);
   }
   return null;
+}
+
+function expandNeighbors(search, currentIndex) {
+  const column = currentIndex % WALK_GRID_SIZE;
+  const row = Math.floor(currentIndex / WALK_GRID_SIZE);
+  for (const [deltaColumn, deltaRow] of NEIGHBOR_OFFSETS) {
+    if (!canStep(column, row, deltaColumn, deltaRow)) {
+      continue;
+    }
+    const neighbor = { column: column + deltaColumn, row: row + deltaRow };
+    const neighborIndex = indexOf(neighbor.column, neighbor.row);
+    const isDiagonal = deltaColumn !== 0 && deltaRow !== 0;
+    const newCost = search.costSoFar[currentIndex] + (isDiagonal ? DIAGONAL_STEP_COST : STRAIGHT_STEP_COST);
+    if (newCost < search.costSoFar[neighborIndex]) {
+      search.costSoFar[neighborIndex] = newCost;
+      search.cameFrom[neighborIndex] = currentIndex;
+      search.openHeap.push(neighborIndex, newCost + octileDistance(neighbor, search.goal));
+    }
+  }
+}
+
+// A diagonal step may not cut a wall corner: both cells beside it must be walkable too.
+function canStep(column, row, deltaColumn, deltaRow) {
+  if (!isWalkableCell(column + deltaColumn, row + deltaRow)) {
+    return false;
+  }
+  const isDiagonal = deltaColumn !== 0 && deltaRow !== 0;
+  return !isDiagonal || (isWalkableCell(column + deltaColumn, row) && isWalkableCell(column, row + deltaRow));
 }
 
 function reconstructPath(cameFrom, goalIndex) {

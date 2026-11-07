@@ -26,6 +26,7 @@ Then open http://localhost:8000.
 
 - `node tools/tuneAi.mjs`: tunes the AI weights with self-play.
 - `node tools/checkDeterminism.mjs`: checks that a seeded game replays identically however real time is split into frames, as long as input is given while the simulation is halted on an exact tick.
+- `node tools/checkGoldenMaster.mjs`: safety net for refactoring. Plays three seeded games to the end and compares a fingerprint of each with `tools/goldenMaster.json`; a refactor that keeps the behaviour keeps every fingerprint. After an intended gameplay change, save a new baseline with `--update`.
 
 ## Status
 

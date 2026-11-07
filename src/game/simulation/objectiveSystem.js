@@ -14,6 +14,7 @@ import { lanePushFor } from './laneSystem.js';
 import { damageStructure } from './structureSystem.js';
 import { startTeamfight } from './teamfightSystem.js';
 import { grantGold } from './economy.js';
+import { distanceBetween } from '../geometry.js';
 
 const MINIMUM_CONTESTERS_FOR_TEAMFIGHT = 1;
 
@@ -40,30 +41,34 @@ function spawnOrDespawn(gameState, objective) {
   }
 }
 
+// Both teams at the pit with someone contesting means a fight. Otherwise the first team with
+// champions in range wears the objective down; blue is checked first, as before.
 function progressObjective(gameState, objective, tickSeconds) {
-  const presentByTeam = {
-    [TEAM.BLUE]: championsAtPit(gameState, TEAM.BLUE, objective, TEAMFIGHT_JOIN_RANGE),
-    [TEAM.RED]: championsAtPit(gameState, TEAM.RED, objective, TEAMFIGHT_JOIN_RANGE),
-  };
-  const contestersByTeam = {
-    [TEAM.BLUE]: presentByTeam[TEAM.BLUE].filter(championState => isContesting(championState, objective)),
-    [TEAM.RED]: presentByTeam[TEAM.RED].filter(championState => isContesting(championState, objective)),
-  };
+  const presentByTeam = byTeam(team => championsAtPit(gameState, team, objective, TEAMFIGHT_JOIN_RANGE));
+  const contestersByTeam = byTeam(team => presentByTeam[team].filter(championState => isContesting(championState, objective)));
   const someoneContests = contestersByTeam[TEAM.BLUE].length + contestersByTeam[TEAM.RED].length >= MINIMUM_CONTESTERS_FOR_TEAMFIGHT;
   if (someoneContests && presentByTeam[TEAM.BLUE].length > 0 && presentByTeam[TEAM.RED].length > 0) {
     startTeamfight(gameState, objective.pit);
     return;
   }
-  for (const team of [TEAM.BLUE, TEAM.RED]) {
-    const takers = contestersByTeam[team].filter(championState => distanceBetween(championState.position, objective.pit) <= OBJECTIVE_RANGE);
-    if (takers.length === 0) {
-      continue;
-    }
-    objective.effortLeft -= takers.reduce((sum, taker) => sum + fightPowerOf(gameState, taker), 0) * tickSeconds;
-    if (objective.effortLeft <= 0) {
-      awardObjective(gameState, objective, team);
-    }
-    return;
+  const takingTeam = [TEAM.BLUE, TEAM.RED].find(team => takersOf(contestersByTeam[team], objective).length > 0);
+  if (takingTeam) {
+    takeObjective(gameState, objective, { team: takingTeam, takers: takersOf(contestersByTeam[takingTeam], objective), tickSeconds });
+  }
+}
+
+function byTeam(valueForTeam) {
+  return { [TEAM.BLUE]: valueForTeam(TEAM.BLUE), [TEAM.RED]: valueForTeam(TEAM.RED) };
+}
+
+function takersOf(contesters, objective) {
+  return contesters.filter(championState => distanceBetween(championState.position, objective.pit) <= OBJECTIVE_RANGE);
+}
+
+function takeObjective(gameState, objective, { team, takers, tickSeconds }) {
+  objective.effortLeft -= takers.reduce((sum, taker) => sum + fightPowerOf(gameState, taker), 0) * tickSeconds;
+  if (objective.effortLeft <= 0) {
+    awardObjective(gameState, objective, team);
   }
 }
 
@@ -129,7 +134,7 @@ function summonHerald(gameState, team) {
   }
   const target = frontStructureOf(gameState, enemyTeam, laneWithMostPush.lane);
   addEvent(gameState, { kind: EVENT_KIND.OBJECTIVE, team, text: `${TEAM_LABELS[team]} sent the Herald ${laneWithMostPush.lane}` });
-  damageStructure(gameState, target, HERALD_STRUCTURE_DAMAGE, team, []);
+  damageStructure(gameState, target, { damage: HERALD_STRUCTURE_DAMAGE, attackingTeam: team, nearbyAttackers: [] });
 }
 
 function endContestActions(gameState, team, objective) {
@@ -164,8 +169,4 @@ function objectiveName(objective) {
 
 function randomElement(gameState) {
   return DRAGON_ELEMENTS[Math.floor(gameState.random() * DRAGON_ELEMENTS.length)];
-}
-
-function distanceBetween(first, second) {
-  return Math.hypot(first.x - second.x, first.y - second.y);
 }

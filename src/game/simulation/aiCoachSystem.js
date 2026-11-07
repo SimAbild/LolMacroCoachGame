@@ -8,12 +8,13 @@ import { ACTIVITY } from '../activities.js';
 import { BARON_PIT, LANE_BY_ROLE, wardSpotFor } from '../mapLayout.js';
 import { chooseObjectiveToContest, upcomingObjectiveTimers } from '../objectives.js';
 import { fightPowerOf, hasBaron } from '../teamPower.js';
-import { totalTeamGold } from '../gameState.js';
+import { laneStateFor, totalTeamGold } from '../gameState.js';
 import { isPositionVisible, teamVisionSources } from '../vision.js';
 import { issueAction } from './actionSystem.js';
 import { issueTeamCall } from './teamCallSystem.js';
 import { lanePushFor } from './laneSystem.js';
 import { lastSeenPosition, secondsSinceSeen } from './intelSystem.js';
+import { distanceBetween } from '../geometry.js';
 
 const DECISION_INTERVAL_SECONDS = 4;
 const COOLDOWN_SECONDS = Object.freeze({
@@ -92,27 +93,33 @@ function makeBestDecision(gameState, coach, context) {
   }
 }
 
+// Everything the option scorers read, worked out once per decision.
 function createContext(gameState, team, weights) {
-  const enemyTeam = opposingTeam(team);
   const own = gameState.teams[team].champions;
-  const enemies = gameState.teams[enemyTeam].champions;
+  const enemies = gameState.teams[opposingTeam(team)].champions;
   const enemyJungler = enemies.find(enemy => enemy.role === ROLE.JUNGLE);
-  const ownPower = livingPower(gameState, own);
-  const enemyPower = livingPower(gameState, enemies);
   return {
     gameState,
     team,
     weights,
     own,
     enemies,
-    aliveAdvantage: aliveCount(own) - aliveCount(enemies),
-    powerAdvantage: Math.min(MAX_POWER_ADVANTAGE, enemyPower > 0 ? ownPower / enemyPower - 1 : MAX_POWER_ADVANTAGE),
-    goldLead: totalTeamGold(gameState.teams[team]) - totalTeamGold(gameState.teams[enemyTeam]),
+    ...strengthComparison(gameState, team, { own, enemies }),
     enemyJungler,
     enemyJunglerSecondsSinceSeen: secondsSinceSeen(gameState, team, enemyJungler.id),
     enemyJunglerLastPosition: lastSeenPosition(gameState, team, enemyJungler.id),
     nextObjective: upcomingObjectiveTimers(gameState)[0] ?? null,
     isTeamBusy: own.some(championState => TEAM_ACTION_KINDS.includes(championState.activeAction?.kind)),
+  };
+}
+
+function strengthComparison(gameState, team, { own, enemies }) {
+  const ownPower = livingPower(gameState, own);
+  const enemyPower = livingPower(gameState, enemies);
+  return {
+    aliveAdvantage: aliveCount(own) - aliveCount(enemies),
+    powerAdvantage: Math.min(MAX_POWER_ADVANTAGE, enemyPower > 0 ? ownPower / enemyPower - 1 : MAX_POWER_ADVANTAGE),
+    goldLead: totalTeamGold(gameState.teams[team]) - totalTeamGold(gameState.teams[opposingTeam(team)]),
   };
 }
 
@@ -156,27 +163,39 @@ function roamOptions(context) {
   });
 }
 
+// The support wards the next objective's pit shortly before it spawns, or wards deep
+// in the enemy jungle when their jungler has been missing for a while.
 function wardOptions(context) {
   const support = ownWithRole(context, ROLE.SUPPORT);
   if (!isIdle(support) || support.activity !== ACTIVITY.LANING || support.trinketCharges <= 0) {
     return [];
   }
-  const { weights } = context;
-  const timer = context.nextObjective;
-  if (timer && timer.secondsUntilSpawn <= WARD_LOOKAHEAD_SECONDS && timer.secondsUntilSpawn >= WARD_EARLIEST_SECONDS) {
-    const wardSpot = timer.objective.pit === BARON_PIT ? 'objectiveTop' : 'objectiveBot';
-    if (!hasOwnWardNear(context, wardSpotFor(context.team, wardSpot))) {
-      const urgency = 1 - timer.secondsUntilSpawn / WARD_LOOKAHEAD_SECONDS;
-      const action = findRoleAction(ROLE.SUPPORT, wardSpot === 'objectiveTop' ? 'wardObjectiveTop' : 'wardObjectiveBot');
-      return [option('ward', 'ward', weights.wardObjectiveBase + weights.wardObjectiveSoon * urgency, () => issueAction(context.gameState, support, action))];
-    }
+  const objectiveWard = objectiveWardOption(context, support);
+  if (objectiveWard) {
+    return [objectiveWard];
   }
   if (context.enemyJunglerSecondsSinceSeen >= JUNGLER_MISSING_SECONDS) {
     const deepSpot = context.gameState.random() < HALF_CHANCE ? 'deepWardTop' : 'deepWardBot';
     const action = findRoleAction(ROLE.SUPPORT, deepSpot);
-    return [option('ward', 'ward', weights.wardObjectiveBase + weights.wardDeepWhenJunglerMissing, () => issueAction(context.gameState, support, action))];
+    const score = context.weights.wardObjectiveBase + context.weights.wardDeepWhenJunglerMissing;
+    return [option('ward', 'ward', score, () => issueAction(context.gameState, support, action))];
   }
   return [];
+}
+
+function objectiveWardOption(context, support) {
+  const timer = context.nextObjective;
+  if (!timer || timer.secondsUntilSpawn > WARD_LOOKAHEAD_SECONDS || timer.secondsUntilSpawn < WARD_EARLIEST_SECONDS) {
+    return null;
+  }
+  const wardSpot = timer.objective.pit === BARON_PIT ? 'objectiveTop' : 'objectiveBot';
+  if (hasOwnWardNear(context, wardSpotFor(context.team, wardSpot))) {
+    return null;
+  }
+  const urgency = 1 - timer.secondsUntilSpawn / WARD_LOOKAHEAD_SECONDS;
+  const action = findRoleAction(ROLE.SUPPORT, wardSpot === 'objectiveTop' ? 'wardObjectiveTop' : 'wardObjectiveBot');
+  const score = context.weights.wardObjectiveBase + context.weights.wardObjectiveSoon * urgency;
+  return option('ward', 'ward', score, () => issueAction(context.gameState, support, action));
 }
 
 function setupOptions(context) {
@@ -206,22 +225,31 @@ function contestOptions(context) {
   if (secondsUntilSpawn > CONTEST_LOOKAHEAD_SECONDS) {
     return [];
   }
+  const score = contestScore(context, objective);
+  return [option('contest', 'contest', score, () => issueTeamCall(context.gameState, context.team, TEAM_CALL.CONTEST_OBJECTIVE))];
+}
+
+// Worth more for valuable objectives, with more champions alive, more power and pushed lanes
+// nearby (priority); worth less when enemies are already seen at the pit.
+function contestScore(context, objective) {
   const { weights } = context;
-  const objectiveValue = {
+  const lanesWithPriority = OBJECTIVE_LANES[objective.key].filter(lane => pushOf(context, lane) > 0).length;
+  const enemiesSeenAtPit = visibleEnemiesNear(context, objective.pit, PIT_THREAT_RANGE).length;
+  return weights.contestBase + contestValueOf(weights, objective.key)
+    + weights.contestPerAliveAdvantage * context.aliveAdvantage
+    + weights.contestPowerAdvantage * context.powerAdvantage
+    + weights.contestLanePriority * lanesWithPriority
+    - weights.contestEnemyAtPit * enemiesSeenAtPit;
+}
+
+function contestValueOf(weights, objectiveKey) {
+  return {
     [OBJECTIVE_KEY.DRAGON]: weights.contestValueDragon,
     [OBJECTIVE_KEY.GRUBS]: weights.contestValueGrubs,
     [OBJECTIVE_KEY.HERALD]: weights.contestValueHerald,
     [OBJECTIVE_KEY.BARON]: weights.contestValueBaron,
     [OBJECTIVE_KEY.ELDER]: weights.contestValueElder,
-  }[objective.key];
-  const lanesWithPriority = OBJECTIVE_LANES[objective.key].filter(lane => pushOf(context, lane) > 0).length;
-  const enemiesSeenAtPit = visibleEnemiesNear(context, objective.pit, PIT_THREAT_RANGE).length;
-  const score = weights.contestBase + objectiveValue
-    + weights.contestPerAliveAdvantage * context.aliveAdvantage
-    + weights.contestPowerAdvantage * context.powerAdvantage
-    + weights.contestLanePriority * lanesWithPriority
-    - weights.contestEnemyAtPit * enemiesSeenAtPit;
-  return [option('contest', 'contest', score, () => issueTeamCall(context.gameState, context.team, TEAM_CALL.CONTEST_OBJECTIVE))];
+  }[objectiveKey];
 }
 
 function groupOptions(context) {
@@ -281,20 +309,16 @@ function shoveOptions(context) {
   });
 }
 
+// How attractive a gank on this lane is. The terms are summed in a fixed order, because the
+// tuned weights were found with exactly this sum (floating point addition is order sensitive).
 function gankAppeal(context, ganker, lane, target) {
   const { weights, gameState } = context;
   const push = pushOf(context, lane);
-  const ownLaner = ownWithRole(context, LANER_ROLE_BY_LANE[lane]);
-  const canSetUpDive = push >= DIVE_SETUP_MIN_PUSH && ownLaner?.isAlive && ownLaner.healthRatio >= DIVE_SETUP_MIN_LANER_HEALTH;
+  const canSetUpDive = canLanerSetUpDive(context, lane, push);
   const targetHasNoFlash = target.summonerSpells.some(spell => spell.spellId === 'flash' && spell.cooldownSeconds > 0);
   const levelLead = ganker.level - target.level;
-  const junglerPosition = context.enemyJunglerLastPosition;
-  const isJunglerFarAway = junglerPosition && context.enemyJunglerSecondsSinceSeen <= JUNGLER_FAR_INTEL_SECONDS
-    && distanceBetween(junglerPosition, target.position) >= JUNGLER_FAR_DISTANCE;
-  const isJunglerNearby = junglerPosition && context.enemyJunglerSecondsSinceSeen <= JUNGLER_NEAR_INTEL_SECONDS
-    && distanceBetween(junglerPosition, target.position) <= JUNGLER_NEAR_DISTANCE;
-  const isObjectiveSoon = context.nextObjective && context.nextObjective.secondsUntilSpawn <= OBJECTIVE_SOON_SECONDS
-    && !OBJECTIVE_LANES[context.nextObjective.objective.key].includes(lane);
+  const { isJunglerFarAway, isJunglerNearby } = enemyJunglerDistanceTo(context, target);
+  const isObjectiveSoon = isOtherObjectiveSoon(context, lane);
   return weights.gankEnemyPushedIn * Math.max(0, -push)
     + (canSetUpDive ? weights.gankDiveSetup : 0)
     + weights.gankTargetLowHealth * (1 - target.healthRatio)
@@ -306,6 +330,29 @@ function gankAppeal(context, ganker, lane, target) {
     - weights.gankTravelPerThousand * (distanceBetween(ganker.position, target.position) / DISTANCE_PER_THOUSAND)
     + weights.gankRating * ganker.champion.ratings.gank
     + (gameState.gameSeconds < target.cautiousUntilSeconds ? -weights.gankDiveSetup : 0);
+}
+
+function canLanerSetUpDive(context, lane, push) {
+  const ownLaner = ownWithRole(context, LANER_ROLE_BY_LANE[lane]);
+  return push >= DIVE_SETUP_MIN_PUSH && ownLaner?.isAlive && ownLaner.healthRatio >= DIVE_SETUP_MIN_LANER_HEALTH;
+}
+
+// Only recent sightings count: old intel says nothing about where the jungler is now.
+function enemyJunglerDistanceTo(context, target) {
+  const junglerPosition = context.enemyJunglerLastPosition;
+  const secondsSinceSeen = context.enemyJunglerSecondsSinceSeen;
+  return {
+    isJunglerFarAway: junglerPosition && secondsSinceSeen <= JUNGLER_FAR_INTEL_SECONDS
+      && distanceBetween(junglerPosition, target.position) >= JUNGLER_FAR_DISTANCE,
+    isJunglerNearby: junglerPosition && secondsSinceSeen <= JUNGLER_NEAR_INTEL_SECONDS
+      && distanceBetween(junglerPosition, target.position) <= JUNGLER_NEAR_DISTANCE,
+  };
+}
+
+// An objective spawning soon on the other side of the map makes a gank here a distraction.
+function isOtherObjectiveSoon(context, lane) {
+  return context.nextObjective && context.nextObjective.secondsUntilSpawn <= OBJECTIVE_SOON_SECONDS
+    && !OBJECTIVE_LANES[context.nextObjective.objective.key].includes(lane);
 }
 
 function backOffFromLosingFights(gameState, team, weights) {
@@ -343,7 +390,7 @@ function hasOwnWardNear(context, position) {
 }
 
 function pushOf(context, lane) {
-  const laneState = context.gameState.lanes.find(candidate => candidate.lane === lane);
+  const laneState = laneStateFor(context.gameState, lane);
   return lanePushFor(context.gameState, laneState, context.team) / MAX_PUSH_VALUE;
 }
 
@@ -378,8 +425,4 @@ function centroidOf(championStates) {
 
 function capitalize(text) {
   return text.charAt(0).toUpperCase() + text.slice(1);
-}
-
-function distanceBetween(first, second) {
-  return Math.hypot(first.x - second.x, first.y - second.y);
 }

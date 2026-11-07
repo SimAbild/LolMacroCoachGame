@@ -1,6 +1,7 @@
 import { CHAMPION_MOVE_SPEED } from '../../config/gameRules.js';
 import { allChampionStates } from '../gameState.js';
 import { findPath, hasLineOfSight } from '../navigation.js';
+import { distanceBetween } from '../geometry.js';
 
 const REPATH_DISTANCE = 20;
 
@@ -31,7 +32,7 @@ function refreshPath(championState, destination) {
     return;
   }
   const goalHasMoved = !championState.pathGoal
-    || Math.hypot(championState.pathGoal.x - destination.x, championState.pathGoal.y - destination.y) > REPATH_DISTANCE;
+    || distanceBetween(championState.pathGoal, destination) > REPATH_DISTANCE;
   if (!championState.path || championState.path.length === 0 || goalHasMoved) {
     championState.path = findPath(championState.position, destination);
     championState.pathGoal = { x: destination.x, y: destination.y };

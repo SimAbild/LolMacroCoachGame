@@ -21,6 +21,8 @@ import { LANE_BY_ROLE, STRUCTURE_TYPE } from '../mapLayout.js';
 import { lanePushFor } from './laneSystem.js';
 import { grantExperience, grantGold } from './economy.js';
 import { teamBuffPower } from '../teamPower.js';
+import { distanceBetween } from '../geometry.js';
+import { laneStateFor } from '../gameState.js';
 
 const PERCENT = 100;
 const GOLD_PER_THOUSAND = 1000;
@@ -38,36 +40,55 @@ export function gatherFight(gameState, { initiator, primaryTarget }) {
   return { attackers, defenders, counterGankers, primaryTarget, isDive: isUnderEnemyTower(gameState, primaryTarget) };
 }
 
+// The chance that a gank or dive works: a base chance plus every modifier that matters.
+// Modifiers too small to matter are left out, so the kill feed only shows what made a difference.
 export function computeFightChance(gameState, fight, { wasSpotted }) {
-  const { attackers, defenders, counterGankers, primaryTarget, isDive } = fight;
-  const modifiers = [];
-  const addModifier = (label, value) => {
-    if (Math.abs(value) >= SMALLEST_SHOWN_MODIFIER) {
-      modifiers.push({ label, value });
-    }
-  };
-  const baseChance = isDive ? DIVE_BASE_CHANCE : GANK_BASE_CHANCE;
-  addModifier('Lane push', lanePushModifier(gameState, fight));
-  addModifier('Spotted', wasSpotted ? SPOTTED_MODIFIER : 0);
-  addModifier('Gank rating', (average(attackers, attacker => attacker.champion.ratings.gank) - NEUTRAL_RATING) * RATING_MODIFIER_PER_POINT);
-  addModifier('Target escape', -(primaryTarget.champion.ratings.escape - NEUTRAL_RATING) * RATING_MODIFIER_PER_POINT);
-  addModifier('Target no Flash', hasFlashReady(primaryTarget) ? 0 : TARGET_WITHOUT_FLASH_MODIFIER);
-  addModifier('Our Flash down', attackers.some(attacker => !hasFlashReady(attacker)) ? ATTACKER_WITHOUT_FLASH_MODIFIER : 0);
-  addModifier('Target low HP', primaryTarget.healthRatio < LOW_HEALTH_TARGET_THRESHOLD ? LOW_HEALTH_TARGET_MODIFIER : 0);
-  addModifier('Levels', (average(attackers, attacker => attacker.level) - primaryTarget.level) * LEVEL_DIFFERENCE_MODIFIER_PER_LEVEL);
-  addModifier('Counter-gank', counterGankers.length > 0 ? COUNTER_GANK_MODIFIER : 0);
-  addModifier('Numbers', (attackers.length - defenders.length - 1) * NUMBERS_MODIFIER_PER_CHAMPION);
-  addModifier('Gold', (average(attackers, attacker => attacker.totalGoldEarned) - average(defenders, defender => defender.totalGoldEarned))
-    / GOLD_PER_THOUSAND * GOLD_MODIFIER_PER_THOUSAND);
-  addModifier('Buffs', teamBuffPower(gameState, attackers[0].team) - teamBuffPower(gameState, primaryTarget.team));
-  const isTargetCautious = primaryTarget.activeAction?.kind === ACTION_KIND.PLAY_SAFE || gameState.gameSeconds < primaryTarget.cautiousUntilSeconds;
-  addModifier('Target playing safe', isTargetCautious ? PLAYING_SAFE_TARGET_MODIFIER : 0);
-  if (isDive) {
-    addModifier('Multiple divers', attackers.length >= 2 ? MULTIPLE_DIVERS_MODIFIER : 0);
-    addModifier('Tank takes aggro', attackers.some(isTowerTank) ? TANK_TAKES_TOWER_AGGRO_MODIFIER : 0);
-  }
+  const modifiers = [
+    ...situationModifiers(gameState, fight, wasSpotted),
+    ...championModifiers(fight),
+    ...teamModifiers(gameState, fight),
+    ...(fight.isDive ? diveModifiers(fight) : []),
+  ].filter(modifier => Math.abs(modifier.value) >= SMALLEST_SHOWN_MODIFIER);
+  const baseChance = fight.isDive ? DIVE_BASE_CHANCE : GANK_BASE_CHANCE;
   const unclampedChance = baseChance + modifiers.reduce((sum, modifier) => sum + modifier.value, 0);
   return { chance: Math.min(MAX_FIGHT_CHANCE, Math.max(MIN_FIGHT_CHANCE, unclampedChance)), modifiers };
+}
+
+function situationModifiers(gameState, fight, wasSpotted) {
+  return [
+    { label: 'Lane push', value: lanePushModifier(gameState, fight) },
+    { label: 'Spotted', value: wasSpotted ? SPOTTED_MODIFIER : 0 },
+  ];
+}
+
+function championModifiers({ attackers, primaryTarget }) {
+  return [
+    { label: 'Gank rating', value: (average(attackers, attacker => attacker.champion.ratings.gank) - NEUTRAL_RATING) * RATING_MODIFIER_PER_POINT },
+    { label: 'Target escape', value: -(primaryTarget.champion.ratings.escape - NEUTRAL_RATING) * RATING_MODIFIER_PER_POINT },
+    { label: 'Target no Flash', value: hasFlashReady(primaryTarget) ? 0 : TARGET_WITHOUT_FLASH_MODIFIER },
+    { label: 'Our Flash down', value: attackers.some(attacker => !hasFlashReady(attacker)) ? ATTACKER_WITHOUT_FLASH_MODIFIER : 0 },
+    { label: 'Target low HP', value: primaryTarget.healthRatio < LOW_HEALTH_TARGET_THRESHOLD ? LOW_HEALTH_TARGET_MODIFIER : 0 },
+    { label: 'Levels', value: (average(attackers, attacker => attacker.level) - primaryTarget.level) * LEVEL_DIFFERENCE_MODIFIER_PER_LEVEL },
+  ];
+}
+
+function teamModifiers(gameState, { attackers, defenders, counterGankers, primaryTarget }) {
+  const goldDifference = average(attackers, attacker => attacker.totalGoldEarned) - average(defenders, defender => defender.totalGoldEarned);
+  const isTargetCautious = primaryTarget.activeAction?.kind === ACTION_KIND.PLAY_SAFE || gameState.gameSeconds < primaryTarget.cautiousUntilSeconds;
+  return [
+    { label: 'Counter-gank', value: counterGankers.length > 0 ? COUNTER_GANK_MODIFIER : 0 },
+    { label: 'Numbers', value: (attackers.length - defenders.length - 1) * NUMBERS_MODIFIER_PER_CHAMPION },
+    { label: 'Gold', value: goldDifference / GOLD_PER_THOUSAND * GOLD_MODIFIER_PER_THOUSAND },
+    { label: 'Buffs', value: teamBuffPower(gameState, attackers[0].team) - teamBuffPower(gameState, primaryTarget.team) },
+    { label: 'Target playing safe', value: isTargetCautious ? PLAYING_SAFE_TARGET_MODIFIER : 0 },
+  ];
+}
+
+function diveModifiers({ attackers }) {
+  return [
+    { label: 'Multiple divers', value: attackers.length >= 2 ? MULTIPLE_DIVERS_MODIFIER : 0 },
+    { label: 'Tank takes aggro', value: attackers.some(isTowerTank) ? TANK_TAKES_TOWER_AGGRO_MODIFIER : 0 },
+  ];
 }
 
 export function resolveFight(gameState, fight, { label, wasSpotted }) {
@@ -88,29 +109,53 @@ export function resolveFight(gameState, fight, { label, wasSpotted }) {
   return { isSuccess, chance };
 }
 
+// One of the living killers gets the kill, the others get assists. With no living killer
+// (everyone died in the same fight) the tower is credited.
 export function killChampion(gameState, victim, killers) {
   const aliveKillers = killers.filter(killer => killer.isAlive);
-  const isFirstBlood = !gameState.isFirstBloodTaken;
-  const bountyBonus = Math.min(MAX_BOUNTY_BONUS_GOLD, Math.max(0, victim.killStreak - 1) * BOUNTY_GOLD_PER_EXTRA_KILL);
-  const deathStreakFactor = DEATH_STREAK_GOLD_FACTOR ** Math.max(0, victim.deathStreak - 1);
-  const killGold = Math.max(MIN_KILL_GOLD, KILL_BASE_GOLD * deathStreakFactor) + bountyBonus + (isFirstBlood ? FIRST_BLOOD_BONUS_GOLD : 0);
-  const killExperience = KILL_BASE_EXPERIENCE + victim.level * KILL_EXPERIENCE_PER_VICTIM_LEVEL;
+  const bounty = killBountyFor(gameState, victim);
   const killer = aliveKillers[Math.floor(gameState.random() * aliveKillers.length)];
   if (killer) {
-    const assisters = aliveKillers.filter(candidate => candidate !== killer);
-    grantGold(killer, killGold);
-    grantExperience(killer, killExperience);
-    killer.kills += 1;
-    killer.killStreak += 1;
-    killer.deathStreak = 0;
-    for (const assister of assisters) {
-      grantGold(assister, (killGold * ASSIST_GOLD_SHARE) / assisters.length);
-      grantExperience(assister, killExperience);
-      assister.assists += 1;
-    }
-    gameState.teams[killer.team].kills += 1;
+    rewardKill(gameState, { killer, assisters: aliveKillers.filter(candidate => candidate !== killer), bounty });
   }
   gameState.isFirstBloodTaken = true;
+  markDead(victim);
+  const prefixes = [bounty.isFirstBlood ? 'First blood! ' : '', bounty.shutdownGold > 0 ? 'Shutdown! ' : ''].join('');
+  addEvent(gameState, {
+    kind: EVENT_KIND.KILL,
+    team: killer?.team ?? opposingTeam(victim.team),
+    text: `${prefixes}${killer?.champion.name ?? 'Tower'} killed ${victim.champion.name}`,
+  });
+}
+
+// A victim on a kill streak is worth more (shutdown), one who keeps dying is worth less.
+function killBountyFor(gameState, victim) {
+  const isFirstBlood = !gameState.isFirstBloodTaken;
+  const shutdownGold = Math.min(MAX_BOUNTY_BONUS_GOLD, Math.max(0, victim.killStreak - 1) * BOUNTY_GOLD_PER_EXTRA_KILL);
+  const deathStreakFactor = DEATH_STREAK_GOLD_FACTOR ** Math.max(0, victim.deathStreak - 1);
+  return {
+    isFirstBlood,
+    shutdownGold,
+    gold: Math.max(MIN_KILL_GOLD, KILL_BASE_GOLD * deathStreakFactor) + shutdownGold + (isFirstBlood ? FIRST_BLOOD_BONUS_GOLD : 0),
+    experience: KILL_BASE_EXPERIENCE + victim.level * KILL_EXPERIENCE_PER_VICTIM_LEVEL,
+  };
+}
+
+function rewardKill(gameState, { killer, assisters, bounty }) {
+  grantGold(killer, bounty.gold);
+  grantExperience(killer, bounty.experience);
+  killer.kills += 1;
+  killer.killStreak += 1;
+  killer.deathStreak = 0;
+  for (const assister of assisters) {
+    grantGold(assister, (bounty.gold * ASSIST_GOLD_SHARE) / assisters.length);
+    grantExperience(assister, bounty.experience);
+    assister.assists += 1;
+  }
+  gameState.teams[killer.team].kills += 1;
+}
+
+function markDead(victim) {
   victim.deaths += 1;
   victim.deathStreak += 1;
   victim.killStreak = 0;
@@ -120,27 +165,17 @@ export function killChampion(gameState, victim, killers) {
   victim.activeAction = null;
   victim.targetPosition = null;
   victim.targetCamp = null;
-  const prefixes = [isFirstBlood ? 'First blood! ' : '', bountyBonus > 0 ? 'Shutdown! ' : ''].join('');
-  addEvent(gameState, {
-    kind: EVENT_KIND.KILL,
-    team: killer?.team ?? opposingTeam(victim.team),
-    text: `${prefixes}${killer?.champion.name ?? 'Tower'} killed ${victim.champion.name}`,
-  });
 }
 
 export function hasFlashReady(championState) {
   return championState.summonerSpells.some(spell => spell.spellId === FLASH_SPELL_ID && spell.cooldownSeconds <= 0);
 }
 
+// The attackers won: the target dies unless it Flashes away, other defenders may die too,
+// and a surviving defender can still take one attacker down with them.
 function applyWin(gameState, fight) {
   const { attackers, defenders, primaryTarget } = fight;
-  const targetEscapes = hasFlashReady(primaryTarget) && gameState.random() < FLASH_ESCAPE_CHANCE;
-  if (targetEscapes) {
-    useFlash(primaryTarget);
-    primaryTarget.healthRatio = Math.min(primaryTarget.healthRatio, ESCAPED_TARGET_HEALTH);
-  } else {
-    killChampion(gameState, primaryTarget, attackers);
-  }
+  killOrLetEscape(gameState, primaryTarget, attackers);
   for (const defender of defenders.filter(candidate => candidate !== primaryTarget)) {
     if (gameState.random() < SECONDARY_DEFENDER_DEATH_CHANCE) {
       killChampion(gameState, defender, attackers);
@@ -155,6 +190,16 @@ function applyWin(gameState, fight) {
   const survivingDefenders = defenders.filter(defender => defender.isAlive);
   if (survivingDefenders.length > 0 && gameState.random() < WINNING_ATTACKER_DEATH_CHANCE) {
     killChampion(gameState, weakest(attackers), survivingDefenders);
+  }
+}
+
+function killOrLetEscape(gameState, primaryTarget, attackers) {
+  const targetEscapes = hasFlashReady(primaryTarget) && gameState.random() < FLASH_ESCAPE_CHANCE;
+  if (targetEscapes) {
+    useFlash(primaryTarget);
+    primaryTarget.healthRatio = Math.min(primaryTarget.healthRatio, ESCAPED_TARGET_HEALTH);
+  } else {
+    killChampion(gameState, primaryTarget, attackers);
   }
 }
 
@@ -178,7 +223,7 @@ function applyLoss(gameState, fight) {
 
 function lanePushModifier(gameState, fight) {
   const lane = LANE_BY_ROLE[fight.primaryTarget.role];
-  const laneState = gameState.lanes.find(candidate => candidate.lane === lane);
+  const laneState = laneStateFor(gameState, lane);
   if (!laneState || fight.primaryTarget.activity !== ACTIVITY.LANING) {
     return 0;
   }
@@ -251,8 +296,4 @@ export function describeTopModifiers(modifiers) {
   }
   const parts = strongest.map(modifier => `${modifier.label} ${modifier.value > 0 ? '+' : '−'}${Math.round(Math.abs(modifier.value) * PERCENT)}`);
   return ` · ${parts.join(', ')}`;
-}
-
-function distanceBetween(first, second) {
-  return Math.hypot(first.x - second.x, first.y - second.y);
 }
