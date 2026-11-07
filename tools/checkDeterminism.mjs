@@ -5,9 +5,9 @@ import { loadGameData } from '../src/data/gameDataRepository.js';
 import { createLoadoutFromRoleMap } from '../src/draft/teamLoadout.js';
 import { allChampionStates, createInitialGameState } from '../src/game/gameState.js';
 import { createSimulation } from '../src/game/simulation/simulation.js';
-import { issueAction } from '../src/game/simulation/actionSystem.js';
+import { executeCommand } from '../src/game/playerCommands.js';
+import { INTENT } from '../src/core/intents.js';
 import { createSeededRandom } from '../src/game/random.js';
-import { ROLE_ACTIONS } from '../src/config/actions.js';
 import { ROLES } from '../src/config/roles.js';
 import { TEAM } from '../src/config/teams.js';
 
@@ -77,9 +77,7 @@ function newGame() {
 }
 
 function issueGank(gameState) {
-  const jungler = gameState.teams[TEAM.BLUE].champions.find(championState => championState.role === 'jungle');
-  const gankTop = ROLE_ACTIONS.jungle.find(action => action.id === 'gankTop');
-  return issueAction(gameState, jungler, gankTop).isIssued;
+  return executeCommand(gameState, { type: INTENT.CHAMPION_ACTION, role: 'jungle', actionId: 'gankTop' }).isIssued;
 }
 
 function createLoadouts(random) {

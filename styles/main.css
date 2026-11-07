@@ -542,6 +542,7 @@ h1, h2 { font-family: var(--font-display); margin: 0; letter-spacing: 0.02em; }
   cursor: pointer;
 }
 .action-chip:hover, .action-chip:focus-visible { border-color: var(--color-gold); color: var(--color-gold); outline: none; }
+.action-chip[aria-expanded="true"] { border-color: var(--color-gold); color: var(--color-gold); background: #2b2212; }
 .help-targets .action-chip { background: #2b2212; border-color: #5a4313; color: var(--color-gold); }
 
 @media (max-width: 1100px) {

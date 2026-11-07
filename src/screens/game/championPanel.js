@@ -1,6 +1,8 @@
 import { createButton, createElement, createImage } from '../../ui/dom.js';
+import { attachTooltip } from '../../ui/tooltip.js';
 import { ROLES, ROLE_LABELS } from '../../config/roles.js';
-import { CALL_HELP_ACTION_ID, ROLE_ACTIONS } from '../../config/actions.js';
+import { CALL_HELP_ACTION_ID, ROLE_ACTIONS, describeHelpRequest } from '../../config/actions.js';
+import { INTENT } from '../../core/intents.js';
 import { SUMMONER_SPELLS } from '../../config/summonerSpells.js';
 import { summonerSpellIconUrl } from '../../data/dataDragon.js';
 import { ITEM_SLOTS } from '../../game/gameState.js';
@@ -9,15 +11,18 @@ import { describeActivity } from '../../game/activities.js';
 const RESOURCE_BAR_CLASS = Object.freeze({ Mana: 'bar--mana', Energy: 'bar--energy' });
 const PERCENT = 100;
 
-export function createChampionPanel(championState, { version, itemCatalog, isOwnTeam, onAction, onCancelAction, onActionHover }) {
+// onIntent receives plain intent objects (see src/core/intents.js) for every button on the card.
+export function createChampionPanel(championState, { version, itemCatalog, isOwnTeam, onIntent, onActionHover }) {
+  const { role } = championState;
   const levelBadge = createElement('span', { className: 'level-badge' });
   const goldLabel = createElement('span', { className: 'champion-panel__gold' });
   const healthFill = createElement('div', { className: 'bar__fill' });
   const resourceFill = createElement('div', { className: 'bar__fill' });
   const statusText = createElement('span', { className: 'champion-card__status-text' });
-  const cancelButton = createButton('✕', () => onCancelAction(championState), 'cancel-action');
-  cancelButton.title = 'Cancel call';
+  const cancelButton = createButton('✕', () => onIntent({ type: INTENT.CANCEL_ACTION, role }), 'cancel-action');
+  cancelButton.dataset.anchor = 'cancel';
   cancelButton.setAttribute('aria-label', 'Cancel call');
+  attachTooltip(cancelButton, { title: 'Cancel call', body: 'Stop the current call. The champion goes back to laning or farming.' });
   const statusLine = createElement('div', { className: 'champion-card__status' }, statusText, cancelButton);
   const resourceBarClass = RESOURCE_BAR_CLASS[championState.champion.resourceType] ?? 'bar--other';
   const itemSlots = createItemSlots();
@@ -47,7 +52,7 @@ export function createChampionPanel(championState, { version, itemCatalog, isOwn
 
   const card = createElement('div', {
     className: `champion-card champion-card--${championState.team}${isOwnTeam ? ' is-own' : ''}`,
-    dataset: { role: championState.role },
+    dataset: { role, team: championState.team },
   }, panel);
 
   if (isOwnTeam) {
@@ -74,46 +79,57 @@ export function createChampionPanel(championState, { version, itemCatalog, isOwn
 
   function createActionControls() {
     const helpTargets = createElement('div', { className: 'help-targets' });
-    helpTargets.hidden = true;
-    const otherRoles = ROLES.filter(role => role !== championState.role);
-    for (const targetRole of otherRoles) {
-      const label = `with ${ROLE_LABELS[targetRole]}`;
-      helpTargets.append(createActionChip({ label, targetRole }, () => {
-        helpTargets.hidden = true;
-        onAction(championState, callHelpDefinition(championState.role), { helperRole: targetRole });
-      }));
+    let callHelpChip = null;
+    const setHelpTargetsOpen = isOpen => {
+      helpTargets.hidden = !isOpen;
+      callHelpChip?.setAttribute('aria-expanded', String(isOpen));
+    };
+
+    for (const helperRole of ROLES.filter(otherRole => otherRole !== role)) {
+      const chip = createActionChip(`with ${ROLE_LABELS[helperRole]}`, helperRole, () => {
+        setHelpTargetsOpen(false);
+        onIntent({ type: INTENT.CHAMPION_ACTION, role, actionId: CALL_HELP_ACTION_ID, helperRole });
+      });
+      chip.dataset.helperRole = helperRole;
+      attachTooltip(chip, { title: `Call help: ${ROLE_LABELS[helperRole]}`, body: describeHelpRequest(role, helperRole) });
+      helpTargets.append(chip);
     }
+
     const actionChips = createElement('div', { className: 'action-chips' });
-    for (const action of ROLE_ACTIONS[championState.role]) {
+    for (const action of ROLE_ACTIONS[role]) {
       const isCallHelp = action.id === CALL_HELP_ACTION_ID;
-      actionChips.append(createActionChip(action, () => {
+      const chip = createActionChip(action.label, action.targetRole, () => {
         if (isCallHelp) {
-          helpTargets.hidden = !helpTargets.hidden;
+          setHelpTargetsOpen(helpTargets.hidden);
           return;
         }
-        onAction(championState, action);
-      }));
+        onIntent({ type: INTENT.CHAMPION_ACTION, role, actionId: action.id });
+      });
+      chip.dataset.actionId = action.id;
+      attachTooltip(chip, { title: action.label, body: action.description });
+      if (isCallHelp) {
+        callHelpChip = chip;
+      }
+      actionChips.append(chip);
     }
+    setHelpTargetsOpen(false);
     return [actionChips, helpTargets];
   }
 
-  function createActionChip(action, onClick) {
-    const chip = createElement('button', { className: 'action-chip', text: action.label, attributes: { type: 'button' } });
+  // Chips that involve another role also draw the coordination link to that role's card on hover.
+  function createActionChip(label, linkedRole, onClick) {
+    const chip = createElement('button', { className: 'action-chip', text: label, attributes: { type: 'button' } });
     chip.addEventListener('click', onClick);
-    if (action.targetRole) {
-      chip.addEventListener('mouseenter', () => onActionHover(championState, action.targetRole));
+    if (linkedRole) {
+      chip.addEventListener('mouseenter', () => onActionHover(championState, linkedRole));
       chip.addEventListener('mouseleave', () => onActionHover(championState, null));
-      chip.addEventListener('focus', () => onActionHover(championState, action.targetRole));
+      chip.addEventListener('focus', () => onActionHover(championState, linkedRole));
       chip.addEventListener('blur', () => onActionHover(championState, null));
     }
     return chip;
   }
 
   return { element: card, update };
-}
-
-function callHelpDefinition(role) {
-  return ROLE_ACTIONS[role].find(action => action.id === CALL_HELP_ACTION_ID);
 }
 
 function createSummonerIcons(championState, version) {
@@ -139,7 +155,7 @@ function createSummonerIcons(championState, version) {
 
 function createItemSlots() {
   const slots = Array.from({ length: ITEM_SLOTS }, () => createElement('span', { className: 'item-slot' }));
-  const trinketSlot = createElement('span', { className: 'item-slot item-slot--trinket', attributes: { title: 'Ward trinket' } });
+  const trinketSlot = createElement('span', { className: 'item-slot item-slot--trinket', attributes: { title: 'Ward trinket' }, dataset: { anchor: 'trinket' } });
   const element = createElement('div', { className: 'item-slots' }, ...slots, trinketSlot);
   const shownItemKeys = new Array(ITEM_SLOTS).fill('');
 

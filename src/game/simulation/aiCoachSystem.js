@@ -1,6 +1,6 @@
 import { opposingTeam } from '../../config/teams.js';
 import { ROLE } from '../../config/roles.js';
-import { ACTION_KIND, ROLE_ACTIONS, TEAM_CALL } from '../../config/actions.js';
+import { ACTION_KIND, TEAM_CALL, findRoleAction } from '../../config/actions.js';
 import { DEFAULT_AI_WEIGHTS } from '../../config/aiWeights.js';
 import { MAX_PUSH_VALUE } from '../../config/gameRules.js';
 import { OBJECTIVE_KEY } from '../../config/objectiveRules.js';
@@ -130,7 +130,7 @@ function gankOptions(context) {
     if (!target) {
       return [];
     }
-    const action = actionById(ROLE.JUNGLE, `gank${capitalize(lane)}`);
+    const action = findRoleAction(ROLE.JUNGLE, `gank${capitalize(lane)}`);
     const score = context.weights.gankBase + gankAppeal(context, jungler, lane, target);
     return [option('gank', 'gank', score, () => issueAction(context.gameState, jungler, action))];
   });
@@ -151,7 +151,7 @@ function roamOptions(context) {
       return [];
     }
     const score = context.weights.roamBase + context.weights.roamOwnWavePushed * ownPush + gankAppeal(context, midLaner, lane, target);
-    const action = actionById(ROLE.MID, `roam${capitalize(lane)}`);
+    const action = findRoleAction(ROLE.MID, `roam${capitalize(lane)}`);
     return [option('roam', 'roam', score, () => issueAction(context.gameState, midLaner, action))];
   });
 }
@@ -167,13 +167,13 @@ function wardOptions(context) {
     const wardSpot = timer.objective.pit === BARON_PIT ? 'objectiveTop' : 'objectiveBot';
     if (!hasOwnWardNear(context, wardSpotFor(context.team, wardSpot))) {
       const urgency = 1 - timer.secondsUntilSpawn / WARD_LOOKAHEAD_SECONDS;
-      const action = actionById(ROLE.SUPPORT, wardSpot === 'objectiveTop' ? 'wardObjectiveTop' : 'wardObjectiveBot');
+      const action = findRoleAction(ROLE.SUPPORT, wardSpot === 'objectiveTop' ? 'wardObjectiveTop' : 'wardObjectiveBot');
       return [option('ward', 'ward', weights.wardObjectiveBase + weights.wardObjectiveSoon * urgency, () => issueAction(context.gameState, support, action))];
     }
   }
   if (context.enemyJunglerSecondsSinceSeen >= JUNGLER_MISSING_SECONDS) {
     const deepSpot = context.gameState.random() < HALF_CHANCE ? 'deepWardTop' : 'deepWardBot';
-    const action = actionById(ROLE.SUPPORT, deepSpot);
+    const action = findRoleAction(ROLE.SUPPORT, deepSpot);
     return [option('ward', 'ward', weights.wardObjectiveBase + weights.wardDeepWhenJunglerMissing, () => issueAction(context.gameState, support, action))];
   }
   return [];
@@ -190,7 +190,7 @@ function setupOptions(context) {
   if (hasOwnWardNear(context, wardSpotFor(context.team, wardSpot))) {
     return [];
   }
-  const action = actionById(ROLE.JUNGLE, 'setupObjective');
+  const action = findRoleAction(ROLE.JUNGLE, 'setupObjective');
   return [option('setup', 'setup', context.weights.setupObjectiveBase, () => issueAction(context.gameState, jungler, action))];
 }
 
@@ -262,7 +262,7 @@ function diveOptions(context) {
     }
     const { weights } = context;
     const score = weights.diveBase + weights.diveTargetLowHealth * (1 - target.healthRatio) + weights.diveOwnHealth * laner.healthRatio;
-    return [option('dive', `dive-${lane}`, score, () => issueAction(context.gameState, laner, actionById(role, 'dive')))];
+    return [option('dive', `dive-${lane}`, score, () => issueAction(context.gameState, laner, findRoleAction(role, 'dive')))];
   });
 }
 
@@ -276,7 +276,7 @@ function shoveOptions(context) {
     if (!isIdle(laner) || laner.activity !== ACTIVITY.LANING || pushOf(context, lane) >= SHOVE_MAX_PUSH) {
       return [];
     }
-    const action = actionById(laner.role, 'shove');
+    const action = findRoleAction(laner.role, 'shove');
     return [option('shove', `shove-${lane}`, context.weights.shoveForObjective, () => issueAction(context.gameState, laner, action))];
   });
 }
@@ -354,10 +354,6 @@ function isIdle(championState) {
 
 function ownWithRole(context, role) {
   return context.own.find(championState => championState.role === role);
-}
-
-function actionById(role, actionId) {
-  return ROLE_ACTIONS[role].find(action => action.id === actionId);
 }
 
 function option(type, cooldownKey, score, execute) {

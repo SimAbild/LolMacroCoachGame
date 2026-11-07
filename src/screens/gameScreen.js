@@ -1,7 +1,6 @@
-import { createButton, createElement } from '../ui/dom.js';
+import { createElement } from '../ui/dom.js';
 import { showToast } from '../ui/toast.js';
 import { TEAM } from '../config/teams.js';
-import { TEAM_CALLS } from '../config/actions.js';
 import { createInitialGameState } from '../game/gameState.js';
 import { PAUSE_REASON, createGameClock } from '../game/gameClock.js';
 import { createSimulation } from '../game/simulation/simulation.js';
@@ -14,8 +13,8 @@ import { createCoordinationOverlay } from './game/coordinationOverlay.js';
 import { mountHomeScreen } from './homeScreen.js';
 import { createEventFeed } from './game/eventFeed.js';
 import { createAlertBanner } from './game/alertBanner.js';
-import { cancelAction, issueAction } from '../game/simulation/actionSystem.js';
-import { issueTeamCall } from '../game/simulation/teamCallSystem.js';
+import { executeCommand } from '../game/playerCommands.js';
+import { createTeamCallBar } from './game/teamCallBar.js';
 import { createObjectiveTimers } from './game/objectiveTimers.js';
 import { mountEndScreen } from './endScreen.js';
 import { attachGameShortcuts } from './game/gameShortcuts.js';
@@ -75,7 +74,7 @@ export function mountGameScreen(root, { router, gameData, playerSide, loadouts }
       createTeamColumn(TEAM.BLUE),
       createElement('main', { className: 'map-area' },
         createElement('div', { className: 'map-frame' }, mapHost, eventFeed.element, alertBanner.element),
-        createTeamCallBar(),
+        createTeamCallBar({ objectiveTimersElement: objectiveTimers.element, onIntent: handleIntent }).element,
       ),
       createTeamColumn(TEAM.RED),
     ),
@@ -123,8 +122,7 @@ export function mountGameScreen(root, { router, gameData, playerSide, loadouts }
         version: gameData.version,
         itemCatalog: gameData.items,
         isOwnTeam: team === playerSide,
-        onAction: issueChampionAction,
-        onCancelAction: cancelChampionAction,
+        onIntent: handleIntent,
         onActionHover: showCoordinationLink,
       });
       panelsByChampionState.set(championState, panel);
@@ -134,21 +132,14 @@ export function mountGameScreen(root, { router, gameData, playerSide, loadouts }
     return column;
   }
 
-  function createTeamCallBar() {
-    const buttons = TEAM_CALLS.map(teamCall => createButton(teamCall.label, () => {
-      const result = issueTeamCall(gameState, playerSide, teamCall.id);
-      if (result.isIssued) {
-        logPlayerCall(teamCall.label);
-      } else {
-        showToast(result.reason);
-      }
-      refreshPanels();
-    }, 'team-call'));
-    return createElement('div', { className: 'team-calls' },
-      objectiveTimers.element,
-      createElement('span', { className: 'team-calls__label', text: 'Team calls' }),
-      ...buttons,
-    );
+  // Every button the player presses ends up here as a plain intent object.
+  function handleIntent(intent) {
+    const result = executeCommand(gameState, intent);
+    if (!result.isIssued) {
+      showToast(result.reason);
+    }
+    clearCoordinationLinks();
+    refreshPanels();
   }
 
   function showNewAlerts() {
@@ -171,32 +162,18 @@ export function mountGameScreen(root, { router, gameData, playerSide, loadouts }
     }
   }
 
-  function issueChampionAction(championState, actionDefinition, options) {
-    const result = issueAction(gameState, championState, actionDefinition, options);
-    if (result.isIssued) {
-      logPlayerCall(`${championState.champion.name}: ${actionDefinition.label}`);
-    } else {
-      showToast(result.reason);
+  function clearCoordinationLinks() {
+    for (const teamCards of Object.values(cardsByTeamAndRole)) {
+      for (const card of teamCards.values()) {
+        card.classList.remove('is-coordinating');
+      }
     }
-    showCoordinationLink(championState, null);
-    refreshPanels();
-  }
-
-  function logPlayerCall(label) {
-    gameState.callLog.push({ gameSeconds: gameState.gameSeconds, label });
-  }
-
-  function cancelChampionAction(championState) {
-    cancelAction(gameState, championState);
-    refreshPanels();
+    overlay.clear();
   }
 
   function showCoordinationLink(championState, targetRole) {
-    for (const card of cardsByTeamAndRole[championState.team].values()) {
-      card.classList.remove('is-coordinating');
-    }
+    clearCoordinationLinks();
     if (!targetRole) {
-      overlay.clear();
       return;
     }
     const teamCards = cardsByTeamAndRole[championState.team];
