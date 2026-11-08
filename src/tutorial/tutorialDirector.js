@@ -6,6 +6,8 @@ import { mountHomeScreen } from '../screens/homeScreen.js';
 import { STEP_KIND, createTutorialRunner } from './tutorialRunner.js';
 import { createCoachMark } from './ui/coachMark.js';
 
+const MISSING_TARGET_GRACE_FRAMES = 30;
+
 // Connects the tutorial steps to the screens. The draft, game and end screens receive this
 // object as `tutorial` and call attach / allows / notify; a normal game gets NO_TUTORIAL instead.
 // A screen attaches with an api: { context() } plus optional hooks:
@@ -18,7 +20,7 @@ import { createCoachMark } from './ui/coachMark.js';
 export function createTutorialDirector({ router, steps, scenario }) {
   const coachMark = createCoachMark({ findTargetRects, onNext: () => runner.next(), onExit: confirmExit });
   const runner = createTutorialRunner(steps, { onStepEntered: showStepIfOnScreen, onFinished: completeTutorial });
-  const warnedMissingTargets = new Set();
+  const missingTargetFrames = new Map();
   const startedStepIds = new Set();
   let attachedScreen = null;
   let waitFrameId = null;
@@ -105,11 +107,13 @@ export function createTutorialDirector({ router, steps, scenario }) {
     return [rectFrom({ left: center.x - size, top: center.y - size, width: size * 2, height: size * 2 })];
   }
 
-  // A missing target means the step points at nothing: worth a console warning while developing.
+  // A target that stays missing means the step points at nothing: worth a console warning while
+  // developing. Being absent for a moment is normal, as the panels update just after a command.
   function warnOnceAboutMissingTarget(step, selector) {
     const key = `${step.id}|${selector}`;
-    if (!warnedMissingTargets.has(key)) {
-      warnedMissingTargets.add(key);
+    const framesMissing = (missingTargetFrames.get(key) ?? 0) + 1;
+    missingTargetFrames.set(key, framesMissing);
+    if (framesMissing === MISSING_TARGET_GRACE_FRAMES) {
       console.warn(`[tutorial] step "${step.id}": nothing on screen matches ${selector}`);
     }
   }

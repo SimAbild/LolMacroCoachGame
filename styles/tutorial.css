@@ -41,7 +41,8 @@
   animation: coach-card-in var(--duration-medium) var(--ease-out);
 }
 .coach-card--centered { left: 50%; top: 50%; transform: translate(-50%, -50%); }
-.coach-card--corner { left: 16px; bottom: 16px; top: auto; width: min(300px, calc(100vw - 32px)); }
+/* Bottom right: the enemy cards have no calls on them, so this corner of the screen stays free. */
+.coach-card--corner { right: 16px; bottom: 16px; top: auto; width: min(300px, calc(100vw - 32px)); }
 .coach-card.is-shaking { animation: coach-card-shake 360ms var(--ease-out); }
 .coach-card__header { display: flex; justify-content: space-between; gap: 10px; margin-bottom: 6px; }
 .coach-card__chapter, .coach-card__status {

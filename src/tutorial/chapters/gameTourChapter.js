@@ -35,7 +35,7 @@ const TOUR_STEPS = [
     screen: GAME,
     title: 'The map',
     target: '.map-host',
-    body: 'Your champions are the blue coins. Enemies only show where your team has vision; '
+    body: 'Your champions are the blue coins, and the small arrows are your minions. Enemies only show where your team has vision; '
       + 'the rest is fog, and what you know about it is old news.',
   }),
   dialogStep('rift.legend', { screen: GAME, title: 'Legend', target: '[data-anchor="legend"]', body: 'Not sure what a symbol means? Open the legend.' }),
@@ -46,7 +46,7 @@ const CARD_STEPS = [
     screen: GAME,
     title: 'Your champions',
     target: '.team-column--blue',
-    body: 'Each card shows health, mana, level, gold and items, what the champion is doing right now, '
+    body: 'Each card shows health, mana, level, CS (minions killed), gold and items, what the champion is doing right now, '
       + 'and below it the calls you can give.',
   }),
   dialogStep('rift.enemies', {
@@ -88,14 +88,28 @@ const FIRST_CALL_STEPS = [
     screen: GAME,
     title: 'What they are doing',
     target: `${ownCard(ROLE.MID)} .champion-card__status`,
-    body: 'The line under the bars shows what Orianna is doing. The ✕ cancels a call.',
+    body: 'The line under the bars shows what Orianna is doing, and the call stays lit. It lasts until the wave crashes into their tower.',
+  }),
+  dialogStep('rift.lastHits', {
+    screen: GAME,
+    title: 'Last hits',
+    target: `${ownCard(ROLE.TOP)} .champion-panel__cs`,
+    body: 'Only the killing blow pays gold, so your champions step up to the wave to land it. Every minion they miss is gold gone for good. '
+      + 'CS counts how many they got.',
   }),
   doStep('rift.playSafe', {
     screen: GAME,
     title: 'Play it safe',
     target: `${ownCard(ROLE.TOP)} [data-action-id="playSafe"]`,
-    body: 'Malphite should play safe: he stays back near his tower, where a gank can hardly reach him.',
+    body: 'Tell Malphite to play safe: he stays well behind the wave, where trades are small and a gank can hardly reach him. The price is missed last hits.',
     expect: { type: INTENT.CHAMPION_ACTION, role: ROLE.TOP, actionId: 'playSafe' },
+  }),
+  doStep('rift.clearOrder', {
+    screen: GAME,
+    title: 'Changing your mind',
+    target: `${ownCard(ROLE.TOP)} [data-anchor="cancel"]`,
+    body: 'An order lasts until you change it. Nobody threatens Malphite right now, so press ✕ to send him back to playing on instinct.',
+    expect: { type: INTENT.CANCEL_ACTION, role: ROLE.TOP },
   }),
 ];
 

@@ -19,7 +19,7 @@ const isDraftOnly = process.argv.includes('--draft-only');
 // Branches the lessons are built for. Taking another one is not wrong in the browser (the text
 // covers it), but here it means the setup no longer produces the intended situation.
 const EXPECTED_STEPS = Object.freeze([
-  'gank.success', 'dragon.taken', 'plates.broke', 'herald.taken', 'baron.fight', 'baron.taken', 'siege.inhibitor', 'end.victory',
+  'gank.success', 'wave.freezeResult', 'dragon.taken', 'plates.broke', 'plates.reset', 'herald.taken', 'baron.fight', 'baron.taken', 'siege.inhibitor', 'end.victory',
 ]);
 const CHECKS_WHEN_WAIT_ENDS = Object.freeze({
   'dragon.wardWatch': { holds: context => hasWard(context, TEAM.BLUE), problem: 'Leona did not place the dragon ward in time' },

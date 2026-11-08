@@ -2,9 +2,9 @@ import { dialogStep, inChapter } from './stepBuilders.js';
 
 const SCREEN = 'end';
 
-// Chapter 9: reading the end screen. Finishing the last step marks the tutorial as completed
+// Chapter 10: reading the end screen. Finishing the last step marks the tutorial as completed
 // and unlocks the buttons at the bottom.
-export const END_CHAPTER = Object.freeze(inChapter(9, 'The end screen', [
+export const END_CHAPTER = Object.freeze(inChapter(10, 'The end screen', [
   dialogStep('end.victory', {
     screen: SCREEN,
     title: 'Victory',
@@ -29,13 +29,13 @@ export const END_CHAPTER = Object.freeze(inChapter(9, 'The end screen', [
     screen: SCREEN,
     title: 'The teams',
     target: '.end-teams',
-    body: 'What each team took, and every champion\'s score, gold and items.',
+    body: 'What each team took, and every champion\'s score, CS, gold and items.',
   }),
   dialogStep('end.finish', {
     screen: SCREEN,
     title: 'You are ready',
     target: '.end-actions',
-    body: 'That is the whole game: draft, lanes, ganks, vision, objectives, and the push to the Nexus. '
+    body: 'That is the whole game: draft, lanes, the wave, ganks, vision, objectives, and the push to the Nexus. '
       + 'In a real game Red has a coach of its own, and nobody stops the clock for you. Good luck!',
     nextLabel: 'Finish',
   }),

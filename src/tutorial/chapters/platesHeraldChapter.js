@@ -22,9 +22,9 @@ const MID_GAME_LEAD = Object.freeze({ team: TEAM.BLUE, gold: 1000, experience: 1
 const RED_MID_TOWER = Object.freeze({ team: TEAM.RED, lane: 'mid', tier: 'outer' });
 const RED_MID_TOWER_POINT = structuresFor(TEAM.RED).find(structure => structure.lane === RED_MID_TOWER.lane && structure.tier === RED_MID_TOWER.tier);
 
-// Chapter 6: the first gold from towers, then the objective that breaks a tower by itself.
+// Chapter 7: the first gold from towers, then the objective that breaks a tower by itself.
 export function createPlatesHeraldChapter() {
-  return inChapter(6, 'Plates and Herald', [
+  return inChapter(7, 'Plates and Herald', [
     ...PLATE_STEPS,
     createPlateWatchStep(),
     ...PLATE_RESULT_STEPS,
@@ -110,7 +110,7 @@ const PLATE_RESULT_STEPS = [
     target: ownCard(ROLE.MID),
     body: 'A plate broke, and Orianna earned 125 gold for it. At 14:00 the plates that are left fall off by themselves: '
       + 'that gold is gone, but the towers stop being so tough.',
-    next: 'herald.skip',
+    next: 'plates.crash',
   }),
   dialogStep('plates.held', {
     screen: GAME,
@@ -118,6 +118,20 @@ const PLATE_RESULT_STEPS = [
     target: mapTarget(RED_MID_TOWER_POINT, TOWER_RADIUS),
     body: 'Red\'s minions held the wave back this time. A plate breaks only while a wave stands at the tower. '
       + 'At 14:00 the plates that are left fall off by themselves.',
+  }),
+  dialogStep('plates.crash', {
+    screen: GAME,
+    title: 'The crash',
+    target: '.event-feed',
+    body: 'A wave at the tower hurts Ahri too. Last hits are harder under a tower, and any minion the tower kills pays nobody, '
+      + 'so she loses farm. A cannon wave lasts longest. And had she been away, the whole wave would be lost: the kill feed tells you when that happens.',
+  }),
+  doStep('plates.reset', {
+    screen: GAME,
+    title: 'Use the time',
+    target: `${ownCard(ROLE.MID)} [data-action-id="reset"]`,
+    body: 'A shove is only worth something if you use the time it buys. The wave is at their tower, so Orianna can go home for items and lose little. Reset.',
+    expect: { type: INTENT.CHAMPION_ACTION, role: ROLE.MID, actionId: 'reset' },
   }),
 ];
 

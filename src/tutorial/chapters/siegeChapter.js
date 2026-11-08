@@ -12,9 +12,9 @@ const RED_MID_INHIBITOR = Object.freeze({ team: TEAM.RED, lane: 'mid', tier: 'in
 const INHIBITOR_TARGET = mapTarget(structuresFor(TEAM.RED).find(structure => structure.lane === 'mid' && structure.tier === 'inhibitor'), STRUCTURE_RADIUS);
 const GROUP_MID_CALL = Object.freeze({ type: INTENT.TEAM_CALL, callId: TEAM_CALL.GROUP_MID });
 
-// Chapter 8: from a won fight to a won game. The last step is free play: every call is unlocked.
+// Chapter 9: from a won fight to a won game. The last step is free play: every call is unlocked.
 export function createSiegeChapter() {
-  return inChapter(8, 'Siege', [
+  return inChapter(9, 'Siege', [
     ...PUSH_STEPS,
     createInhibitorWatchStep(),
     ...INHIBITOR_RESULT_STEPS,

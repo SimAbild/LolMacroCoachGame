@@ -89,8 +89,8 @@ const OUTCOME_STEPS = [
     screen: GAME,
     title: 'The other calls',
     target: [`${ownCard(ROLE.JUNGLE)} .action-chips`, `${ownCard(ROLE.TOP)} .action-chips`],
-    body: 'Junglers can Farm, Invade (steal enemy camps), Setup objective (ward it) or Call help. '
-      + 'Laners can Shove, Play safe, Dive under the enemy tower, or Call help; mid and support can Roam. '
+    body: 'Junglers can Farm, Invade (steal enemy camps), Setup objective (ward it), Cover a lane or Call help. '
+      + 'Laners can Dive under the enemy tower, Reset to base or Call help; mid and support can Roam. '
       + 'Hover a call any time to read what it does.',
   }),
 ];

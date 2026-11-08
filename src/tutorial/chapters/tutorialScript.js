@@ -2,6 +2,7 @@ import { createDraftChapter } from './draftChapter.js';
 import { SWAP_CHAPTER } from './swapChapter.js';
 import { GAME_TOUR_CHAPTER } from './gameTourChapter.js';
 import { createGankChapter } from './gankChapter.js';
+import { createWaveChapter } from './waveChapter.js';
 import { createDragonChapter } from './dragonChapter.js';
 import { createPlatesHeraldChapter } from './platesHeraldChapter.js';
 import { createBaronChapter } from './baronChapter.js';
@@ -15,6 +16,7 @@ export function createTutorialScript(scenario) {
     ...SWAP_CHAPTER,
     ...GAME_TOUR_CHAPTER,
     ...createGankChapter(),
+    ...createWaveChapter(),
     ...createDragonChapter(),
     ...createPlatesHeraldChapter(),
     ...createBaronChapter(),

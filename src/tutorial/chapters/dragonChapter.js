@@ -15,9 +15,9 @@ const CONTEST_CALL_SECONDS = DRAGON_FIRST_SPAWN_SECONDS - 15;
 const WARD_DEADLINE_SECONDS = 60;
 const DRAKE_DEADLINE_SECONDS = 140;
 
-// Chapter 5: vision and the first objective. Ward the pit, then contest the drake as a team.
+// Chapter 6: vision and the first objective. Ward the pit, then contest the drake as a team.
 export function createDragonChapter() {
-  return inChapter(5, 'Vision and dragon', [
+  return inChapter(6, 'Vision and dragon', [
     ...WARD_STEPS,
     createWardWatchStep(),
     ...CONTEST_STEPS,

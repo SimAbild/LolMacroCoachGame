@@ -24,10 +24,10 @@ const LATE_GAME_LEAD = Object.freeze({ team: TEAM.BLUE, gold: 2000, experience: 
 const RED_TOWERS_LOST = Object.freeze({ top: ['outer'], mid: ['outer', 'inner', 'inhibitorTower'], bot: ['outer'] });
 const BARON_TARGET = mapTarget(BARON_PIT, PIT_RADIUS);
 
-// Chapter 7: the biggest objective, with a fight over it. Blue has a clear lead, so the lesson
+// Chapter 8: the biggest objective, with a fight over it. Blue has a clear lead, so the lesson
 // shows a team using one; the fight is still simulated, so Baron can still get away.
 export function createBaronChapter() {
-  return inChapter(7, 'Baron', [
+  return inChapter(8, 'Baron', [
     ...SETUP_STEPS,
     createWardWatchStep(),
     ...CONTEST_STEPS,
