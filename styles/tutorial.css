@@ -57,16 +57,8 @@
 .coach-card__footer { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 12px; }
 .coach-card__footer .button { padding: 7px 16px; }
 .coach-card__next[hidden] { display: none; }
-.coach-card__exit {
-  padding: 4px 0;
-  font: 500 12px var(--font-body);
-  color: var(--color-text-muted);
-  background: none;
-  border: none;
-  cursor: pointer;
-  transition: var(--transition-control);
-}
-.coach-card__exit:hover { color: var(--color-red-light); }
+/* A real button on every card: a player who wants out should never have to look for the way. */
+.coach-card__footer .coach-card__exit { padding: 7px 12px; font-size: 13px; white-space: nowrap; }
 @keyframes coach-card-in { from { opacity: 0; } }
 @keyframes coach-card-shake {
   20% { translate: -6px 0; }

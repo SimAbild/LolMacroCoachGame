@@ -15,7 +15,7 @@ const MISSING_TARGET_GRACE_FRAMES = 30;
 //   checksWaitsEachTick           the game ends watch steps itself, on the exact tick (see isWaitOver)
 //   fastForwardTo(seconds), afterSkip()   for skip steps
 //   worldToClient(point)          for map targets
-//   onDialogOpen(), onDialogClose()       so a running game pauses while "Exit tutorial" asks
+//   onDialogOpen(), onDialogClose()       so a running game pauses while "Back to home" asks
 //   onCallRefused()               the game runs again until the refused call can succeed
 export function createTutorialDirector({ router, steps, scenario }) {
   const coachMark = createCoachMark({ findTargetRects, onNext: () => runner.next(), onExit: confirmExit });
@@ -123,7 +123,7 @@ export function createTutorialDirector({ router, steps, scenario }) {
     const isLeaving = await confirmDialog({
       title: 'Leave the tutorial?',
       body: 'You can start it again from the home screen at any time.',
-      confirmLabel: 'Leave tutorial',
+      confirmLabel: 'Back to home',
       cancelLabel: 'Keep going',
       tone: DIALOG_TONE.DANGER,
     });

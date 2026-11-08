@@ -97,7 +97,7 @@ function createCoachCard({ onNext, onExit }) {
   const title = createElement('h2', { className: 'coach-card__title' });
   const body = createElement('p', { className: 'coach-card__body' });
   const nextButton = createButton('Next', onNext, 'button button--primary coach-card__next');
-  const exitButton = createButton('Exit tutorial', onExit, 'coach-card__exit');
+  const exitButton = createButton('← Back to home', onExit, 'button button--outline coach-card__exit');
   const element = createElement('section', { className: 'coach-card', attributes: { 'aria-live': 'polite', 'aria-label': 'Tutorial' } },
     createElement('header', { className: 'coach-card__header' }, chapterLabel, statusLabel),
     title,
