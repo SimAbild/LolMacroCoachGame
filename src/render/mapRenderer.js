@@ -12,6 +12,8 @@ import {
 } from './mapLayers.js';
 
 const INITIAL_CANVAS_SIZE = 600;
+const MILLISECONDS_PER_SECOND = 1000;
+const MAX_REAL_DELTA_SECONDS = 0.25;
 
 // Draws the game on a Pixi canvas inside hostElement. The world is in map units (MAP_SIZE square)
 // and scaled to fit the host; layers are stacked bottom to top in the order they are added.
@@ -19,17 +21,23 @@ export async function createMapRenderer(hostElement, gameState, { mapImageUrl })
   const app = await createPixiApp(hostElement);
   const layers = await createLayers(gameState, mapImageUrl);
   const world = new Container();
-  world.addChild(layers.terrain, layers.structures, layers.objectives, layers.camps, layers.minions,
-    layers.fog.sprite, layers.wards, layers.fights, layers.pits.layer, layers.coins);
+  // Minions sit above the fog: your own wave must always show, and enemies are only drawn in vision anyway.
+  world.addChild(layers.terrain, layers.structures, layers.objectives, layers.camps,
+    layers.fog.sprite, layers.minions, layers.wards, layers.fights, layers.pits.layer, layers.coins);
   app.stage.addChild(world);
   const fitToHost = () => fitWorldToHost(app, world, hostElement);
   const resizeObserver = new ResizeObserver(fitToHost);
   resizeObserver.observe(hostElement);
   fitToHost();
   let shownStructureSignature = '';
+  let lastUpdateAtMs = performance.now();
 
-  function update(currentGameState) {
-    drawFrame(layers, currentGameState);
+  // tickProgress says how far between the last two ticks to draw moving things; 1 is the latest tick.
+  function update(currentGameState, tickProgress = 1) {
+    const nowMs = performance.now();
+    const realDeltaSeconds = Math.min(MAX_REAL_DELTA_SECONDS, (nowMs - lastUpdateAtMs) / MILLISECONDS_PER_SECOND);
+    lastUpdateAtMs = nowMs;
+    drawFrame(layers, currentGameState, { tickProgress, realDeltaSeconds });
     const structureSignature = structureSignatureOf(currentGameState);
     if (structureSignature !== shownStructureSignature) {
       shownStructureSignature = structureSignature;
@@ -78,16 +86,16 @@ async function createLayers(gameState, mapImageUrl) {
 }
 
 // Everything that can change from one frame to the next, as the player sees it (fog of war applies).
-function drawFrame(layers, gameState) {
+function drawFrame(layers, gameState, { tickProgress, realDeltaSeconds }) {
   const playerVisionSources = visionSourcesFor(gameState, gameState.playerSide);
   layers.fog.draw(playerVisionSources);
   drawJungleCamps(layers.camps, gameState);
-  drawMinionWaves(layers.minions, gameState, playerVisionSources);
+  drawMinionWaves(layers.minions, gameState, { playerVisionSources, tickProgress });
   drawOwnWards(layers.wards, gameState);
   drawObjectives(layers.objectives, gameState);
   layers.pits.update(gameState);
   drawFights(layers.fights, gameState, playerVisionSources);
-  updateChampionCoins(layers.coinsByChampionState, gameState);
+  updateChampionCoins(layers.coinsByChampionState, gameState, { tickProgress, realDeltaSeconds });
 }
 
 // The map is always square: as large as the host's shorter side.

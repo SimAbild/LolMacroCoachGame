@@ -7,8 +7,8 @@ import { dialogStep, doStep, inChapter, mapTarget, ownCard, watchStep } from './
 const GAME = 'game';
 const MAP_CENTER = Object.freeze({ x: MAP_SIZE / 2, y: MAP_SIZE / 2 });
 const MID_LANE_RADIUS = 130;
-// The first minion waves meet a little after a minute.
-const WAVES_MEET_SECONDS = 75;
+// The first waves spawn at 0:30 and meet in mid about 20 seconds later; this catches them fighting.
+const WAVES_MEET_SECONDS = 55;
 
 // Chapter 3: a tour of the game screen at 0:00, then the first two calls.
 const TOUR_STEPS = [
@@ -28,8 +28,8 @@ const TOUR_STEPS = [
     screen: GAME,
     title: 'Time and speed',
     target: '[data-anchor="clock"]',
-    body: 'Pause with the button or Space, and change speed with 1x 2x 3x or the keys 1 to 3. '
-      + 'Slow-mo slows big moments down so you have time to react.',
+    body: 'Pause with the button or Space, and calls still work while the game stands still. Change speed with the buttons '
+      + 'or the keys 0 to 3 (0 is half speed). Slow-mo slows big moments down so you have time to react.',
   }),
   dialogStep('rift.map', {
     screen: GAME,
@@ -74,8 +74,8 @@ const FIRST_CALL_STEPS = [
     screen: GAME,
     title: 'Minion waves',
     target: mapTarget(MAP_CENTER, MID_LANE_RADIUS),
-    body: 'Each lane has a wave front where the minions fight. Shoving pushes the wave toward the enemy tower: '
-      + 'more gold and pressure, but the champion stands further from safety.',
+    body: 'Waves walk out from each Nexus and fight where they meet. A cannon joins every third wave. Shoving clears the enemy wave, '
+      + 'so yours walks on toward their tower: more pressure, but the champion stands further from safety.',
   }),
   doStep('rift.shove', {
     screen: GAME,

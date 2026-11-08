@@ -89,7 +89,7 @@ export function mountGameScreen(root, { router, gameData, playerSide, loadouts, 
     if (isHalted) {
       tutorial.advanceAfterWait({ gameState });
     }
-    layout.mapPanel.update(gameState);
+    layout.mapPanel.update(gameState, simulation.tickProgress());
     alertWatcher.showNewAlerts(gameState);
     if (gameState.winner) {
       endGame();

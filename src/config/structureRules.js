@@ -4,7 +4,6 @@ export const PLATE_GOLD = 125;
 export const TOWER_LOCAL_GOLD = 250;
 export const TOWER_TEAM_GOLD = 50;
 export const INHIBITOR_RESPAWN_SECONDS = 300;
-export const SUPER_MINIONS_PER_WAVE = 2;
 
 export const MINION_SIEGE_DAMAGE_PER_SECOND = 0.0008;
 export const CHAMPION_SIEGE_DAMAGE_PER_SECOND = 0.004;

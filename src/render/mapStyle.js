@@ -40,7 +40,19 @@ export const ELEMENT_COLORS = Object.freeze({
 });
 
 export const LEGEND_SHAPE = Object.freeze({
-  COIN: 'coin', DOT: 'dot', RING: 'ring', MINION: 'minion', TOWER: 'tower', INHIBITOR: 'inhibitor', NEXUS: 'nexus', RUINS: 'ruins', WARD: 'ward', CAMP: 'camp', FOG: 'fog',
+  COIN: 'coin',
+  DOT: 'dot',
+  RING: 'ring',
+  MINION: 'minion',
+  CANNON: 'cannon',
+  SUPER_MINION: 'superMinion',
+  TOWER: 'tower',
+  INHIBITOR: 'inhibitor',
+  NEXUS: 'nexus',
+  RUINS: 'ruins',
+  WARD: 'ward',
+  CAMP: 'camp',
+  FOG: 'fog',
 });
 
 // What the legend lists, in the colours of the player's side.
@@ -50,7 +62,9 @@ export function legendItemsFor(playerSide) {
   return [
     { label: 'Your champion', shape: LEGEND_SHAPE.COIN, color: ally },
     { label: 'Enemy champion (in vision)', shape: LEGEND_SHAPE.COIN, color: enemy },
-    { label: 'Minions (arrows point where they walk, big = super minion)', shape: LEGEND_SHAPE.MINION, color: ally },
+    { label: 'Melee and caster minions', shape: LEGEND_SHAPE.MINION, color: ally },
+    { label: 'Cannon minion', shape: LEGEND_SHAPE.CANNON, color: ally },
+    { label: 'Super minion (enemy inhibitor down)', shape: LEGEND_SHAPE.SUPER_MINION, color: ally },
     { label: 'Tower (ring = health, dots = plates)', shape: LEGEND_SHAPE.TOWER, color: ally },
     { label: 'Inhibitor (ring = health)', shape: LEGEND_SHAPE.INHIBITOR, color: ally },
     { label: 'Nexus (ring = health)', shape: LEGEND_SHAPE.NEXUS, color: ally },

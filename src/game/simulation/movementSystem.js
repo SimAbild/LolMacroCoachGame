@@ -7,6 +7,8 @@ const REPATH_DISTANCE = 20;
 
 export function updateMovement(gameState, tickSeconds) {
   for (const championState of allChampionStates(gameState)) {
+    // Taken after this tick's Flash and respawns, so the map draws a jump as a jump, not a slide.
+    championState.previousPosition = championState.position;
     const destination = movementDestination(gameState, championState);
     if (!destination || !championState.isAlive) {
       championState.path = null;

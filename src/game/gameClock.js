@@ -1,7 +1,10 @@
 const MILLISECONDS_PER_SECOND = 1000;
 const MAX_FRAME_DELTA_SECONDS = 0.25;
 
-export const GAME_SPEEDS = Object.freeze([1, 2, 3]);
+export const GAME_SPEEDS = Object.freeze([0.5, 1, 2, 3]);
+export const DEFAULT_GAME_SPEED = 1;
+// The keyboard key for each speed, in the same order as GAME_SPEEDS.
+export const GAME_SPEED_KEYS = Object.freeze(['0', '1', '2', '3']);
 
 // Several things can pause at once: a player un-pausing must not lift a tutorial halt.
 export const PAUSE_REASON = Object.freeze({
@@ -11,7 +14,7 @@ export const PAUSE_REASON = Object.freeze({
 });
 
 export function createGameClock(onFrame) {
-  let speed = GAME_SPEEDS[0];
+  let speed = DEFAULT_GAME_SPEED;
   let isRunning = false;
   let animationFrameId = null;
   let previousTimestamp = null;

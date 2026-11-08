@@ -76,5 +76,10 @@ export function createSimulation(gameState, { shouldHalt = null } = {}) {
     }
   }
 
-  return { advance, runTicks };
+  // How far time has come toward the next tick (0 to 1), so the map can draw between two ticks.
+  function tickProgress() {
+    return unsimulatedSeconds / TICK_SECONDS;
+  }
+
+  return { advance, runTicks, tickProgress };
 }

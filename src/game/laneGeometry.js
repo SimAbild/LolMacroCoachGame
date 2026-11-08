@@ -1,14 +1,29 @@
+import { TEAM } from '../config/teams.js';
 import { LANE_PATHS } from './mapLayout.js';
 import { distanceBetween } from './geometry.js';
 
 export const LANES = Object.freeze(Object.keys(LANE_PATHS));
 
+const LANE_TANGENT_SAMPLE = 5;
 const POLYLINES = Object.freeze(Object.fromEntries(
   Object.entries(LANE_PATHS).map(([lane, points]) => [lane, buildPolyline(points)]),
 ));
 
 export function laneLength(lane) {
   return POLYLINES[lane].totalLength;
+}
+
+// Lane distance counts from Blue's base, so Blue walks up the lane and Red walks down it.
+export function directionTowardEnemy(team) {
+  return team === TEAM.BLUE ? 1 : -1;
+}
+
+// A unit vector pointing to one side of the lane at this distance.
+export function lanePerpendicularAt(lane, laneDistance) {
+  const before = pointAtLaneDistance(lane, laneDistance - LANE_TANGENT_SAMPLE);
+  const after = pointAtLaneDistance(lane, laneDistance + LANE_TANGENT_SAMPLE);
+  const tangentLength = Math.hypot(after.x - before.x, after.y - before.y) || 1;
+  return { x: -(after.y - before.y) / tangentLength, y: (after.x - before.x) / tangentLength };
 }
 
 export function pointAtLaneDistance(lane, distance) {

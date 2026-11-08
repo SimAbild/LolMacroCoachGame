@@ -1,5 +1,6 @@
 import { createElement } from '../../ui/dom.js';
-import { EMBLEM_TONE, ICON_OUTLINE, STRUCTURE_EMBLEMS, outlineToSvgPath } from '../../render/mapIcons.js';
+import { MINION_KIND } from '../../config/minionRules.js';
+import { EMBLEM_TONE, ICON_OUTLINE, MINION_ICONS, STRUCTURE_EMBLEMS, outlineToSvgPath } from '../../render/mapIcons.js';
 import { LEGEND_SHAPE, MAP_COLORS, legendItemsFor, toCssColor } from '../../render/mapStyle.js';
 import { readFlag, writeFlag } from '../../core/storage.js';
 import { STRUCTURE_TYPE } from '../../game/mapLayout.js';
@@ -9,6 +10,7 @@ const SWATCH_SIZE = 16;
 const SWATCH_CENTER = SWATCH_SIZE / 2;
 const SWATCH_EMBLEM_SIZE = 4.6;
 const SWATCH_MINION_SIZE = 3.2;
+const SWATCH_LARGE_MINION_SIZE = 6;
 const SWATCH_RUINS_SIZE = 6.5;
 const SVG_NAMESPACE = 'http://www.w3.org/2000/svg';
 
@@ -55,11 +57,19 @@ function structureSwatch(structureType, fill) {
   return `<circle cx="8" cy="8" r="7" fill="${ICON_BACKING_COLOR}" stroke="${fill}" stroke-width="1.4"/>${emblem}`;
 }
 
+function largeMinionSwatch(minionKind, fill) {
+  return MINION_ICONS[minionKind].layers
+    .map(({ outline, tone }) => iconPath(outline, { fill: tone === EMBLEM_TONE.TEAM ? fill : ICON_BACKING_COLOR, size: SWATCH_LARGE_MINION_SIZE }))
+    .join('');
+}
+
 const SWATCH_MARKUP = Object.freeze({
   [LEGEND_SHAPE.COIN]: fill => `<circle cx="8" cy="8" r="7" fill="${fill}"/><circle cx="8" cy="8" r="4.5" style="fill: var(--color-surface-raised)"/>`,
   [LEGEND_SHAPE.DOT]: fill => `<circle cx="8" cy="8" r="5" fill="${fill}"/>`,
   [LEGEND_SHAPE.RING]: fill => `<circle cx="8" cy="8" r="5.5" fill="none" stroke="${fill}" stroke-width="2.2"/>`,
-  [LEGEND_SHAPE.MINION]: fill => iconPath(ICON_OUTLINE.CHEVRON, { fill, size: SWATCH_MINION_SIZE, x: 4 }) + iconPath(ICON_OUTLINE.CHEVRON, { fill, size: SWATCH_MINION_SIZE, x: 11 }),
+  [LEGEND_SHAPE.MINION]: fill => iconPath(ICON_OUTLINE.DART, { fill, size: SWATCH_MINION_SIZE, x: 4 }) + iconPath(ICON_OUTLINE.ARROW, { fill, size: SWATCH_MINION_SIZE, x: 11 }),
+  [LEGEND_SHAPE.CANNON]: fill => largeMinionSwatch(MINION_KIND.CANNON, fill),
+  [LEGEND_SHAPE.SUPER_MINION]: fill => largeMinionSwatch(MINION_KIND.SUPER, fill),
   [LEGEND_SHAPE.TOWER]: fill => structureSwatch(STRUCTURE_TYPE.TOWER, fill),
   [LEGEND_SHAPE.INHIBITOR]: fill => structureSwatch(STRUCTURE_TYPE.INHIBITOR, fill),
   [LEGEND_SHAPE.NEXUS]: fill => structureSwatch(STRUCTURE_TYPE.NEXUS, fill),

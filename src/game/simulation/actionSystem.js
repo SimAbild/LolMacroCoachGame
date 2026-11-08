@@ -33,6 +33,7 @@ const TEAM_SIZE = 5;
 const MIN_ENEMIES_FOR_GROUP_FIGHT = 2;
 const ENGAGE_PHASE = Object.freeze({ APPROACH: 'approach', FIGHTING: 'fighting' });
 const FULLY_PUSHED_MARGIN = 2;
+const MINIONS_FOR_A_CRASH = 3;
 
 export function issueAction(gameState, championState, actionDefinition, { helperRole } = {}) {
   const rejection = rejectionReason(gameState, championState, actionDefinition, helperRole);
@@ -123,9 +124,11 @@ const ACTION_STARTERS = Object.freeze({
 });
 
 const ACTION_UPDATERS = Object.freeze({
+  // Done when a real wave has crashed into their tower: a lone caster reaching it is not a crash.
   [ACTION_KIND.SHOVE]: (gameState, championState) => {
     const laneState = laneStateOf(gameState, championState);
-    if (lanePushFor(gameState, laneState, championState.team) >= MAX_PUSH_VALUE - FULLY_PUSHED_MARGIN) {
+    const isAtTower = lanePushFor(gameState, laneState, championState.team) >= MAX_PUSH_VALUE - FULLY_PUSHED_MARGIN;
+    if (isAtTower && laneState.minions[championState.team] >= MINIONS_FOR_A_CRASH) {
       endAction(gameState, championState);
     }
   },

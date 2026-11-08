@@ -1,52 +1,48 @@
-import { SUPER_MINIONS_PER_WAVE } from '../config/structureRules.js';
-import { TEAM, opposingTeam } from '../config/teams.js';
-import { pointAtLaneDistance } from '../game/laneGeometry.js';
-import { directionTowardEnemy } from '../game/simulation/laneSystem.js';
-import { isInhibitorDown } from '../game/structures.js';
+import { directionTowardEnemy, lanePerpendicularAt, pointAtLaneDistance } from '../game/laneGeometry.js';
 import { isPositionVisible } from '../game/vision.js';
-import { ICON_OUTLINE, placedOutline } from './mapIcons.js';
+import { EMBLEM_TONE, MINION_ICONS, placedOutline } from './mapIcons.js';
 import { MAP_COLORS } from './mapStyle.js';
+import { interpolate } from './renderInterpolation.js';
 
-const MINION_SIZE = 6;
-const SUPER_MINION_SIZE = 9.5;
-const MINION_SPACING = 11;
-const MINION_OUTLINE_WIDTH = 1.2;
+const MINION_OUTLINE_WIDTH = 1;
+const LATERAL_SPREAD = 7;
+const LATERAL_SLOTS = 3;
+const HEADING_SAMPLE_DISTANCE = 1;
 
-export function drawMinionWaves(graphics, gameState, playerVisionSources) {
+// Every minion on every lane, as the player sees them: their own always, enemies where they have vision.
+export function drawMinionWaves(graphics, gameState, { playerVisionSources, tickProgress }) {
   graphics.clear();
   for (const laneState of gameState.lanes) {
-    for (const team of [TEAM.BLUE, TEAM.RED]) {
-      drawWave(graphics, { laneState, team, gameState, playerVisionSources });
+    for (const minion of laneState.minionList) {
+      const placement = minionPlacement(laneState.lane, minion, tickProgress);
+      if (minion.team === gameState.playerSide || isPositionVisible(placement, playerVisionSources)) {
+        drawMinion(graphics, minion, placement);
+      }
     }
   }
 }
 
-// A wave is a row of arrows that starts at the wave front and trails back toward its own base.
-// Enemy minions are only drawn where the player has vision.
-function drawWave(graphics, { laneState, team, gameState, playerVisionSources }) {
-  const towardEnemy = directionTowardEnemy(team);
-  const isOwnMinion = team === gameState.playerSide;
-  const superMinionCount = superMinionsAtFront(gameState, laneState, team);
-  for (let minionIndex = 0; minionIndex < Math.ceil(laneState.minions[team]); minionIndex += 1) {
-    const laneDistance = laneState.frontDistance - towardEnemy * MINION_SPACING * (minionIndex + 0.5);
-    const position = pointAtLaneDistance(laneState.lane, laneDistance);
-    if (isOwnMinion || isPositionVisible(position, playerVisionSources)) {
-      const ahead = pointAtLaneDistance(laneState.lane, laneDistance + towardEnemy);
-      const size = minionIndex < superMinionCount ? SUPER_MINION_SIZE : MINION_SIZE;
-      drawMinion(graphics, { position, ahead, size, color: MAP_COLORS[team] });
+// Minions side by side in a few rows, so a wave reads as a group and not as one mark.
+function minionPlacement(lane, minion, tickProgress) {
+  const laneDistance = interpolate(minion.previousDistance, minion.laneDistance, tickProgress);
+  const lanePoint = pointAtLaneDistance(lane, laneDistance);
+  const perpendicular = lanePerpendicularAt(lane, laneDistance);
+  const sideways = (minion.id % LATERAL_SLOTS - (LATERAL_SLOTS - 1) / 2) * LATERAL_SPREAD;
+  const pointAhead = pointAtLaneDistance(lane, laneDistance + directionTowardEnemy(minion.team) * HEADING_SAMPLE_DISTANCE);
+  return {
+    x: lanePoint.x + perpendicular.x * sideways,
+    y: lanePoint.y + perpendicular.y * sideways,
+    angle: Math.atan2(pointAhead.y - lanePoint.y, pointAhead.x - lanePoint.x),
+  };
+}
+
+function drawMinion(graphics, minion, placement) {
+  const { size, layers } = MINION_ICONS[minion.kind];
+  layers.forEach(({ outline, tone }, layerIndex) => {
+    const fillColor = tone === EMBLEM_TONE.TEAM ? MAP_COLORS[minion.team] : MAP_COLORS.iconBacking;
+    graphics.poly(placedOutline(outline, { ...placement, size })).fill(fillColor);
+    if (layerIndex === 0) {
+      graphics.stroke({ width: MINION_OUTLINE_WIDTH, color: MAP_COLORS.iconBacking });
     }
-  }
-}
-
-// The simulation counts a lane's minions without telling their types apart, so this is a picture
-// of the rule rather than exact bookkeeping: with the enemy inhibitor down, the front ones are super.
-function superMinionsAtFront(gameState, laneState, team) {
-  return isInhibitorDown(gameState, opposingTeam(team), laneState.lane) ? SUPER_MINIONS_PER_WAVE : 0;
-}
-
-function drawMinion(graphics, { position, ahead, size, color }) {
-  const angle = Math.atan2(ahead.y - position.y, ahead.x - position.x);
-  graphics.poly(placedOutline(ICON_OUTLINE.CHEVRON, { ...position, size, angle }))
-    .fill(color)
-    .stroke({ width: MINION_OUTLINE_WIDTH, color: MAP_COLORS.iconBacking });
+  });
 }

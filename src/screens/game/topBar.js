@@ -1,6 +1,6 @@
 import { createButton, createElement } from '../../ui/dom.js';
 import { TEAM, TEAM_LABELS } from '../../config/teams.js';
-import { GAME_SPEEDS, PAUSE_REASON } from '../../game/gameClock.js';
+import { DEFAULT_GAME_SPEED, GAME_SPEEDS, GAME_SPEED_KEYS, PAUSE_REASON } from '../../game/gameClock.js';
 import { destroyedEnemyTowerCount, totalTeamGold } from '../../game/gameState.js';
 import { formatGameTime } from '../../ui/formatGameTime.js';
 
@@ -71,13 +71,13 @@ function createTeamStats(team, playerSide) {
   return { element, update };
 }
 
-// Game time, the "Paused" pill, pause, speeds 1x/2x/3x and the slow-motion toggle.
+// Game time, the "Paused" pill, pause, the game speeds and the slow-motion toggle.
 function createClockControls({ onSpeedChange, onPauseToggle, onSlowMotionToggle }) {
   const timer = createElement('span', { className: 'scoreboard__timer' });
   const pausedPill = createElement('span', { className: 'scoreboard__paused', text: 'Paused' });
   const pauseButton = createButton('', onPauseToggle, 'speed-button speed-button--pause');
   pauseButton.dataset.anchor = 'pause';
-  const speedButtons = GAME_SPEEDS.map(speed => createSpeedButton(speed, onSpeedChange));
+  const speedButtons = GAME_SPEEDS.map((speed, speedIndex) => createSpeedButton(speed, GAME_SPEED_KEYS[speedIndex], onSpeedChange));
   const element = createElement('div', { className: 'scoreboard__clock', dataset: { anchor: 'clock' } },
     pausedPill,
     timer,
@@ -96,7 +96,7 @@ function createClockControls({ onSpeedChange, onPauseToggle, onSlowMotionToggle 
     element.classList.toggle('is-paused', showsPaused);
   }
 
-  setClockState({ speed: GAME_SPEEDS[0], pauseReasons: [] });
+  setClockState({ speed: DEFAULT_GAME_SPEED, pauseReasons: [] });
   return { element, setClockState, showTime: gameSeconds => { timer.textContent = formatGameTime(gameSeconds); } };
 }
 
@@ -108,10 +108,10 @@ function showPauseButtonState(pauseButton, isUserPaused) {
   pauseButton.title = isUserPaused ? 'Resume (Space)' : 'Pause (Space)';
 }
 
-function createSpeedButton(speed, onSpeedChange) {
+function createSpeedButton(speed, key, onSpeedChange) {
   const button = createButton(`${speed}x`, () => onSpeedChange(speed), 'speed-button');
   button.dataset.speed = String(speed);
-  button.title = `Speed ${speed}x (key ${speed})`;
+  button.title = `Speed ${speed}x (key ${key})`;
   return button;
 }
 

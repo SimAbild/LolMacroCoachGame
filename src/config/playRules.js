@@ -7,7 +7,6 @@ export const AMBUSH_ARRIVAL_DISTANCE = 18;
 export const AMBUSH_BEHIND_WAVE_DISTANCE = 50;
 export const AMBUSH_DIVE_DISTANCE = 20;
 export const AMBUSH_SIDE_OFFSET = 80;
-export const LANE_TANGENT_SAMPLE = 5;
 export const ENGAGE_RANGE = 110;
 export const FORCE_ENGAGE_RANGE = 170;
 export const DIVE_ENGAGE_RANGE = 140;

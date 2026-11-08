@@ -6,14 +6,14 @@ import { SPOTTED_CHECK_MIN_DISTANCE, UNDER_TOWER_RANGE } from '../../config/comb
 import {
   AMBUSH_ARRIVAL_DISTANCE, AMBUSH_BEHIND_WAVE_DISTANCE, AMBUSH_DIVE_DISTANCE, AMBUSH_SIDE_OFFSET, AMBUSH_UPDATE_SECONDS,
   CATCH_ROOT_BASE_SECONDS, CATCH_ROOT_PER_GANK_RATING, DIVE_ENGAGE_RANGE, DIVE_PUSH_THRESHOLD, ENGAGE_RANGE,
-  FORCE_ENGAGE_RANGE, LANE_TANGENT_SAMPLE, PLAY_JOIN_RANGE, PLAY_PLAN, PLAY_MAX_SECONDS, PLAY_WAIT_MAX_SECONDS, SPOTTED_REACTION_SECONDS,
+  FORCE_ENGAGE_RANGE, PLAY_JOIN_RANGE, PLAY_PLAN, PLAY_MAX_SECONDS, PLAY_WAIT_MAX_SECONDS, SPOTTED_REACTION_SECONDS,
   ROAM_SHOVE_MAX_SECONDS, ROAM_SHOVE_PUSH, SHOVE_STANCE,
 } from '../../config/playRules.js';
 import { ACTIVITY } from '../activities.js';
 import { EVENT_KIND, addEvent } from '../events.js';
 import { allChampionStates, championById, laneStateFor, laneStateOf } from '../gameState.js';
 import { LANE_BY_ROLE, STRUCTURE_TYPE } from '../mapLayout.js';
-import { pointAtLaneDistance } from '../laneGeometry.js';
+import { lanePerpendicularAt, pointAtLaneDistance } from '../laneGeometry.js';
 import { nearestWalkable } from '../navigation.js';
 import { SCRIPTED_ROLL, takeScriptedRoll } from '../random.js';
 import { isPositionVisible, teamVisionSources } from '../vision.js';
@@ -353,13 +353,6 @@ function besideLaneNearest(lane, laneDistance, approachFrom) {
     y: lanePoint.y + perpendicular.y * AMBUSH_SIDE_OFFSET * sign,
   }));
   return sides.reduce((best, side) => (distanceBetween(side, approachFrom) < distanceBetween(best, approachFrom) ? side : best));
-}
-
-function lanePerpendicularAt(lane, laneDistance) {
-  const before = pointAtLaneDistance(lane, laneDistance - LANE_TANGENT_SAMPLE);
-  const after = pointAtLaneDistance(lane, laneDistance + LANE_TANGENT_SAMPLE);
-  const tangentLength = Math.hypot(after.x - before.x, after.y - before.y) || 1;
-  return { x: -(after.y - before.y) / tangentLength, y: (after.x - before.x) / tangentLength };
 }
 
 function isWaveAtEnemyTower(gameState, play) {

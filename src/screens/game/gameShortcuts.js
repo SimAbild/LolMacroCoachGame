@@ -1,8 +1,8 @@
-import { GAME_SPEEDS } from '../../game/gameClock.js';
+import { GAME_SPEEDS, GAME_SPEED_KEYS } from '../../game/gameClock.js';
 
 const TYPING_TAGS = new Set(['INPUT', 'SELECT', 'TEXTAREA']);
 
-// Space toggles pause, 1/2/3 set the speed. Returns a function that removes the listeners.
+// Space toggles pause, 0 to 3 set the speed. Returns a function that removes the listeners.
 export function attachGameShortcuts({ onTogglePause, onSpeedChange }) {
   function handleKeyDown(event) {
     if (shouldIgnore(event)) {
@@ -16,9 +16,9 @@ export function attachGameShortcuts({ onTogglePause, onSpeedChange }) {
       }
       return;
     }
-    const speed = GAME_SPEEDS.find(gameSpeed => String(gameSpeed) === event.key);
-    if (speed && !event.repeat) {
-      onSpeedChange(speed);
+    const speedIndex = GAME_SPEED_KEYS.indexOf(event.key);
+    if (speedIndex !== -1 && !event.repeat) {
+      onSpeedChange(GAME_SPEEDS[speedIndex]);
     }
   }
 

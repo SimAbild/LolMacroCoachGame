@@ -3,6 +3,7 @@ import {
 } from './mapLayout.js';
 import { pointAtLaneDistance } from './laneGeometry.js';
 import { hasLineOfSight } from './navigation.js';
+import { waveLeadDistances } from './simulation/minionSystem.js';
 import { WARD_VISION_RADIUS } from '../config/combatRules.js';
 import { distanceBetween } from './geometry.js';
 
@@ -14,9 +15,8 @@ export function visionSourcesFor(gameState, team) {
   const towerSources = teamState.structures
     .filter(structure => structure.type === STRUCTURE_TYPE.TOWER && structure.isStanding)
     .map(structure => ({ x: structure.x, y: structure.y, radius: TOWER_VISION_RADIUS }));
-  const minionWaveSources = gameState.lanes
-    .filter(laneState => laneState.minions[team] > 0)
-    .map(laneState => ({ ...pointAtLaneDistance(laneState.lane, laneState.frontDistance), radius: MINION_WAVE_VISION_RADIUS }));
+  const minionWaveSources = gameState.lanes.flatMap(laneState => waveLeadDistances(laneState, team)
+    .map(laneDistance => ({ ...pointAtLaneDistance(laneState.lane, laneDistance), radius: MINION_WAVE_VISION_RADIUS })));
   const wardSources = gameState.wards
     .filter(ward => ward.team === team)
     .map(ward => ({ ...ward.position, radius: WARD_VISION_RADIUS }));

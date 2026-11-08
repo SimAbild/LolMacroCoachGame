@@ -1,6 +1,7 @@
 import { TEAM, opposingTeam } from '../config/teams.js';
 import { ROLE } from '../config/roles.js';
-import { MINION_FIRST_SPAWN_SECONDS, JUNGLE_CAMP_FIRST_SPAWN_SECONDS } from '../config/gameRules.js';
+import { JUNGLE_CAMP_FIRST_SPAWN_SECONDS } from '../config/gameRules.js';
+import { MINION_FIRST_SPAWN_SECONDS } from '../config/minionRules.js';
 import { TRINKET_MAX_CHARGES } from '../config/combatRules.js';
 import { OUTER_TOWER_PLATES } from '../config/structureRules.js';
 import { createObjectivesState } from './objectives.js';
@@ -14,6 +15,8 @@ export const STARTING_GOLD = 500;
 export const STARTING_LEVEL = 1;
 export const ITEM_SLOTS = 6;
 
+const LANE_RANDOM_SALT = 0x1a4e;
+
 export function createInitialGameState({
   loadouts, playerSide, itemCatalog, seed = createRandomSeed(), aiControlledTeams = [opposingTeam(playerSide)], aiWeightsByTeam = {},
 }) {
@@ -21,6 +24,8 @@ export function createInitialGameState({
     playerSide,
     seed,
     random: createSeededRandom(seed),
+    // Its own stream, so what happens in the lanes does not shift the random numbers of fights.
+    laneRandom: createSeededRandom(seed ^ LANE_RANDOM_SALT),
     scriptedRolls: {},
     tickCount: 0,
     gameSeconds: 0,
@@ -155,8 +160,11 @@ function createEconomy(loadoutEntry) {
 }
 
 function createMovement(team) {
+  const startPosition = { ...FOUNTAIN_POSITIONS[team] };
   return {
-    position: { ...FOUNTAIN_POSITIONS[team] },
+    position: startPosition,
+    // Where it stood before this tick's walking, so the map can draw it moving between ticks.
+    previousPosition: startPosition,
     targetPosition: null,
     activity: ACTIVITY.TRAVELING,
     activitySecondsLeft: 0,
@@ -169,7 +177,7 @@ function createMovement(team) {
 }
 
 function createScore() {
-  return { kills: 0, deaths: 0, assists: 0, killStreak: 0, deathStreak: 0 };
+  return { kills: 0, deaths: 0, assists: 0, killStreak: 0, deathStreak: 0, farmProgress: 0 };
 }
 
 function createCombatState() {
@@ -192,8 +200,12 @@ function createLaneState(lane) {
   return {
     lane,
     frontDistance: laneLength(lane) / 2,
+    // Every minion on the lane. `minions` counts those at the front, worked out from this list.
+    minionList: [],
     minions: { [TEAM.BLUE]: 0, [TEAM.RED]: 0 },
-    incomingWaves: [],
+    spawnQueue: [],
+    nextMinionId: 1,
+    towerShotCooldowns: { [TEAM.BLUE]: 0, [TEAM.RED]: 0 },
     nextWaveSeconds: MINION_FIRST_SPAWN_SECONDS,
     wavesSpawned: 0,
   };

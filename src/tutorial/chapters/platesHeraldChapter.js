@@ -16,7 +16,7 @@ const HERALD_CALL_SECONDS = VOID_GRUBS_DESPAWN_SECONDS + 1;
 const HERALD_CALL_LEAD_SECONDS = HERALD_SPAWN_SECONDS - HERALD_CALL_SECONDS;
 // The drake waits until after the Baron lesson; Contest objective would pick it over both lessons.
 const DRAKE_RETURNS_SECONDS = BARON_SPAWN_SECONDS + 180;
-const PLATE_DEADLINE_SECONDS = 45;
+const PLATE_DEADLINE_SECONDS = 70;
 const HERALD_DEADLINE_SECONDS = 90;
 const MID_GAME_LEAD = Object.freeze({ team: TEAM.BLUE, gold: 1000, experience: 1500 });
 const RED_MID_TOWER = Object.freeze({ team: TEAM.RED, lane: 'mid', tier: 'outer' });
@@ -49,7 +49,7 @@ function createPlateWatchStep() {
   return watchStep('plates.watch', {
     screen: GAME,
     title: 'At the tower',
-    body: 'Orianna pushes her wave up to the tower and starts hitting it.',
+    body: 'Orianna clears the enemy wave faster than it can answer. Her minions walk on to the tower, and she follows them.',
     onEnter: context => {
       deadline.start(context);
       platesAtStart = structureOf(context.gameState, RED_MID_TOWER).platesLeft;

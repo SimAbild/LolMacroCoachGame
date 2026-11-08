@@ -69,7 +69,7 @@ const INHIBITOR_RESULT_STEPS = [
     screen: GAME,
     title: 'Inhibitor down',
     target: INHIBITOR_TARGET,
-    body: 'Every Blue wave in this lane now brings 2 super minions, so the lane pushes itself. '
+    body: 'Every Blue wave in this lane now brings a super minion in place of the cannon, so the lane pushes itself. '
       + 'The inhibitor comes back after 5 minutes.',
     next: 'siege.free',
   }),
@@ -77,6 +77,6 @@ const INHIBITOR_RESULT_STEPS = [
     screen: GAME,
     title: 'Keep pushing',
     target: INHIBITOR_TARGET,
-    body: 'The inhibitor is still standing. When it falls, every Blue wave in this lane brings 2 super minions.',
+    body: 'The inhibitor is still standing. When it falls, every Blue wave in this lane brings a super minion.',
   }),
 ];

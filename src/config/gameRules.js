@@ -4,14 +4,6 @@ export const TICK_SECONDS = 1 / TICKS_PER_GAME_SECOND;
 export const CHAMPION_MOVE_SPEED = 27;
 export const ARRIVAL_DISTANCE = 4;
 
-export const MINION_FIRST_SPAWN_SECONDS = 30;
-export const MINION_WAVE_INTERVAL_SECONDS = 30;
-export const MINIONS_PER_WAVE = 6;
-export const CANNON_WAVE_EVERY = 3;
-export const MINION_WALK_SPEED = 22;
-export const MINION_TRADE_KILLS_PER_SECOND_PER_MINION = 0.03;
-export const PUSH_SPEED_PER_MINION_ADVANTAGE = 2.5;
-export const TOWER_MINION_KILLS_PER_SECOND = 0.35;
 export const TOWER_HOLD_DISTANCE = 45;
 export const MAX_PUSH_VALUE = 100;
 

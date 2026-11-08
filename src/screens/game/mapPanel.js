@@ -48,7 +48,7 @@ export function createMapPanel({ gameData, playerSide, overlays }) {
   return {
     element,
     load,
-    update: gameState => renderer?.update(gameState),
+    update: (gameState, tickProgress) => renderer?.update(gameState, tickProgress),
     worldToClient: point => renderer?.worldToClient(point) ?? null,
     destroy,
   };
