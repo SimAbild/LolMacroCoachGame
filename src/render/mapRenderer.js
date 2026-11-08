@@ -6,8 +6,9 @@ import { createTerrain } from './terrain.js';
 import { createFogLayer } from './fogLayer.js';
 import { createChampionCoins, updateChampionCoins } from './championCoins.js';
 import { createPitMarkers } from './pitMarkers.js';
+import { drawMinionWaves } from './minionWaves.js';
 import {
-  drawFights, drawJungleCamps, drawMinionWaves, drawObjectives, drawOwnWards, drawStructures, structureSignatureOf,
+  drawFights, drawJungleCamps, drawObjectives, drawOwnWards, drawStructures, structureSignatureOf,
 } from './mapLayers.js';
 
 const INITIAL_CANVAS_SIZE = 600;
