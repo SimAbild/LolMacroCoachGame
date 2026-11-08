@@ -10,8 +10,9 @@ export function inChapter(number, title, steps) {
 }
 
 // next: the step to go to instead of the following one (to rejoin after a branch).
-export function dialogStep(id, { screen, title, body, target = null, next = null }) {
-  return { id, kind: STEP_KIND.DIALOG, screen, title, body, target, next };
+// nextLabel: the button's text, when "Next" would not be true (the very last step).
+export function dialogStep(id, { screen, title, body, target = null, next = null, nextLabel = null }) {
+  return { id, kind: STEP_KIND.DIALOG, screen, title, body, target, next, nextLabel };
 }
 
 export function doStep(id, { screen, title, body, target, expect, allow = [] }) {
@@ -25,12 +26,14 @@ export function watchStep(id, { screen, title, body, until, allow = [], target =
 }
 
 // Jumps the game forward to `toSeconds`, then applies `patch(context)` to set up the next lesson.
-export function skipStep(id, { title, body, toSeconds, patch = null }) {
-  return { id, kind: STEP_KIND.SKIP, screen: 'game', title, body, toSeconds, patch };
+// onEnter(context) runs before the jump, for what must already be true during the skipped time.
+export function skipStep(id, { title, body, toSeconds, patch = null, onEnter = null }) {
+  return { id, kind: STEP_KIND.SKIP, screen: 'game', title, body, toSeconds, patch, onEnter };
 }
 
-export function freeStep(id, { screen, title, body, until = null }) {
-  return { id, kind: STEP_KIND.FREE, screen, title, body, until };
+// autopilotCall: the call tools repeat here, standing in for a player who makes their own.
+export function freeStep(id, { screen, title, body, until = null, next = null, autopilotCall = null }) {
+  return { id, kind: STEP_KIND.FREE, screen, title, body, until, next, autopilotCall };
 }
 
 // Draft: select the scripted champion and lock it in (by the button or a double-click).

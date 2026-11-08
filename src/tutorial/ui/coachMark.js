@@ -120,6 +120,7 @@ function createCoachCard({ onNext, onExit }) {
     statusLabel.textContent = KIND_STATUS[step.kind] ?? '';
     title.textContent = step.title;
     body.textContent = step.body;
+    nextButton.textContent = step.nextLabel ?? 'Next';
     nextButton.hidden = step.kind !== STEP_KIND.DIALOG;
     if (!nextButton.hidden) {
       nextButton.focus({ preventScroll: true });

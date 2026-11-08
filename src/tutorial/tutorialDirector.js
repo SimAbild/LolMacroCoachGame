@@ -1,3 +1,4 @@
+import { STORAGE_KEY, writeFlag } from '../core/storage.js';
 import { DIALOG_TONE, confirmDialog } from '../ui/dialog.js';
 import { rectFrom } from '../ui/geometry.js';
 import { ScriptedDraftAi } from '../draft/scriptedDraftAi.js';
@@ -13,9 +14,10 @@ import { createCoachMark } from './ui/coachMark.js';
 //   fastForwardTo(seconds), afterSkip()   for skip steps
 //   worldToClient(point)          for map targets
 //   onDialogOpen(), onDialogClose()       so a running game pauses while "Exit tutorial" asks
+//   onCallRefused()               the game runs again until the refused call can succeed
 export function createTutorialDirector({ router, steps, scenario }) {
   const coachMark = createCoachMark({ findTargetRects, onNext: () => runner.next(), onExit: confirmExit });
-  const runner = createTutorialRunner(steps, { onStepEntered: showStepIfOnScreen, onFinished: finish });
+  const runner = createTutorialRunner(steps, { onStepEntered: showStepIfOnScreen, onFinished: completeTutorial });
   const warnedMissingTargets = new Set();
   const startedStepIds = new Set();
   let attachedScreen = null;
@@ -81,15 +83,19 @@ export function createTutorialDirector({ router, steps, scenario }) {
   }
 
   function findTargetRects(step) {
-    return targetsOf(step).flatMap(target => {
-      const rects = typeof target === 'string' ? elementRects(target) : mapPointRects(target);
-      if (rects.length === 0) {
-        warnOnceAboutMissingTarget(step, target);
-      }
-      return rects;
-    });
+    return targetsOf(step).flatMap(target => (typeof target === 'string' ? findElementRects(step, target) : mapPointRects(target)));
   }
 
+  function findElementRects(step, selector) {
+    const rects = elementRects(selector);
+    if (rects.length === 0) {
+      warnOnceAboutMissingTarget(step, selector);
+    }
+    return rects;
+  }
+
+  // Empty only while the map is still loading. The coach mark looks again every frame,
+  // so the hole appears by itself once the map is there.
   function mapPointRects({ mapPoint, radius }) {
     const center = attachedScreen?.api.worldToClient?.(mapPoint);
     if (!center) {
@@ -100,12 +106,11 @@ export function createTutorialDirector({ router, steps, scenario }) {
   }
 
   // A missing target means the step points at nothing: worth a console warning while developing.
-  function warnOnceAboutMissingTarget(step, target) {
-    const description = typeof target === 'string' ? target : `map point ${JSON.stringify(target.mapPoint)}`;
-    const key = `${step.id}|${description}`;
+  function warnOnceAboutMissingTarget(step, selector) {
+    const key = `${step.id}|${selector}`;
     if (!warnedMissingTargets.has(key)) {
       warnedMissingTargets.add(key);
-      console.warn(`[tutorial] step "${step.id}": nothing on screen matches ${description}`);
+      console.warn(`[tutorial] step "${step.id}": nothing on screen matches ${selector}`);
     }
   }
 
@@ -124,6 +129,12 @@ export function createTutorialDirector({ router, steps, scenario }) {
     } else {
       attachedScreen?.api.onDialogClose?.();
     }
+  }
+
+  // The last step was finished. Leaving early (finish alone) does not count as completing it.
+  function completeTutorial() {
+    writeFlag(STORAGE_KEY.TUTORIAL_COMPLETED);
+    finish();
   }
 
   function finish() {
@@ -148,10 +159,14 @@ export function createTutorialDirector({ router, steps, scenario }) {
     canAct: intent => runner.canAct(intent),
     allows,
     notify: intent => runner.notify(intent),
+    // A refused call (everyone is dead, say) can only succeed later. If the game stayed on hold,
+    // that "later" would never come and the player would be stuck on a step needing that call.
+    notifyRefused: () => attachedScreen?.api.onCallRefused?.(),
     // The game asks after every tick whether to halt, so a watch step ends on the exact tick.
     isWaitOver: context => isOnAttachedScreen(runner.currentStep()) && runner.isWaitOver(context),
     advanceAfterWait: context => runner.advanceIfWaitOver(context),
     start: () => runner.start(),
+    startAt: stepId => runner.goTo(stepId),
     // The player left in another way (e.g. Leave in the game): just clean up.
     end: finish,
   };

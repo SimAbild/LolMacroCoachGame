@@ -8,6 +8,7 @@ export const NO_TUTORIAL = Object.freeze({
   canAct: () => true,
   allows: () => true,
   notify: () => {},
+  notifyRefused: () => {},
   isWaitOver: () => false,
   advanceAfterWait: () => {},
   end: () => {},

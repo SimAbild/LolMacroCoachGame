@@ -34,5 +34,6 @@ export function createGameTutorialApi({ gameState, simulation, clock, layout, al
     worldToClient: point => layout.mapPanel.worldToClient(point),
     onDialogOpen: () => clock.pause(PAUSE_REASON.DIALOG),
     onDialogClose: () => clock.resume(PAUSE_REASON.DIALOG),
+    onCallRefused: () => clock.resume(PAUSE_REASON.TUTORIAL),
   };
 }

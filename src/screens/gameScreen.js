@@ -21,9 +21,10 @@ const SLOW_MOTION_REAL_SECONDS = 2.5;
 const PANEL_REFRESH_INTERVAL_MS = 200;
 
 // The game's lifecycle: state, simulation and clock, what happens each frame, and how it ends.
-// The DOM is built by gameLayout.js.
-export function mountGameScreen(root, { router, gameData, playerSide, loadouts, tutorial = NO_TUTORIAL }) {
-  const gameState = createInitialGameState({ loadouts, playerSide, itemCatalog: gameData.items, ...tutorial.gameOptions });
+// The DOM is built by gameLayout.js. `gameState` continues a game already under way (the
+// tutorial's jump to a chapter); without it a new game starts.
+export function mountGameScreen(root, { router, gameData, playerSide, loadouts, tutorial = NO_TUTORIAL, gameState: gameUnderWay = null }) {
+  const gameState = gameUnderWay ?? createInitialGameState({ loadouts, playerSide, itemCatalog: gameData.items, ...tutorial.gameOptions });
   // In the tutorial, a watch step ends on the exact tick its condition comes true.
   const simulation = createSimulation(gameState, { shouldHalt: state => tutorial.isWaitOver({ gameState: state }) });
   const clock = createGameClock(onFrame);
@@ -33,6 +34,8 @@ export function mountGameScreen(root, { router, gameData, playerSide, loadouts, 
   let endScreenTimer = null;
   const layout = createGameLayout({ gameState, gameData, playerSide, handlers: createHandlers() });
   const alertWatcher = createAlertWatcher({ banner: layout.alertBanner, onMajorAlert: slowDownIfEnabled });
+  // A game already under way has old alerts that should not all show at once.
+  alertWatcher.markAllShown(gameState);
   const refreshPanelsNowAndThen = throttle(layout.refresh, PANEL_REFRESH_INTERVAL_MS);
 
   root.append(layout.element);
@@ -99,7 +102,7 @@ export function mountGameScreen(root, { router, gameData, playerSide, loadouts, 
   function endGame() {
     clock.stop();
     layout.refresh();
-    endScreenTimer = setTimeout(() => router.show(mountEndScreen, { gameData, gameState, loadouts }), END_SCREEN_DELAY_MS);
+    endScreenTimer = setTimeout(() => router.show(mountEndScreen, { gameData, gameState, loadouts, tutorial }), END_SCREEN_DELAY_MS);
   }
 
   // Every call button the player presses ends up here as a plain intent object.
@@ -112,6 +115,7 @@ export function mountGameScreen(root, { router, gameData, playerSide, loadouts, 
       tutorial.notify(intent);
     } else {
       showToast(commandResult.reason, { variant: TOAST_VARIANT.WARNING });
+      tutorial.notifyRefused();
     }
     layout.clearCoordinationLinks();
     layout.refresh();

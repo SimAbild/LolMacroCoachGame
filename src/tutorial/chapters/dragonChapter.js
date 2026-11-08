@@ -113,6 +113,6 @@ const RESULT_STEPS = [
   dialogStep('dragon.end', {
     screen: GAME,
     title: 'The basics',
-    body: 'Lanes, ganks, vision and objectives: that is the core of coaching. The rest of the guided game is still being written; play on freely.',
+    body: 'Lanes, ganks, vision and objectives: that is the core of coaching. Next: how a lead turns into a won game.',
   }),
 ];

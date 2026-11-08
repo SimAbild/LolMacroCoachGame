@@ -3,7 +3,10 @@ import { SWAP_CHAPTER } from './swapChapter.js';
 import { GAME_TOUR_CHAPTER } from './gameTourChapter.js';
 import { createGankChapter } from './gankChapter.js';
 import { createDragonChapter } from './dragonChapter.js';
-import { freeStep, inChapter } from './stepBuilders.js';
+import { createPlatesHeraldChapter } from './platesHeraldChapter.js';
+import { createBaronChapter } from './baronChapter.js';
+import { createSiegeChapter } from './siegeChapter.js';
+import { END_CHAPTER } from './endChapter.js';
 
 // Every step of the guided game, in order.
 export function createTutorialScript(scenario) {
@@ -13,8 +16,9 @@ export function createTutorialScript(scenario) {
     ...GAME_TOUR_CHAPTER,
     ...createGankChapter(),
     ...createDragonChapter(),
-    ...inChapter(6, 'Free play', [
-      freeStep('game.free', { screen: 'game', title: 'Free play', body: 'Every call is yours. Destroy the enemy Nexus.' }),
-    ]),
+    ...createPlatesHeraldChapter(),
+    ...createBaronChapter(),
+    ...createSiegeChapter(),
+    ...END_CHAPTER,
   ];
 }
