@@ -182,6 +182,8 @@ function createScore() {
 
 function createCombatState() {
   return {
+    // Orders from the coach that last until changed: one wave plan and one stance.
+    laneOrders: { wave: null, posture: null, waveSinceSeconds: 0 },
     trinketCharges: TRINKET_MAX_CHARGES,
     trinketRechargeSecondsLeft: 0,
     ultimateCooldownSeconds: 0,
@@ -207,6 +209,9 @@ function createLaneState(lane) {
     nextMinionId: 1,
     towerShotCooldowns: { [TEAM.BLUE]: 0, [TEAM.RED]: 0 },
     pressureForBlue: 0,
+    freezingTeam: null,
+    // Minions each team has lost to the tower or its own minions without a last hit, since the last report.
+    unclaimedMinions: { [TEAM.BLUE]: 0, [TEAM.RED]: 0 },
     nextWaveSeconds: MINION_FIRST_SPAWN_SECONDS,
     wavesSpawned: 0,
   };

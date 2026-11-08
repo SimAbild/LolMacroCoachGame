@@ -2,6 +2,7 @@ import { INTENT } from '../core/intents.js';
 import { findRoleAction, findTeamCall } from '../config/actions.js';
 import { ROLE_LABELS } from '../config/roles.js';
 import { cancelAction, issueAction } from './simulation/actionSystem.js';
+import { clearLaneOrders } from './simulation/laneOrderSystem.js';
 import { issueTeamCall } from './simulation/teamCallSystem.js';
 
 // Carries out one player intent. The game screen and headless tools both use this,
@@ -26,8 +27,11 @@ const COMMAND_HANDLERS = Object.freeze({
     }
     return result;
   },
+  // The ✕ on a card takes back everything the coach has ordered this champion to do.
   [INTENT.CANCEL_ACTION]: (gameState, { role }) => {
-    cancelAction(gameState, playerChampionWithRole(gameState, role));
+    const championState = playerChampionWithRole(gameState, role);
+    cancelAction(gameState, championState);
+    clearLaneOrders(championState);
     return { isIssued: true };
   },
   [INTENT.TEAM_CALL]: (gameState, { callId }) => {

@@ -30,10 +30,10 @@ export function mountGameScreen(root, { router, gameData, playerSide, loadouts, 
   const clock = createGameClock(onFrame);
   // Aborted on unmount: stops async work (map loading, an open dialog) from touching a screen that is gone.
   const unmountController = new AbortController();
-  const settings = { isSlowMotionEnabled: true };
+  const settings = { isSlowMotionEnabled: true, isAutoPauseEnabled: false };
   let endScreenTimer = null;
   const layout = createGameLayout({ gameState, gameData, playerSide, handlers: createHandlers() });
-  const alertWatcher = createAlertWatcher({ banner: layout.alertBanner, onMajorAlert: slowDownIfEnabled });
+  const alertWatcher = createAlertWatcher({ banner: layout.alertBanner, onMajorAlert: reactToMajorAlert });
   // A game already under way has old alerts that should not all show at once.
   alertWatcher.markAllShown(gameState);
   const refreshPanelsNowAndThen = throttle(layout.refresh, PANEL_REFRESH_INTERVAL_MS);
@@ -68,6 +68,9 @@ export function mountGameScreen(root, { router, gameData, playerSide, loadouts, 
       onPauseToggle: togglePause,
       onSlowMotionToggle: isEnabled => {
         settings.isSlowMotionEnabled = isEnabled;
+      },
+      onAutoPauseToggle: isEnabled => {
+        settings.isAutoPauseEnabled = isEnabled;
       },
       onLeave: leaveGame,
     };
@@ -135,9 +138,14 @@ export function mountGameScreen(root, { router, gameData, playerSide, loadouts, 
     }
   }
 
-  function slowDownIfEnabled() {
+  // Big moments slow the game down, and can pause it so the player has time for their calls.
+  // The guided game already decides when it stands still.
+  function reactToMajorAlert() {
     if (settings.isSlowMotionEnabled) {
       clock.slowDown(SLOW_MOTION_FACTOR, SLOW_MOTION_REAL_SECONDS);
+    }
+    if (settings.isAutoPauseEnabled && !tutorial.isActive) {
+      clock.pause(PAUSE_REASON.USER);
     }
   }
 

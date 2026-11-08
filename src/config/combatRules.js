@@ -53,7 +53,6 @@ export const KILL_EXPERIENCE_PER_VICTIM_LEVEL = 20;
 export const RESPAWN_BASE_SECONDS = 6;
 export const RESPAWN_SECONDS_PER_LEVEL = 2.5;
 
-export const PLAY_SAFE_SECONDS = 30;
 export const PLAY_SAFE_EXTRA_STANDOFF = 45;
 export const PLAY_SAFE_TRADE_DAMAGE_FACTOR = 0.3;
 export const ROAM_MAX_SECONDS = 20;

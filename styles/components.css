@@ -32,6 +32,10 @@
 }
 .tooltip__title[hidden] { display: none; }
 .tooltip__body { display: block; }
+.tooltip__details { display: block; margin-top: 6px; }
+.tooltip__details[hidden] { display: none; }
+.tooltip__detail { display: block; margin-top: 3px; }
+.tooltip__detail-label { margin-right: 5px; font-weight: 600; color: var(--color-gold); }
 
 /* Confirm dialog (native <dialog>, so it lives in the browser's top layer above everything) */
 .dialog-card {

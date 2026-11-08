@@ -72,7 +72,7 @@ function createTeamStats(team, playerSide) {
 }
 
 // Game time, the "Paused" pill, pause, the game speeds and the slow-motion toggle.
-function createClockControls({ onSpeedChange, onPauseToggle, onSlowMotionToggle }) {
+function createClockControls({ onSpeedChange, onPauseToggle, onSlowMotionToggle, onAutoPauseToggle }) {
   const timer = createElement('span', { className: 'scoreboard__timer' });
   const pausedPill = createElement('span', { className: 'scoreboard__paused', text: 'Paused' });
   const pauseButton = createButton('', onPauseToggle, 'speed-button speed-button--pause');
@@ -81,7 +81,7 @@ function createClockControls({ onSpeedChange, onPauseToggle, onSlowMotionToggle 
   const element = createElement('div', { className: 'scoreboard__clock', dataset: { anchor: 'clock' } },
     pausedPill,
     timer,
-    createElement('div', { className: 'speed-buttons' }, pauseButton, ...speedButtons, createSlowMotionButton(onSlowMotionToggle)),
+    createElement('div', { className: 'speed-buttons' }, pauseButton, ...speedButtons, createSlowMotionButton(onSlowMotionToggle), createAutoPauseButton(onAutoPauseToggle)),
   );
 
   // Only pauses the player can lift show as "Paused"; tutorial halts are shown by the tutorial itself.
@@ -116,15 +116,23 @@ function createSpeedButton(speed, key, onSpeedChange) {
 }
 
 function createSlowMotionButton(onSlowMotionToggle) {
-  const button = createButton('Slow-mo', () => {
+  return createToggleButton({ label: 'Slow-mo', title: 'Slow down on important moments', anchor: 'slow-motion', isInitiallyOn: true, onToggle: onSlowMotionToggle });
+}
+
+function createAutoPauseButton(onAutoPauseToggle) {
+  return createToggleButton({ label: 'Auto-pause', title: 'Pause on important moments, so you can give your calls', anchor: 'auto-pause', isInitiallyOn: false, onToggle: onAutoPauseToggle });
+}
+
+function createToggleButton({ label, title, anchor, isInitiallyOn, onToggle }) {
+  const button = createButton(label, () => {
     const isEnabled = !button.classList.contains('is-active');
     button.classList.toggle('is-active', isEnabled);
     button.setAttribute('aria-pressed', String(isEnabled));
-    onSlowMotionToggle(isEnabled);
-  }, 'speed-button speed-button--toggle is-active');
-  button.title = 'Slow down on important moments';
-  button.dataset.anchor = 'slow-motion';
-  button.setAttribute('aria-pressed', 'true');
+    onToggle(isEnabled);
+  }, `speed-button speed-button--toggle${isInitiallyOn ? ' is-active' : ''}`);
+  button.title = title;
+  button.dataset.anchor = anchor;
+  button.setAttribute('aria-pressed', String(isInitiallyOn));
   return button;
 }
 

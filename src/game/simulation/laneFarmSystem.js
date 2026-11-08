@@ -1,12 +1,17 @@
-import {
-  LAST_HIT_ATTEMPT_SECONDS, LAST_HIT_BASE_CHANCE, LAST_HIT_HEALTH_RATIO, LAST_HIT_MAX_CHANCE, LAST_HIT_MIN_CHANCE, LAST_HIT_PRESSURE_EFFECT,
-  LAST_HIT_SAFE_FACTOR, LAST_HIT_SHOVE_FACTOR, LAST_HIT_STEP_SECONDS, LAST_HIT_UNDER_TOWER_FACTOR, LAST_HIT_UNDER_TOWER_RANGE,
-} from '../../config/laneRules.js';
-import { FRONT_GROUP_RANGE, MINION_STATS, SHOVE_CLEAR_DAMAGE_PER_SECOND, minionGoldAt } from '../../config/minionRules.js';
+import { ACTION_KIND } from '../../config/actions.js';
 import { SHARED_LANE_EXPERIENCE_RATIO } from '../../config/gameRules.js';
+import {
+  FREEZE_HOLD_SLACK, FREEZE_LAST_HIT_HEALTH_RATIO, FREEZE_PULL_BACK_DAMAGE_PER_SECOND, FREEZE_THIN_DAMAGE_PER_SECOND,
+  FROZEN_OUT_EXPERIENCE_FACTOR, FROZEN_OUT_LAST_HIT_FACTOR, LAST_HIT_ATTEMPT_SECONDS,
+  LAST_HIT_BASE_CHANCE, LAST_HIT_HEALTH_RATIO, LAST_HIT_MAX_CHANCE, LAST_HIT_MIN_CHANCE, LAST_HIT_PRESSURE_EFFECT, LAST_HIT_SAFE_FACTOR,
+  LAST_HIT_SHOVE_FACTOR, LAST_HIT_STEP_SECONDS, LAST_HIT_UNDER_TOWER_FACTOR, LAST_HIT_UNDER_TOWER_RANGE, SHOVE_MANA_COST_PER_SECOND,
+  SLOW_PUSH_DAMAGE_PER_SECOND, TRADE_LAST_HIT_FACTOR,
+} from '../../config/laneRules.js';
+import { FRONT_GROUP_RANGE, MINION_KIND, MINION_STATS, SHOVE_CLEAR_DAMAGE_PER_SECOND, minionGoldAt } from '../../config/minionRules.js';
 import { ROLE } from '../../config/roles.js';
 import { TEAM, opposingTeam } from '../../config/teams.js';
-import { isPlayingSafe, isShovingWave } from '../stances.js';
+import { directionTowardEnemy } from '../laneGeometry.js';
+import { isFreezing, isPlayingSafe, isShovingWave, isSlowPushing, isTrading } from '../stances.js';
 import { frontStructureOf, laneDistanceOfStructure } from '../structures.js';
 import { grantExperience, grantGold } from './economy.js';
 import { lanePressureFor } from './lanePressure.js';
@@ -16,18 +21,72 @@ const TEAMS = Object.freeze([TEAM.BLUE, TEAM.RED]);
 const WAVECLEAR_BASE_FACTOR = 0.4;
 const WAVECLEAR_FACTOR_PER_RATING = 0.1;
 
-// A shoving champion hits the enemy wave hard, so their minions die first and ours walk on.
-// How hard depends on the champion: a mage clears far faster than a tank.
-export function clearWaveWithShovers(laneState, championsAtWave, tickSeconds) {
+// What the coach's wave plans do to the minions. A shover hits the enemy wave hard and a slow
+// pusher only picks off casters, so the enemy dies first and the own wave lives on. A freezer does
+// the opposite and thins their own wave, so the enemy wave wins and walks to them.
+export function applyWavePlans(laneState, { championsAtWave, limits, tickSeconds }) {
   for (const team of TEAMS) {
-    for (const shover of championsAtWave[team].filter(isShovingWave)) {
-      const target = lowestHealthEnemyAtFront(laneState, team);
-      if (target) {
-        const waveclearFactor = WAVECLEAR_BASE_FACTOR + shover.champion.ratings.waveclear * WAVECLEAR_FACTOR_PER_RATING;
-        target.health -= SHOVE_CLEAR_DAMAGE_PER_SECOND * waveclearFactor * tickSeconds;
+    for (const championState of championsAtWave[team]) {
+      if (isShovingWave(championState)) {
+        hitEnemyWave(laneState, championState, SHOVE_CLEAR_DAMAGE_PER_SECOND * tickSeconds);
+        spendManaOnShove(championState, tickSeconds);
+      } else if (isSlowPushing(championState)) {
+        hitEnemyCaster(laneState, championState, SLOW_PUSH_DAMAGE_PER_SECOND * tickSeconds);
+      } else if (isFreezing(championState)) {
+        holdWave(laneState, championState, { limits, tickSeconds });
       }
     }
   }
+}
+
+// A freeze keeps the enemy wave the bigger one, so it keeps pressing toward the freezer's tower.
+// A wave still far from the hold point has to come back first, so more of their own is let die.
+function holdWave(laneState, championState, { limits, tickSeconds }) {
+  const { team } = championState;
+  const holdDistance = team === TEAM.BLUE ? limits.blueLimit : limits.redLimit;
+  const isPastHoldPoint = (laneState.frontDistance - holdDistance) * directionTowardEnemy(team) > FREEZE_HOLD_SLACK;
+  if (isPastHoldPoint) {
+    thinOwnWave(laneState, team, FREEZE_PULL_BACK_DAMAGE_PER_SECOND * tickSeconds);
+  } else if (laneState.minions[team] >= laneState.minions[opposingTeam(team)]) {
+    thinOwnWave(laneState, team, FREEZE_THIN_DAMAGE_PER_SECOND * tickSeconds);
+  }
+}
+
+// Only a coach's shove: a grouped team late in the game is not spending its mana on minions.
+function spendManaOnShove(championState, tickSeconds) {
+  if (championState.laneOrders.wave === ACTION_KIND.SHOVE && championState.champion.resourceType === 'Mana') {
+    championState.resourceRatio = Math.max(0, championState.resourceRatio - SHOVE_MANA_COST_PER_SECOND * tickSeconds);
+  }
+}
+
+// A mage clears far faster than a tank.
+function waveclearFactorOf(championState) {
+  return WAVECLEAR_BASE_FACTOR + championState.champion.ratings.waveclear * WAVECLEAR_FACTOR_PER_RATING;
+}
+
+function hitEnemyWave(laneState, championState, damage) {
+  const target = lowestHealthEnemyAtFront(laneState, championState.team);
+  if (target) {
+    target.health -= damage * waveclearFactorOf(championState);
+  }
+}
+
+function hitEnemyCaster(laneState, championState, damage) {
+  const target = laneState.minionList.find(minion => minion.team !== championState.team && minion.kind === MINION_KIND.CASTER && isAtFront(laneState, minion));
+  if (target) {
+    target.health -= damage * waveclearFactorOf(championState);
+  }
+}
+
+function thinOwnWave(laneState, team, damage) {
+  const target = laneState.minionList.find(minion => minion.team === team && isAtFront(laneState, minion));
+  if (target) {
+    target.health -= damage;
+  }
+}
+
+function isAtFront(laneState, minion) {
+  return minion.health > 0 && Math.abs(minion.laneDistance - laneState.frontDistance) <= FRONT_GROUP_RANGE;
 }
 
 // Supports leave the farm to their carry. Only the killing blow pays: a minion that dies to other
@@ -46,7 +105,7 @@ function attemptLastHit(gameState, laneState, farmer) {
   if (gameState.gameSeconds < farmer.nextLastHitAtSeconds) {
     return;
   }
-  const target = lastHitTargetFor(laneState, farmer.team);
+  const target = lastHitTargetFor(laneState, farmer);
   if (!target) {
     return;
   }
@@ -55,15 +114,17 @@ function attemptLastHit(gameState, laneState, farmer) {
   farmer.steppingInUntilSeconds = gameState.gameSeconds + LAST_HIT_STEP_SECONDS;
   if (gameState.laneRandom() < lastHitChance(gameState, laneState, { farmer, target })) {
     target.health = 0;
+    target.wasLastHit = true;
     farmer.creepScore += 1;
     grantGold(farmer, minionGoldAt(target.kind, gameState.gameSeconds));
   }
 }
 
-function lastHitTargetFor(laneState, team) {
-  return laneState.minionList.find(minion => minion.team !== team && !minion.wasLastHitTried && minion.health > 0
-    && minion.health <= MINION_STATS[minion.kind].health * LAST_HIT_HEALTH_RATIO
-    && Math.abs(minion.laneDistance - laneState.frontDistance) <= FRONT_GROUP_RANGE) ?? null;
+function lastHitTargetFor(laneState, farmer) {
+  const healthRatio = isFreezing(farmer) ? FREEZE_LAST_HIT_HEALTH_RATIO : LAST_HIT_HEALTH_RATIO;
+  return laneState.minionList.find(minion => minion.team !== farmer.team && !minion.wasLastHitTried
+    && isAtFront(laneState, minion)
+    && minion.health <= MINION_STATS[minion.kind].health * healthRatio) ?? null;
 }
 
 // The upper hand in the lane makes last hits easier, and how the champion plays can make them harder.
@@ -71,6 +132,7 @@ function lastHitChance(gameState, laneState, { farmer, target }) {
   const pressure = lanePressureFor(laneState, farmer.team);
   const chance = (LAST_HIT_BASE_CHANCE + pressure * LAST_HIT_PRESSURE_EFFECT)
     * stanceFactorOf(gameState, farmer)
+    * (laneState.freezingTeam === opposingTeam(farmer.team) ? FROZEN_OUT_LAST_HIT_FACTOR : 1)
     * (isUnderOwnTower(gameState, laneState, { team: farmer.team, minion: target }) ? LAST_HIT_UNDER_TOWER_FACTOR : 1);
   return Math.min(LAST_HIT_MAX_CHANCE, Math.max(LAST_HIT_MIN_CHANCE, chance));
 }
@@ -79,7 +141,10 @@ function stanceFactorOf(gameState, championState) {
   if (isPlayingSafe(gameState, championState)) {
     return LAST_HIT_SAFE_FACTOR;
   }
-  return isShovingWave(championState) ? LAST_HIT_SHOVE_FACTOR : 1;
+  if (isShovingWave(championState)) {
+    return LAST_HIT_SHOVE_FACTOR;
+  }
+  return isTrading(championState) ? TRADE_LAST_HIT_FACTOR : 1;
 }
 
 function isUnderOwnTower(gameState, laneState, { team, minion }) {
@@ -88,13 +153,16 @@ function isUnderOwnTower(gameState, laneState, { team, minion }) {
 }
 
 // Experience goes to the enemies of a dead minion in range, whoever killed it. That is why being
-// zoned out of last hits hurts less than being zoned out of experience range as well.
-export function grantLaneExperience(deadMinions, championsInRange) {
+// zoned out of last hits hurts less than being zoned out of experience range as well. Someone
+// frozen out only gets part of it: they cannot stay in range the whole time.
+export function grantLaneExperience(laneState, { deadMinions, championsInRange }) {
   for (const { team, kind } of deadMinions) {
-    const receivers = championsInRange[opposingTeam(team)];
-    const experienceShare = receivers.length > 1 ? SHARED_LANE_EXPERIENCE_RATIO : 1;
+    const receivingTeam = opposingTeam(team);
+    const receivers = championsInRange[receivingTeam];
+    const shareFactor = receivers.length > 1 ? SHARED_LANE_EXPERIENCE_RATIO : 1;
+    const frozenOutFactor = laneState.freezingTeam === team ? FROZEN_OUT_EXPERIENCE_FACTOR : 1;
     for (const receiver of receivers) {
-      grantExperience(receiver, MINION_STATS[kind].experience * experienceShare);
+      grantExperience(receiver, MINION_STATS[kind].experience * shareFactor * frozenOutFactor);
     }
   }
 }

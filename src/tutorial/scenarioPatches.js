@@ -3,6 +3,7 @@ import { ACTIVITY } from '../game/activities.js';
 import { EVENT_KIND, addEvent } from '../game/events.js';
 import { SCRIPTED_ROLL } from '../game/random.js';
 import { grantExperience, grantGold, spendGoldOnBuild } from '../game/simulation/economy.js';
+import { clearLaneOrders } from '../game/simulation/laneOrderSystem.js';
 import { championWithRole, structureOf } from './predicates.js';
 
 // Just enough health above the next plate that the first hits of a siege break it.
@@ -48,9 +49,15 @@ export function shopAndRefreshTeam(gameState, team) {
   refreshTeam(gameState, team);
 }
 
-// Full health, and nobody waiting in base: a call to a champion in base is refused,
+// Lane orders last until changed, so an order from one lesson must not carry over into the next.
+export function clearTeamLaneOrders(gameState, team) {
+  gameState.teams[team].champions.forEach(clearLaneOrders);
+}
+
+// Full health, no old orders, and nobody waiting in base: a call to a champion in base is refused,
 // and a refused call would leave the player stuck on a step that only allows that call.
 export function refreshTeam(gameState, team) {
+  clearTeamLaneOrders(gameState, team);
   for (const championState of gameState.teams[team].champions.filter(candidate => candidate.isAlive)) {
     championState.healthRatio = 1;
     championState.resourceRatio = 1;

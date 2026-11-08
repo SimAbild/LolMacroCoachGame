@@ -1,18 +1,25 @@
 import { createElement } from '../../ui/dom.js';
 import { attachTooltip } from '../../ui/tooltip.js';
 import { ROLES, ROLE_LABELS } from '../../config/roles.js';
-import { CALL_HELP_ACTION_ID, ROLE_ACTIONS, describeHelpRequest } from '../../config/actions.js';
+import { CALL_HELP_ACTION_ID, LANE_ORDER_SLOT, ROLE_ACTIONS, describeHelpRequest } from '../../config/actions.js';
 import { INTENT } from '../../core/intents.js';
 
-// The call buttons on one of the player's champion cards, plus the "Call help" row that opens
-// below them to choose the helper. Returns the two rows to append to the card.
+const CALL_ROWS = Object.freeze([
+  { label: 'Wave', includes: action => action.orderSlot === LANE_ORDER_SLOT.WAVE },
+  { label: 'Stance', includes: action => action.orderSlot === LANE_ORDER_SLOT.POSTURE },
+  { label: null, includes: action => !action.orderSlot },
+]);
+
+// The call buttons on one of the player's champion cards, one row per group, plus the "Call help"
+// row that opens below them to choose the helper. Wave plans and stances stay lit while they
+// last, so the card always shows what the champion has been told to do.
 export function createActionControls(championState, { onIntent, onActionHover }) {
   const { role } = championState;
   const helpRow = createHelpRow(championState, { onIntent, onActionHover, onChosen: () => setHelpRowOpen(false) });
-  const actionChips = createElement('div', { className: 'action-chips' });
+  const orderChips = [];
   let callHelpChip = null;
 
-  for (const action of ROLE_ACTIONS[role]) {
+  function createCallChip(action) {
     const isCallHelp = action.id === CALL_HELP_ACTION_ID;
     const chip = createActionChip(championState, { label: action.label, linkedRole: action.targetRole, onActionHover }, () => {
       if (isCallHelp) {
@@ -22,20 +29,49 @@ export function createActionControls(championState, { onIntent, onActionHover })
       }
     });
     chip.dataset.actionId = action.id;
-    attachTooltip(chip, { title: action.label, body: action.description });
-    if (isCallHelp) {
-      callHelpChip = chip;
+    attachTooltip(chip, tooltipFor(action));
+    callHelpChip = isCallHelp ? chip : callHelpChip;
+    if (action.orderSlot) {
+      orderChips.push({ chip, action });
     }
-    actionChips.append(chip);
+    return chip;
   }
+
+  const callRows = CALL_ROWS
+    .map(({ label, includes }) => ({ label, actions: ROLE_ACTIONS[role].filter(includes) }))
+    .filter(({ actions }) => actions.length > 0)
+    .map(({ label, actions }) => createElement('div', { className: 'action-chips' },
+      label ? createElement('span', { className: 'action-chips__label', text: label }) : null,
+      ...actions.map(createCallChip),
+    ));
 
   function setHelpRowOpen(isOpen) {
     helpRow.hidden = !isOpen;
     callHelpChip?.setAttribute('aria-expanded', String(isOpen));
   }
 
+  function update(displayedState) {
+    for (const { chip, action } of orderChips) {
+      const isActive = displayedState.laneOrders[action.orderSlot] === action.kind;
+      chip.classList.toggle('is-active', isActive);
+      chip.setAttribute('aria-pressed', String(isActive));
+    }
+  }
+
   setHelpRowOpen(false);
-  return [actionChips, helpRow];
+  return { rows: [...callRows, helpRow], update };
+}
+
+function tooltipFor(action) {
+  return {
+    title: action.label,
+    body: action.description,
+    details: [
+      { label: 'Gain', text: action.pros },
+      { label: 'Cost', text: action.cons },
+      { label: 'Best when', text: action.bestWhen },
+    ],
+  };
 }
 
 function createHelpRow(championState, { onIntent, onActionHover, onChosen }) {

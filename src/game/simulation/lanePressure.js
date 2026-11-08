@@ -1,7 +1,7 @@
 import {
-  FORWARD_STANDOFF, PRESSURE_PER_HEALTH, PRESSURE_PER_LEVEL, PRESSURE_PER_THOUSAND_ITEM_GOLD, PRESSURE_WITH_LANE_ALONE, ZONED_EXTRA_STANDOFF,
+  FORWARD_STANDOFF, FROZEN_OUT_STANDOFF, PRESSURE_PER_HEALTH, PRESSURE_PER_LEVEL, PRESSURE_PER_THOUSAND_ITEM_GOLD, PRESSURE_WITH_LANE_ALONE, ZONED_EXTRA_STANDOFF,
 } from '../../config/laneRules.js';
-import { TEAM } from '../../config/teams.js';
+import { TEAM, opposingTeam } from '../../config/teams.js';
 import { ACTIVITY } from '../activities.js';
 import { LANE_BY_ROLE } from '../mapLayout.js';
 import { itemGoldOf } from '../teamPower.js';
@@ -30,9 +30,11 @@ export function lanePressureFor(laneState, team) {
 }
 
 // How much further from the wave than normal the pressure puts a champion (negative is closer).
+// An enemy freeze keeps them further out as well, unless they have the upper hand anyway.
 export function pressureStandoffFor(laneState, team) {
   const pressure = lanePressureFor(laneState, team);
-  return pressure < 0 ? -pressure * ZONED_EXTRA_STANDOFF : -pressure * FORWARD_STANDOFF;
+  const isFrozenOut = laneState.freezingTeam === opposingTeam(team) && pressure <= 0;
+  return (pressure < 0 ? -pressure * ZONED_EXTRA_STANDOFF : -pressure * FORWARD_STANDOFF) + (isFrozenOut ? FROZEN_OUT_STANDOFF : 0);
 }
 
 function lanersOf(gameState, laneState, team) {

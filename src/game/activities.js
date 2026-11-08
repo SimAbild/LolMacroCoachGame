@@ -8,6 +8,14 @@ export const ACTIVITY = Object.freeze({
   DEAD: 'dead',
 });
 
+const LANE_ORDER_LABELS = Object.freeze({
+  slowPush: 'Slow push',
+  shove: 'Shoving',
+  freeze: 'Freezing',
+  playSafe: 'Playing safe',
+  trade: 'Trading',
+});
+
 export function describeActivity(championState) {
   switch (championState.activity) {
     case ACTIVITY.TRAVELING:
@@ -30,5 +38,10 @@ export function describeActivity(championState) {
 }
 
 function describeLaning(championState) {
-  return championState.activeAction?.statusText ?? 'Laning';
+  if (championState.activeAction?.statusText) {
+    return championState.activeAction.statusText;
+  }
+  const { wave, posture } = championState.laneOrders;
+  const orders = [wave, posture].filter(Boolean).map(order => LANE_ORDER_LABELS[order]);
+  return orders.length > 0 ? orders.join(' · ') : 'Laning';
 }

@@ -1,5 +1,6 @@
 import { TICKS_PER_GAME_SECOND, TICK_SECONDS } from '../../config/gameRules.js';
 import { updateLanes } from './laneSystem.js';
+import { updateLaneOrders } from './laneOrderSystem.js';
 import { updateJungle } from './jungleSystem.js';
 import { updateBehavior } from './behaviorSystem.js';
 import { updateMovement } from './movementSystem.js';
@@ -19,6 +20,7 @@ import { updateAlerts } from './alertSystem.js';
 
 const SYSTEMS_IN_TICK_ORDER = Object.freeze([
   updateLanes,
+  updateLaneOrders,
   updateStructures,
   updateJungle,
   updateObjectives,

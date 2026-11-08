@@ -14,7 +14,8 @@ import {
   WINNER_HEALTH_LOSS_SPREAD, WINNING_ATTACKER_DEATH_CHANCE,
 } from '../../config/combatRules.js';
 import { MAX_PUSH_VALUE } from '../../config/gameRules.js';
-import { ACTION_KIND } from '../../config/actions.js';
+import { DIVE_MAX_WAVE_BONUS, DIVE_NO_WAVE_PENALTY, DIVE_WAVE_BONUS_PER_MINION } from '../../config/laneRules.js';
+import { isPlayingSafe } from '../stances.js';
 import { ACTIVITY } from '../activities.js';
 import { EVENT_KIND, addEvent } from '../events.js';
 import { LANE_BY_ROLE, STRUCTURE_TYPE } from '../mapLayout.js';
@@ -47,7 +48,7 @@ export function computeFightChance(gameState, fight, { wasSpotted }) {
     ...situationModifiers(gameState, fight, wasSpotted),
     ...championModifiers(fight),
     ...teamModifiers(gameState, fight),
-    ...(fight.isDive ? diveModifiers(fight) : []),
+    ...(fight.isDive ? diveModifiers(gameState, fight) : []),
   ].filter(modifier => Math.abs(modifier.value) >= SMALLEST_SHOWN_MODIFIER);
   const baseChance = fight.isDive ? DIVE_BASE_CHANCE : GANK_BASE_CHANCE;
   const unclampedChance = baseChance + modifiers.reduce((sum, modifier) => sum + modifier.value, 0);
@@ -74,7 +75,7 @@ function championModifiers({ attackers, primaryTarget }) {
 
 function teamModifiers(gameState, { attackers, defenders, counterGankers, primaryTarget }) {
   const goldDifference = average(attackers, attacker => attacker.totalGoldEarned) - average(defenders, defender => defender.totalGoldEarned);
-  const isTargetCautious = primaryTarget.activeAction?.kind === ACTION_KIND.PLAY_SAFE || gameState.gameSeconds < primaryTarget.cautiousUntilSeconds;
+  const isTargetCautious = isPlayingSafe(gameState, primaryTarget);
   return [
     { label: 'Counter-gank', value: counterGankers.length > 0 ? COUNTER_GANK_MODIFIER : 0 },
     { label: 'Numbers', value: (attackers.length - defenders.length - 1) * NUMBERS_MODIFIER_PER_CHAMPION },
@@ -84,11 +85,22 @@ function teamModifiers(gameState, { attackers, defenders, counterGankers, primar
   ];
 }
 
-function diveModifiers({ attackers }) {
+function diveModifiers(gameState, { attackers, primaryTarget }) {
   return [
     { label: 'Multiple divers', value: attackers.length >= 2 ? MULTIPLE_DIVERS_MODIFIER : 0 },
     { label: 'Tank takes aggro', value: attackers.some(isTowerTank) ? TANK_TAKES_TOWER_AGGRO_MODIFIER : 0 },
+    { label: 'Wave at tower', value: waveAtTowerModifier(gameState, attackers[0].team, primaryTarget) },
   ];
+}
+
+// Minions at the tower take its shots for you, and without any the tower shoots the divers.
+function waveAtTowerModifier(gameState, team, primaryTarget) {
+  const laneState = laneStateFor(gameState, LANE_BY_ROLE[primaryTarget.role]);
+  if (!laneState) {
+    return 0;
+  }
+  const minionsAtFront = laneState.minions[team];
+  return minionsAtFront === 0 ? DIVE_NO_WAVE_PENALTY : Math.min(DIVE_MAX_WAVE_BONUS, minionsAtFront * DIVE_WAVE_BONUS_PER_MINION);
 }
 
 export function resolveFight(gameState, fight, { label, wasSpotted }) {

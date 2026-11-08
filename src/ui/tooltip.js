@@ -9,6 +9,7 @@ const TOOLTIP_ID = 'app-tooltip';
 let tooltipElement = null;
 let titleElement = null;
 let bodyElement = null;
+let detailsElement = null;
 let activeTarget = null;
 let pendingTarget = null;
 let showTimer = null;
@@ -16,7 +17,8 @@ let followFrameId = null;
 let lastHiddenAt = -Infinity;
 
 // One shared tooltip element for the whole app.
-// content is { title, body } or a function returning that (read each time the tooltip opens).
+// content is { title, body, details } or a function returning that (read each time the tooltip opens).
+// details is an optional list of { label, text } lines under the body.
 export function attachTooltip(target, content) {
   target.addEventListener('mouseenter', () => scheduleShow(target, content));
   target.addEventListener('mouseleave', () => hideTooltip(target));
@@ -43,10 +45,12 @@ function showTooltip(target, content) {
   clearTimeout(showTimer);
   pendingTarget = null;
   ensureTooltipElement();
-  const { title = '', body = '' } = typeof content === 'function' ? content() : content;
+  const { title = '', body = '', details = [] } = typeof content === 'function' ? content() : content;
   titleElement.textContent = title;
   titleElement.hidden = !title;
   bodyElement.textContent = body;
+  detailsElement.replaceChildren(...details.map(createDetailLine));
+  detailsElement.hidden = details.length === 0;
   activeTarget?.removeAttribute('aria-describedby');
   activeTarget = target;
   target.setAttribute('aria-describedby', TOOLTIP_ID);
@@ -93,13 +97,21 @@ function positionTooltip() {
   tooltipElement.dataset.side = side;
 }
 
+function createDetailLine({ label, text }) {
+  return createElement('span', { className: 'tooltip__detail' },
+    createElement('span', { className: 'tooltip__detail-label', text: label }),
+    createElement('span', { text }),
+  );
+}
+
 function ensureTooltipElement() {
   if (tooltipElement) {
     return;
   }
   titleElement = createElement('span', { className: 'tooltip__title' });
   bodyElement = createElement('span', { className: 'tooltip__body' });
-  tooltipElement = createElement('div', { className: 'tooltip', attributes: { id: TOOLTIP_ID, role: 'tooltip' } }, titleElement, bodyElement);
+  detailsElement = createElement('span', { className: 'tooltip__details' });
+  tooltipElement = createElement('div', { className: 'tooltip', attributes: { id: TOOLTIP_ID, role: 'tooltip' } }, titleElement, bodyElement, detailsElement);
   document.body.append(tooltipElement);
   document.addEventListener('keydown', event => {
     if (event.key === 'Escape' && activeTarget) {

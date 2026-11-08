@@ -645,7 +645,14 @@ h1, h2 { font-family: var(--font-display); margin: 0; letter-spacing: 0.02em; }
 .cancel-action:hover { color: var(--color-text); background: var(--color-red-dark); border-color: var(--color-red); }
 .cancel-action[hidden] { display: none; }
 .summoner-icon.is-on-cooldown { filter: grayscale(1) brightness(0.45); }
-.action-chips, .help-targets { display: flex; flex-wrap: wrap; gap: 4px; }
+.action-chips, .help-targets { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.action-chips__label {
+  width: 42px;
+  font: 600 10px var(--font-display);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
 .help-targets[hidden] { display: none; }
 .champion-card--red .action-chips, .champion-card--red .help-targets { justify-content: flex-end; }
 .action-chip {
@@ -660,7 +667,7 @@ h1, h2 { font-family: var(--font-display); margin: 0; letter-spacing: 0.02em; }
   cursor: pointer;
 }
 .action-chip:hover, .action-chip:focus-visible { border-color: var(--color-gold); color: var(--color-gold); }
-.action-chip[aria-expanded="true"] { border-color: var(--color-gold); color: var(--color-gold); background: var(--color-gold-surface); }
+.action-chip[aria-expanded="true"], .action-chip.is-active { border-color: var(--color-gold); color: var(--color-gold); background: var(--color-gold-surface); }
 .help-targets .action-chip { background: var(--color-gold-surface); border-color: var(--color-gold-muted); color: var(--color-gold); }
 
 /* Narrow screens: the map goes on top at full width and the two teams sit side by side below it.

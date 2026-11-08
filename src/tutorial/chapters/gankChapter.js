@@ -3,7 +3,7 @@ import { ROLE } from '../../config/roles.js';
 import { TEAM } from '../../config/teams.js';
 import { FLASH_COOLDOWN_SECONDS } from '../../config/combatRules.js';
 import { createDeadline, isDead, isMapQuiet } from '../predicates.js';
-import { putSpellOnCooldown, scriptNextCatch, tellInKillFeed, woundChampion } from '../scenarioPatches.js';
+import { clearTeamLaneOrders, putSpellOnCooldown, scriptNextCatch, tellInKillFeed, woundChampion } from '../scenarioPatches.js';
 import { dialogStep, doStep, enemyCard, inChapter, ownCard, skipStep, watchStep } from './stepBuilders.js';
 
 const GAME = 'game';
@@ -33,6 +33,7 @@ function createGankWatchStep() {
 }
 
 function setUpWoundedTarget({ gameState }) {
+  clearTeamLaneOrders(gameState, TEAM.BLUE);
   woundChampion(gameState, { ...ENEMY_TOP, healthRatio: WOUNDED_HEALTH });
   putSpellOnCooldown(gameState, { ...ENEMY_TOP, spellId: 'flash', seconds: FLASH_COOLDOWN_SECONDS });
   scriptNextCatch(gameState, true);

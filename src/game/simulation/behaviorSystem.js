@@ -6,13 +6,13 @@ import {
 import { ACTIVITY } from '../activities.js';
 import { FOUNTAIN_POSITIONS, LANE_BY_ROLE } from '../mapLayout.js';
 import { pointAtLaneDistance } from '../laneGeometry.js';
-import { LAST_HIT_STEP_DISTANCE } from '../../config/laneRules.js';
+import { LAST_HIT_STEP_DISTANCE, TRADE_STANDOFF_FORWARD } from '../../config/laneRules.js';
 import { directionTowardEnemy, lanePushFor } from './laneSystem.js';
 import { pressureStandoffFor } from './lanePressure.js';
 import { chooseNextCamp } from './jungleSystem.js';
 import { hasItemsLeftToBuy, spendGoldOnBuild } from './economy.js';
 import { startRecall } from './recall.js';
-import { isPlayingSafe } from '../stances.js';
+import { isPlayingSafe, isTrading } from '../stances.js';
 import { opposingTeam } from '../../config/teams.js';
 import { DANGER_RANGE, DANGER_REACTION_SECONDS, MISSING_JUNGLER_SECONDS, PUSHED_FOR_CAUTION } from '../../config/playRules.js';
 import { secondsSinceSeen } from './intelSystem.js';
@@ -158,14 +158,16 @@ function supportPost(gameState, championState, teamState) {
     return carry.position;
   }
   const carryIsInLane = carry.activity === ACTIVITY.LANING;
-  return lanePost(gameState, championState, carryIsInLane ? SUPPORT_DISTANCE_BEHIND_CARRY : 0);
+  const safeDistance = isPlayingSafe(gameState, championState) ? PLAY_SAFE_EXTRA_STANDOFF : 0;
+  return lanePost(gameState, championState, (carryIsInLane ? SUPPORT_DISTANCE_BEHIND_CARRY : 0) + safeDistance);
 }
 
 // Behind the wave, further back under pressure, and a step closer while going for a last hit.
 function lanePost(gameState, championState, extraDistanceBehind) {
   const laneState = laneStateOf(gameState, championState);
   const lastHitStep = gameState.gameSeconds < championState.steppingInUntilSeconds ? LAST_HIT_STEP_DISTANCE : 0;
-  const standoff = LANE_STANDOFF_DISTANCE + extraDistanceBehind + pressureStandoffFor(laneState, championState.team) - lastHitStep;
+  const tradeStep = isTrading(championState) ? TRADE_STANDOFF_FORWARD : 0;
+  const standoff = LANE_STANDOFF_DISTANCE + extraDistanceBehind + pressureStandoffFor(laneState, championState.team) - lastHitStep - tradeStep;
   return pointAtLaneDistance(laneState.lane, laneState.frontDistance - standoff * directionTowardEnemy(championState.team));
 }
 

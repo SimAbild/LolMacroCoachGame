@@ -20,7 +20,7 @@ const NEAR_PIT_FOR_FIGHT = Object.freeze({ point: BARON_PIT, range: 300 });
 const WARD_DEADLINE_SECONDS = 36;
 const RED_ARRIVES_DEADLINE_SECONDS = 40;
 const BARON_DEADLINE_SECONDS = 90;
-const LATE_GAME_LEAD = Object.freeze({ team: TEAM.BLUE, gold: 1500, experience: 2000 });
+const LATE_GAME_LEAD = Object.freeze({ team: TEAM.BLUE, gold: 2000, experience: 2500 });
 const RED_TOWERS_LOST = Object.freeze({ top: ['outer'], mid: ['outer', 'inner', 'inhibitorTower'], bot: ['outer'] });
 const BARON_TARGET = mapTarget(BARON_PIT, PIT_RADIUS);
 

@@ -28,8 +28,9 @@ export function createChampionPanel(championState, { version, itemCatalog, isOwn
     className: `champion-card champion-card--${championState.team}${isOwnTeam ? ' is-own' : ''}`,
     dataset: { role: championState.role, team: championState.team },
   }, createPanel(championState, { parts, isOwnTeam }));
-  if (isOwnTeam) {
-    card.append(parts.status.element, ...createActionControls(championState, { onIntent, onActionHover }));
+  const actionControls = isOwnTeam ? createActionControls(championState, { onIntent, onActionHover }) : null;
+  if (actionControls) {
+    card.append(parts.status.element, ...actionControls.rows);
   }
 
   function update(displayedState) {
@@ -39,6 +40,7 @@ export function createChampionPanel(championState, { version, itemCatalog, isOwn
     parts.healthFill.style.width = `${displayedState.healthRatio * PERCENT}%`;
     parts.resourceFill.style.width = `${displayedState.resourceRatio * PERCENT}%`;
     parts.status.update(displayedState);
+    actionControls?.update(displayedState);
     parts.itemSlots.update(displayedState);
     parts.summonerIcons.update(displayedState);
     parts.ultimateBadge.update(displayedState);
@@ -78,12 +80,13 @@ function createStatusLine(role, onIntent) {
   const cancelButton = createButton('✕', () => onIntent({ type: INTENT.CANCEL_ACTION, role }), 'cancel-action');
   cancelButton.dataset.anchor = 'cancel';
   cancelButton.setAttribute('aria-label', 'Cancel call');
-  attachTooltip(cancelButton, { title: 'Cancel call', body: 'Stop the current call. The champion goes back to laning or farming.' });
+  attachTooltip(cancelButton, { title: 'Cancel', body: 'Stop the current call and clear the wave plan and stance. The champion goes back to playing on instinct.' });
   const element = createElement('div', { className: 'champion-card__status' }, statusText, cancelButton);
 
   function update(displayedState) {
     statusText.textContent = describeActivity(displayedState);
-    cancelButton.hidden = !displayedState.activeAction;
+    const { wave, posture } = displayedState.laneOrders;
+    cancelButton.hidden = !displayedState.activeAction && !wave && !posture;
   }
 
   return { element, update };

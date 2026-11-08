@@ -2,12 +2,14 @@ import { opposingTeam } from '../../config/teams.js';
 import { ROLE, ROLE_LABELS } from '../../config/roles.js';
 import { ACTION_KIND } from '../../config/actions.js';
 import {
-  COUNTER_GANK_RANGE, FIGHT_ENGAGE_DISTANCE, MAX_WARDS_PER_CHAMPION, PLAY_SAFE_SECONDS,
+  COUNTER_GANK_RANGE, FIGHT_ENGAGE_DISTANCE, MAX_WARDS_PER_CHAMPION,
   TRINKET_RECHARGE_SECONDS, WARD_DURATION_SECONDS, WARD_PLACE_DISTANCE,
 } from '../../config/combatRules.js';
 import {
-  CHAMPION_MOVE_SPEED, JUNGLE_CAMP_CLEAR_SECONDS, JUNGLE_CAMP_CREEP_SCORE, JUNGLE_CAMP_EXPERIENCE, JUNGLE_CAMP_GOLD, JUNGLE_CAMP_RESPAWN_SECONDS, MAX_PUSH_VALUE,
+  CHAMPION_MOVE_SPEED, JUNGLE_CAMP_CLEAR_SECONDS, JUNGLE_CAMP_CREEP_SCORE, JUNGLE_CAMP_EXPERIENCE, JUNGLE_CAMP_GOLD, JUNGLE_CAMP_RESPAWN_SECONDS,
 } from '../../config/gameRules.js';
+import { nearestWalkable } from '../navigation.js';
+import { toggleLaneOrder } from './laneOrderSystem.js';
 import { ACTIVITY } from '../activities.js';
 import { EVENT_KIND, addEvent } from '../events.js';
 import { allChampionStates, championById, laneStateFor, laneStateOf } from '../gameState.js';
@@ -32,10 +34,15 @@ const MAX_TRAVEL_SECONDS = 45;
 const TEAM_SIZE = 5;
 const MIN_ENEMIES_FOR_GROUP_FIGHT = 2;
 const ENGAGE_PHASE = Object.freeze({ APPROACH: 'approach', FIGHTING: 'fighting' });
-const FULLY_PUSHED_MARGIN = 2;
-const MINIONS_FOR_A_CRASH = 3;
+const COVER_SECONDS = 45;
+const COVER_DISTANCE_BEHIND_WAVE = 90;
+const LANES_TO_COVER = Object.freeze(['top', 'mid', 'bot']);
 
 export function issueAction(gameState, championState, actionDefinition, { helperRole } = {}) {
+  if (actionDefinition.orderSlot) {
+    toggleLaneOrder(gameState, championState, { slot: actionDefinition.orderSlot, kind: actionDefinition.kind });
+    return { isIssued: true };
+  }
   const rejection = rejectionReason(gameState, championState, actionDefinition, helperRole);
   if (rejection) {
     return { isIssued: false, reason: rejection };
@@ -64,11 +71,9 @@ export function updateActions(gameState, tickSeconds) {
 }
 
 const ACTION_STARTERS = Object.freeze({
-  [ACTION_KIND.SHOVE]: (gameState, championState, definition) => {
-    championState.activeAction = { kind: definition.kind, label: definition.label, statusText: 'Shoving wave' };
-  },
-  [ACTION_KIND.PLAY_SAFE]: (gameState, championState, definition) => {
-    championState.activeAction = { kind: definition.kind, label: definition.label, secondsLeft: PLAY_SAFE_SECONDS, statusText: 'Playing safe' };
+  [ACTION_KIND.RESET]: (gameState, championState) => startRecall(championState),
+  [ACTION_KIND.COVER]: (gameState, championState, definition) => {
+    startTravelAction(championState, { kind: ACTION_KIND.COVER, label: definition.label, secondsLeft: COVER_SECONDS });
   },
   [ACTION_KIND.FARM]: () => {},
   [ACTION_KIND.DIVE]: (gameState, championState) => {
@@ -124,21 +129,7 @@ const ACTION_STARTERS = Object.freeze({
 });
 
 const ACTION_UPDATERS = Object.freeze({
-  // Done when a real wave has crashed into their tower: a lone caster reaching it is not a crash.
-  [ACTION_KIND.SHOVE]: (gameState, championState) => {
-    const laneState = laneStateOf(gameState, championState);
-    const isAtTower = lanePushFor(gameState, laneState, championState.team) >= MAX_PUSH_VALUE - FULLY_PUSHED_MARGIN;
-    if (isAtTower && laneState.minions[championState.team] >= MINIONS_FOR_A_CRASH) {
-      endAction(gameState, championState);
-    }
-  },
-  [ACTION_KIND.PLAY_SAFE]: (gameState, championState, action, tickSeconds) => {
-    action.secondsLeft -= tickSeconds;
-    action.statusText = `Playing safe (${Math.ceil(action.secondsLeft)}s)`;
-    if (action.secondsLeft <= 0) {
-      endAction(gameState, championState);
-    }
-  },
+  [ACTION_KIND.COVER]: updateCover,
   [ACTION_KIND.CALL_HELP]: () => {},
   [ACTION_KIND.DIVE]: () => {},
   [ACTION_KIND.GANK]: () => {},
@@ -164,6 +155,21 @@ export function startRetreat(gameState, championState) {
     destination: retreatDestination(gameState, championState),
     secondsLeft: RETREAT_TRAVEL_SECONDS,
   });
+}
+
+// Stands behind the most pushed lane, close enough to answer a gank there, until time runs out.
+function updateCover(gameState, championState, action, tickSeconds) {
+  action.secondsLeft -= tickSeconds;
+  if (action.secondsLeft <= 0) {
+    endAction(gameState, championState);
+    return;
+  }
+  const laneToCover = LANES_TO_COVER
+    .map(lane => laneStateFor(gameState, lane))
+    .reduce((mostPushed, laneState) => (lanePushFor(gameState, laneState, championState.team) > lanePushFor(gameState, mostPushed, championState.team) ? laneState : mostPushed));
+  const distanceBehind = COVER_DISTANCE_BEHIND_WAVE * directionTowardEnemy(championState.team);
+  championState.targetPosition = nearestWalkable(pointAtLaneDistance(laneToCover.lane, laneToCover.frontDistance - distanceBehind));
+  action.statusText = `Covering ${laneToCover.lane} (${Math.ceil(action.secondsLeft)}s)`;
 }
 
 function updateGroup(gameState, championState, action) {
@@ -451,6 +457,7 @@ function rejectionReason(gameState, championState, actionDefinition, helperRole)
 }
 
 const REJECTION_CHECKS = Object.freeze({
+  [ACTION_KIND.RESET]: (gameState, championState) => (championState.inFightId ? `${championState.champion.name} is in a fight` : null),
   [ACTION_KIND.SETUP_OBJECTIVE]: gameState => (chooseObjectiveToContest(gameState) ? null : 'No objective is up or spawning soon'),
   [ACTION_KIND.DIVE]: (gameState, championState) => targetRejectionReason(laneOpponentOf(gameState, championState)),
   [ACTION_KIND.GANK]: (gameState, championState, { actionDefinition }) => (

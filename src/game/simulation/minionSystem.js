@@ -75,6 +75,7 @@ function createMinion(gameState, laneState, { team, kind, waveNumber }) {
     previousDistance: startDistance,
     health: MINION_STATS[kind].health,
     wasLastHitTried: false,
+    wasLastHit: false,
     pendingDamage: 0,
     damageFactor: 1 + (gameState.laneRandom() * 2 - 1) * MINION_DAMAGE_JITTER,
   };
