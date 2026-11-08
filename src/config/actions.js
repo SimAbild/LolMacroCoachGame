@@ -65,7 +65,7 @@ const LANER_CALLS = Object.freeze({
     orderSlot: LANE_ORDER_SLOT.WAVE,
     description: 'Let their wave come to you and hold it just outside your tower, taking only last hits.',
     pros: 'They must walk up to you for every minion: they lose CS, or they stand where a gank can catch them.',
-    cons: 'Ties you to the lane, and they can answer by roaming or bringing help.',
+    cons: 'Ties you to the lane. They can roam or bring help, and a shove from them breaks the freeze.',
     bestWhen: 'You are ahead and they are low or have just come back from base.',
   },
   playSafe: {

@@ -3,21 +3,21 @@
   "fingerprints": [
     {
       "seed": 11,
-      "winner": "red",
-      "minutes": 37.7,
-      "hash": "edee7b18ad4bffea"
+      "winner": "blue",
+      "minutes": 28.4,
+      "hash": "5c3b69f4c9ac504d"
     },
     {
       "seed": 2024,
       "winner": "blue",
-      "minutes": 31.6,
-      "hash": "3b8888a81d516250"
+      "minutes": 24.5,
+      "hash": "7e6aab0bc3f03990"
     },
     {
       "seed": 777,
       "winner": "blue",
-      "minutes": 27.6,
-      "hash": "d31bbf84758e419e"
+      "minutes": 34.5,
+      "hash": "38f591566c6eb75f"
     }
   ]
 }

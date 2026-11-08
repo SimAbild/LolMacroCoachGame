@@ -210,8 +210,10 @@ function createLaneState(lane) {
     towerShotCooldowns: { [TEAM.BLUE]: 0, [TEAM.RED]: 0 },
     pressureForBlue: 0,
     freezingTeam: null,
-    // Minions each team has lost to the tower or its own minions without a last hit, since the last report.
+    // Minions each team's laner has lost for a clear reason since the last report (see laneDenyReport.js).
     unclaimedMinions: { [TEAM.BLUE]: 0, [TEAM.RED]: 0 },
+    minionsLostWhileAway: { [TEAM.BLUE]: 0, [TEAM.RED]: 0 },
+    nextLostCreepsReportSeconds: { [TEAM.BLUE]: 0, [TEAM.RED]: 0 },
     nextWaveSeconds: MINION_FIRST_SPAWN_SECONDS,
     wavesSpawned: 0,
   };

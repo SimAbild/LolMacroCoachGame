@@ -1,8 +1,7 @@
 import { ACTION_KIND } from '../../config/actions.js';
 import { SHARED_LANE_EXPERIENCE_RATIO } from '../../config/gameRules.js';
 import {
-  FREEZE_HOLD_SLACK, FREEZE_LAST_HIT_HEALTH_RATIO, FREEZE_PULL_BACK_DAMAGE_PER_SECOND, FREEZE_THIN_DAMAGE_PER_SECOND,
-  FROZEN_OUT_EXPERIENCE_FACTOR, FROZEN_OUT_LAST_HIT_FACTOR, LAST_HIT_ATTEMPT_SECONDS,
+  FREEZE_LAST_HIT_HEALTH_RATIO, FREEZE_THIN_DAMAGE_PER_SECOND, FROZEN_OUT_EXPERIENCE_FACTOR, FROZEN_OUT_LAST_HIT_FACTOR, LAST_HIT_ATTEMPT_SECONDS,
   LAST_HIT_BASE_CHANCE, LAST_HIT_HEALTH_RATIO, LAST_HIT_MAX_CHANCE, LAST_HIT_MIN_CHANCE, LAST_HIT_PRESSURE_EFFECT, LAST_HIT_SAFE_FACTOR,
   LAST_HIT_SHOVE_FACTOR, LAST_HIT_STEP_SECONDS, LAST_HIT_UNDER_TOWER_FACTOR, LAST_HIT_UNDER_TOWER_RANGE, SHOVE_MANA_COST_PER_SECOND,
   SLOW_PUSH_DAMAGE_PER_SECOND, TRADE_LAST_HIT_FACTOR,
@@ -10,7 +9,6 @@ import {
 import { FRONT_GROUP_RANGE, MINION_KIND, MINION_STATS, SHOVE_CLEAR_DAMAGE_PER_SECOND, minionGoldAt } from '../../config/minionRules.js';
 import { ROLE } from '../../config/roles.js';
 import { TEAM, opposingTeam } from '../../config/teams.js';
-import { directionTowardEnemy } from '../laneGeometry.js';
 import { isFreezing, isPlayingSafe, isShovingWave, isSlowPushing, isTrading } from '../stances.js';
 import { frontStructureOf, laneDistanceOfStructure } from '../structures.js';
 import { grantExperience, grantGold } from './economy.js';
@@ -23,8 +21,8 @@ const WAVECLEAR_FACTOR_PER_RATING = 0.1;
 
 // What the coach's wave plans do to the minions. A shover hits the enemy wave hard and a slow
 // pusher only picks off casters, so the enemy dies first and the own wave lives on. A freezer does
-// the opposite and thins their own wave, so the enemy wave wins and walks to them.
-export function applyWavePlans(laneState, { championsAtWave, limits, tickSeconds }) {
+// the opposite and thins their own wave, so the enemy wave stays the bigger one.
+export function applyWavePlans(laneState, championsAtWave, tickSeconds) {
   for (const team of TEAMS) {
     for (const championState of championsAtWave[team]) {
       if (isShovingWave(championState)) {
@@ -32,22 +30,17 @@ export function applyWavePlans(laneState, { championsAtWave, limits, tickSeconds
         spendManaOnShove(championState, tickSeconds);
       } else if (isSlowPushing(championState)) {
         hitEnemyCaster(laneState, championState, SLOW_PUSH_DAMAGE_PER_SECOND * tickSeconds);
-      } else if (isFreezing(championState)) {
-        holdWave(laneState, championState, { limits, tickSeconds });
+      } else if (laneState.freezingTeam === team && isFreezing(championState)) {
+        holdWave(laneState, team, tickSeconds);
       }
     }
   }
 }
 
-// A freeze keeps the enemy wave the bigger one, so it keeps pressing toward the freezer's tower.
-// A wave still far from the hold point has to come back first, so more of their own is let die.
-function holdWave(laneState, championState, { limits, tickSeconds }) {
-  const { team } = championState;
-  const holdDistance = team === TEAM.BLUE ? limits.blueLimit : limits.redLimit;
-  const isPastHoldPoint = (laneState.frontDistance - holdDistance) * directionTowardEnemy(team) > FREEZE_HOLD_SLACK;
-  if (isPastHoldPoint) {
-    thinOwnWave(laneState, team, FREEZE_PULL_BACK_DAMAGE_PER_SECOND * tickSeconds);
-  } else if (laneState.minions[team] >= laneState.minions[opposingTeam(team)]) {
+// A freeze keeps the enemy wave the bigger one, so it keeps pressing toward the freezer's tower:
+// whenever their own wave is as big, the freezer lets some of it die.
+function holdWave(laneState, team, tickSeconds) {
+  if (laneState.minions[team] >= laneState.minions[opposingTeam(team)]) {
     thinOwnWave(laneState, team, FREEZE_THIN_DAMAGE_PER_SECOND * tickSeconds);
   }
 }

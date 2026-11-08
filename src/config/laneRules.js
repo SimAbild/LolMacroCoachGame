@@ -23,15 +23,15 @@ export const SLOW_PUSH_MAX_SECONDS = 120;
 // A slow pusher only hits their casters, far less than a shove, and still takes every last hit.
 export const SLOW_PUSH_DAMAGE_PER_SECOND = 9;
 
-// Freeze: the freezer thins their own minions until the enemy wave wins and walks to them, then the
-// enemy wave stops this far outside the tower's reach. With fewer of their own minions to wear the
-// enemy down, the freezer finishes minions from higher up, so their farm keeps coming.
+// Freeze: the fight is held this far outside the freezer's tower, and their own minions wait within
+// this much of that spot. The freezer thins their own wave so the enemy's stays the bigger one, and
+// with fewer minions to wear the enemy down they finish minions from higher up, so the farm keeps
+// coming. Once one wave is this many minions bigger than the other, it can no longer be held.
 export const FREEZE_HOLD_MARGIN = 35;
+export const FREEZE_OWN_WAVE_SLACK = 10;
 export const FREEZE_THIN_DAMAGE_PER_SECOND = 10;
 export const FREEZE_LAST_HIT_HEALTH_RATIO = 0.65;
-// While the wave is still further than this from the hold point, more of their own wave is let die.
-export const FREEZE_HOLD_SLACK = 40;
-export const FREEZE_PULL_BACK_DAMAGE_PER_SECOND = 26;
+export const FREEZE_BREAK_MINION_LEAD = 8;
 // What it does to the other side: they must walk up to the wave, and last hits come harder.
 export const FROZEN_OUT_STANDOFF = 32;
 export const FROZEN_OUT_LAST_HIT_FACTOR = 0.55;
@@ -56,8 +56,11 @@ export const DIVE_NO_WAVE_PENALTY = -0.15;
 export const LAST_HIT_STEP_DISTANCE = 16;
 export const LAST_HIT_STEP_SECONDS = 0.7;
 
-// A laner normally misses a minion now and then; the kill feed only speaks up about real losses.
-export const LOST_CREEPS_REPORT_MINIMUM = 4;
+// A laner normally misses a minion now and then; the kill feed only speaks up about real losses,
+// which means more than one whole wave.
+export const LOST_CREEPS_REPORT_MINIMUM = 8;
+export const LOST_CREEPS_REPORT_COOLDOWN_SECONDS = 120;
+export const LOST_CREEPS_TOWER_RANGE = 120;
 
 // Experience reaches further than last hits do, so a zoned champion can still soak it from behind.
 export const EXPERIENCE_RANGE = 110;

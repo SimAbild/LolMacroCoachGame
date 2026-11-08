@@ -1,7 +1,7 @@
 export const MIN_FIGHT_CHANCE = 0.05;
 export const MAX_FIGHT_CHANCE = 0.95;
 export const GANK_BASE_CHANCE = 0.4;
-export const DIVE_BASE_CHANCE = 0.3;
+export const DIVE_BASE_CHANCE = 0.2;
 
 export const LANE_PUSH_MODIFIER_AT_FULL_PUSH = 0.2;
 export const SPOTTED_MODIFIER = -0.25;

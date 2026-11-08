@@ -2,23 +2,23 @@ import { opposingTeam } from '../../config/teams.js';
 import { ROLE } from '../../config/roles.js';
 import { ACTION_KIND, TEAM_CALL, findRoleAction } from '../../config/actions.js';
 import { DEFAULT_AI_WEIGHTS } from '../../config/aiWeights.js';
-import { MAX_PUSH_VALUE } from '../../config/gameRules.js';
 import { OBJECTIVE_KEY } from '../../config/objectiveRules.js';
 import { ACTIVITY } from '../activities.js';
 import { BARON_PIT, LANE_BY_ROLE, wardSpotFor } from '../mapLayout.js';
 import { chooseObjectiveToContest, upcomingObjectiveTimers } from '../objectives.js';
 import { fightPowerOf, hasBaron } from '../teamPower.js';
-import { laneStateFor, totalTeamGold } from '../gameState.js';
+import { totalTeamGold } from '../gameState.js';
 import { isPositionVisible, teamVisionSources } from '../vision.js';
 import { issueAction } from './actionSystem.js';
+import { coverOptions, laneOrderOptions } from './aiLaneOptions.js';
+import { isIdle, option, ownWithRole, pushOf } from './aiOptionHelpers.js';
 import { issueTeamCall } from './teamCallSystem.js';
-import { lanePushFor } from './laneSystem.js';
 import { lastSeenPosition, secondsSinceSeen } from './intelSystem.js';
 import { distanceBetween } from '../geometry.js';
 
 const DECISION_INTERVAL_SECONDS = 4;
 const COOLDOWN_SECONDS = Object.freeze({
-  gank: 45, roam: 50, ward: 50, setup: 60, contest: 25, group: 60, engage: 20, dive: 40, shove: 30,
+  gank: 45, roam: 50, ward: 50, setup: 60, contest: 25, group: 60, engage: 20, dive: 40, shove: 30, wavePlan: 30, posture: 20, reset: 60, cover: 60,
 });
 const LANER_ROLE_BY_LANE = Object.freeze({ top: ROLE.TOP, mid: ROLE.MID, bot: ROLE.BOT });
 const LANES = Object.freeze(['top', 'mid', 'bot']);
@@ -53,7 +53,6 @@ const DISTANCE_PER_THOUSAND = 1000;
 const MAX_POWER_ADVANTAGE = 1;
 const HALF_CHANCE = 0.5;
 const TEAM_ACTION_KINDS = Object.freeze([ACTION_KIND.CONTEST, ACTION_KIND.GROUP, ACTION_KIND.ENGAGE]);
-const IDLE_ACTIVITIES = Object.freeze([ACTIVITY.LANING, ACTIVITY.JUNGLING, ACTIVITY.TRAVELING]);
 const OBJECTIVE_LANES = Object.freeze({
   [OBJECTIVE_KEY.DRAGON]: ['bot', 'mid'],
   [OBJECTIVE_KEY.ELDER]: ['bot', 'mid'],
@@ -124,7 +123,7 @@ function strengthComparison(gameState, team, { own, enemies }) {
 }
 
 const DECISION_SOURCES = Object.freeze([
-  gankOptions, roamOptions, wardOptions, setupOptions, contestOptions, groupOptions, engageOptions, diveOptions, shoveOptions,
+  gankOptions, roamOptions, wardOptions, setupOptions, contestOptions, groupOptions, engageOptions, diveOptions, shoveOptions, laneOrderOptions, coverOptions,
 ]);
 
 function gankOptions(context) {
@@ -301,7 +300,7 @@ function shoveOptions(context) {
   }
   return OBJECTIVE_LANES[timer.objective.key].flatMap(lane => {
     const laner = ownWithRole(context, LANER_ROLE_BY_LANE[lane]);
-    if (!isIdle(laner) || laner.activity !== ACTIVITY.LANING || pushOf(context, lane) >= SHOVE_MAX_PUSH) {
+    if (!isIdle(laner) || laner.activity !== ACTIVITY.LANING || pushOf(context, lane) >= SHOVE_MAX_PUSH || laner.laneOrders.wave === ACTION_KIND.SHOVE) {
       return [];
     }
     const action = findRoleAction(laner.role, 'shove');
@@ -387,24 +386,6 @@ function visibleEnemiesNear(context, position, range) {
 
 function hasOwnWardNear(context, position) {
   return context.gameState.wards.some(ward => ward.team === context.team && distanceBetween(ward.position, position) <= OWN_WARD_COVERAGE_DISTANCE);
-}
-
-function pushOf(context, lane) {
-  const laneState = laneStateFor(context.gameState, lane);
-  return lanePushFor(context.gameState, laneState, context.team) / MAX_PUSH_VALUE;
-}
-
-function isIdle(championState) {
-  return Boolean(championState) && championState.isAlive && !championState.activeAction && !championState.inFightId
-    && IDLE_ACTIVITIES.includes(championState.activity);
-}
-
-function ownWithRole(context, role) {
-  return context.own.find(championState => championState.role === role);
-}
-
-function option(type, cooldownKey, score, execute) {
-  return { type, cooldownKey, score, execute };
 }
 
 function livingPower(gameState, championStates) {

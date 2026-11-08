@@ -24,6 +24,7 @@ export function isSlowPushing(championState) {
   return championState.laneOrders.wave === ACTION_KIND.SLOW_PUSH;
 }
 
+// A team told to group is there to push, so an older freeze must not hold its own wave back.
 export function isFreezing(championState) {
-  return championState.laneOrders.wave === ACTION_KIND.FREEZE;
+  return championState.laneOrders.wave === ACTION_KIND.FREEZE && championState.activeAction?.kind !== ACTION_KIND.GROUP;
 }
