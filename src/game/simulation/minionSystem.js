@@ -74,6 +74,7 @@ function createMinion(gameState, laneState, { team, kind, waveNumber }) {
     laneDistance: startDistance,
     previousDistance: startDistance,
     health: MINION_STATS[kind].health,
+    wasLastHitTried: false,
     pendingDamage: 0,
     damageFactor: 1 + (gameState.laneRandom() * 2 - 1) * MINION_DAMAGE_JITTER,
   };
@@ -153,11 +154,16 @@ function shootNearestAttacker(laneState, { team, tower }) {
   }
 }
 
-// The minion a champion at the front goes for: the weakest enemy near the front.
-export function weakestEnemyAtFront(laneState, team) {
-  return laneState.minionList
-    .filter(minion => minion.team !== team && minion.health > 0 && Math.abs(minion.laneDistance - laneState.frontDistance) <= FRONT_GROUP_RANGE)
-    .reduce((weakest, minion) => (!weakest || minion.health < weakest.health ? minion : weakest), null);
+// The minion a champion at the front goes for: the enemy near the front with the least health left.
+export function lowestHealthEnemyAtFront(laneState, team) {
+  let lowest = null;
+  for (const minion of laneState.minionList) {
+    const isCandidate = minion.team !== team && minion.health > 0 && Math.abs(minion.laneDistance - laneState.frontDistance) <= FRONT_GROUP_RANGE;
+    if (isCandidate && (!lowest || minion.health < lowest.health)) {
+      lowest = minion;
+    }
+  }
+  return lowest;
 }
 
 export function removeDeadMinions(laneState) {

@@ -42,6 +42,12 @@ export function giveLead(gameState, { team, gold, experience }) {
   }
 }
 
+// As if the team just came back from shopping: nobody heads home for items during the lesson.
+export function shopAndRefreshTeam(gameState, team) {
+  giveLead(gameState, { team, gold: 0, experience: 0 });
+  refreshTeam(gameState, team);
+}
+
 // Full health, and nobody waiting in base: a call to a champion in base is refused,
 // and a refused call would leave the player stuck on a step that only allows that call.
 export function refreshTeam(gameState, team) {

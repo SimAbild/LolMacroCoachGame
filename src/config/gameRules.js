@@ -8,10 +8,7 @@ export const TOWER_HOLD_DISTANCE = 45;
 export const MAX_PUSH_VALUE = 100;
 
 export const FARM_RANGE = 80;
-export const FARM_KILLS_PER_SECOND = 0.16;
 export const LANE_STANDOFF_DISTANCE = 28;
-export const MINION_GOLD = 20;
-export const MINION_EXPERIENCE = 40;
 export const SHARED_LANE_EXPERIENCE_RATIO = 0.65;
 
 export const PASSIVE_GOLD_START_SECONDS = 65;
@@ -28,6 +25,7 @@ export const JUNGLE_CAMP_RESPAWN_SECONDS = 135;
 export const JUNGLE_CAMP_CLEAR_SECONDS = 9;
 export const JUNGLE_CAMP_GOLD = 85;
 export const JUNGLE_CAMP_EXPERIENCE = 180;
+export const JUNGLE_CAMP_CREEP_SCORE = 4;
 export const JUNGLE_CAMP_HEALTH_COST = 0.05;
 
 export const RECALL_CHANNEL_SECONDS = 8;

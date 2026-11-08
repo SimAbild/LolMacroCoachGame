@@ -4,10 +4,13 @@ import {
 } from '../../config/gameRules.js';
 import { opposingTeam } from '../../config/teams.js';
 import { ACTIVITY } from '../activities.js';
+import { laneStateOf } from '../gameState.js';
 import { LANE_BY_ROLE } from '../mapLayout.js';
 import { isPlayingSafe } from '../stances.js';
 import { PLAY_SAFE_TRADE_DAMAGE_FACTOR } from '../../config/combatRules.js';
+import { LANE_TRADE_PRESSURE_EFFECT } from '../../config/laneRules.js';
 import { distanceBetween } from '../geometry.js';
+import { lanePressureFor } from './lanePressure.js';
 
 const MIN_TRADE_INTENSITY = 0.4;
 const TRADE_INTENSITY_SPREAD = 1.2;
@@ -44,9 +47,12 @@ function isTradingWithLaneOpponent(championState, enemyChampions) {
     && distanceBetween(enemy.position, championState.position) <= LANE_TRADE_RANGE);
 }
 
+// The side under pressure takes more from every trade, so a lead tends to grow by itself.
 function applyLaneTrade(gameState, championState, tickSeconds) {
   const stanceFactor = isPlayingSafe(gameState, championState) ? PLAY_SAFE_TRADE_DAMAGE_FACTOR : 1;
-  const tradeIntensity = (MIN_TRADE_INTENSITY + gameState.random() * TRADE_INTENSITY_SPREAD) * stanceFactor;
+  const pressure = lanePressureFor(laneStateOf(gameState, championState), championState.team);
+  const pressureFactor = 1 - pressure * LANE_TRADE_PRESSURE_EFFECT;
+  const tradeIntensity = (MIN_TRADE_INTENSITY + gameState.random() * TRADE_INTENSITY_SPREAD) * stanceFactor * pressureFactor;
   championState.healthRatio = Math.max(
     MINIMUM_HEALTH_WITHOUT_COMBAT,
     championState.healthRatio - LANE_TRADE_DAMAGE_PER_SECOND * tradeIntensity * tickSeconds,

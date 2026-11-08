@@ -36,14 +36,14 @@ function createObjectiveList(gameState, team) {
 function createScoreboard(championStates, itemCatalog) {
   return createElement('table', { className: 'end-scoreboard' },
     createElement('thead', {}, createElement('tr', {},
-      ...['Champion', 'K / D / A', 'Gold', 'Items'].map(heading => createElement('th', { text: heading })),
+      ...['Champion', 'K / D / A', 'CS', 'Gold', 'Items'].map(heading => createElement('th', { text: heading })),
     )),
     createElement('tbody', {}, ...championStates.map(championState => createChampionRow(championState, itemCatalog))),
   );
 }
 
 function createChampionRow(championState, itemCatalog) {
-  const { champion, role, level, kills, deaths, assists, totalGoldEarned } = championState;
+  const { champion, role, level, kills, deaths, assists, creepScore, totalGoldEarned } = championState;
   return createElement('tr', {},
     createElement('td', {}, createElement('div', { className: 'end-champion' },
       createImage(champion.iconUrl, champion.name, 'end-champion__icon'),
@@ -53,6 +53,7 @@ function createChampionRow(championState, itemCatalog) {
       ),
     )),
     createElement('td', { text: `${kills} / ${deaths} / ${assists}` }),
+    createElement('td', { text: String(creepScore) }),
     createElement('td', { text: `${(totalGoldEarned / GOLD_PER_THOUSAND).toFixed(1)}K` }),
     createElement('td', {}, createFinishedItems(championState.items, itemCatalog)),
   );

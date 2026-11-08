@@ -4,12 +4,12 @@ const BASE_RATING = 4;
 const STAT_POINTS_PER_RATING_POINT = 4;
 
 const TAG_RATING_BONUSES = Object.freeze({
-  Tank: { gank: 2, dive: 3, escape: -1, teamfight: 2 },
-  Fighter: { gank: 1, dive: 2, escape: 0, teamfight: 1 },
-  Assassin: { gank: 2, dive: 2, escape: 3, teamfight: -1 },
-  Mage: { gank: 0, dive: -1, escape: 0, teamfight: 2 },
-  Marksman: { gank: -1, dive: -2, escape: 1, teamfight: 2 },
-  Support: { gank: 1, dive: -1, escape: 0, teamfight: 2 },
+  Tank: { gank: 2, dive: 3, escape: -1, teamfight: 2, waveclear: -1 },
+  Fighter: { gank: 1, dive: 2, escape: 0, teamfight: 1, waveclear: 0 },
+  Assassin: { gank: 2, dive: 2, escape: 3, teamfight: -1, waveclear: 0 },
+  Mage: { gank: 0, dive: -1, escape: 0, teamfight: 2, waveclear: 3 },
+  Marksman: { gank: -1, dive: -2, escape: 1, teamfight: 2, waveclear: 2 },
+  Support: { gank: 1, dive: -1, escape: 0, teamfight: 2, waveclear: -2 },
 });
 
 const MANUAL_RATING_OVERRIDES = Object.freeze({
@@ -29,6 +29,7 @@ export function deriveChampionRatings(championSummary) {
     dive: BASE_RATING + Math.round(championSummary.info.defense / STAT_POINTS_PER_RATING_POINT),
     escape: BASE_RATING,
     teamfight: BASE_RATING + Math.round(championSummary.info.magic / STAT_POINTS_PER_RATING_POINT),
+    waveclear: BASE_RATING,
   };
   for (const tag of championSummary.tags) {
     addTagBonuses(ratings, TAG_RATING_BONUSES[tag]);

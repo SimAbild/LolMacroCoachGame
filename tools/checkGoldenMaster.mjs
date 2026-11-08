@@ -88,8 +88,8 @@ function fingerprintOf(gameState) {
 }
 
 function championSummary(championState) {
-  const { id, kills, deaths, assists, level, totalGoldEarned, items, position } = championState;
-  return { id, kills, deaths, assists, level, totalGoldEarned, items: items.map(item => item.itemId), position };
+  const { id, kills, deaths, assists, creepScore, level, totalGoldEarned, items, position } = championState;
+  return { id, kills, deaths, assists, creepScore, level, totalGoldEarned, items: items.map(item => item.itemId), position };
 }
 
 function teamSummary(teamState) {

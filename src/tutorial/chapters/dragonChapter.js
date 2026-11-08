@@ -4,6 +4,7 @@ import { TEAM } from '../../config/teams.js';
 import { DRAGON_FIRST_SPAWN_SECONDS } from '../../config/objectiveRules.js';
 import { DRAGON_PIT } from '../../game/mapLayout.js';
 import { createDeadline, drakesTaken, hasWard, isAtGameTime } from '../predicates.js';
+import { shopAndRefreshTeam } from '../scenarioPatches.js';
 import { dialogStep, doStep, inChapter, mapTarget, ownCard, skipStep, watchStep } from './stepBuilders.js';
 
 const GAME = 'game';
@@ -51,7 +52,12 @@ function createDrakeWatchStep() {
 }
 
 const WARD_STEPS = [
-  skipStep('dragon.skip', { title: 'Skipping ahead', body: 'Jumping to 4:10. The first drake spawns at 5:00.', toSeconds: WARD_LESSON_SECONDS }),
+  skipStep('dragon.skip', {
+    title: 'Skipping ahead',
+    body: 'Jumping to 4:10. The first drake spawns at 5:00.',
+    toSeconds: WARD_LESSON_SECONDS,
+    patch: ({ gameState }) => shopAndRefreshTeam(gameState, TEAM.BLUE),
+  }),
   dialogStep('dragon.timer', {
     screen: GAME,
     title: 'Objectives',

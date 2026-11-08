@@ -18,6 +18,7 @@ export function displayedStateFor(championState, playerSide) {
 function snapshotOf(championState) {
   return {
     level: championState.level,
+    creepScore: championState.creepScore,
     healthRatio: championState.healthRatio,
     resourceRatio: championState.resourceRatio,
     items: championState.items.map(item => ({ ...item })),

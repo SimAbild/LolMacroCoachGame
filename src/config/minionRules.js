@@ -3,11 +3,19 @@ export const MINION_KIND = Object.freeze({ MELEE: 'melee', CASTER: 'caster', CAN
 // Health and damage share one made-up unit. Ranges are in map units along the lane; formationBack
 // is how far behind the front line a minion stands when it reaches an enemy structure.
 export const MINION_STATS = Object.freeze({
-  [MINION_KIND.MELEE]: { health: 100, damagePerSecond: 5.5, range: 12, formationBack: 0, towerShotsToKill: 3 },
-  [MINION_KIND.CASTER]: { health: 60, damagePerSecond: 7, range: 30, formationBack: 16, towerShotsToKill: 2 },
-  [MINION_KIND.CANNON]: { health: 220, damagePerSecond: 11, range: 32, formationBack: 8, towerShotsToKill: 8 },
-  [MINION_KIND.SUPER]: { health: 320, damagePerSecond: 22, range: 14, formationBack: 0, towerShotsToKill: 14 },
+  [MINION_KIND.MELEE]: { health: 100, damagePerSecond: 5.5, range: 12, formationBack: 0, towerShotsToKill: 3, gold: 20, experience: 50 },
+  [MINION_KIND.CASTER]: { health: 60, damagePerSecond: 7, range: 30, formationBack: 16, towerShotsToKill: 2, gold: 14, experience: 30 },
+  [MINION_KIND.CANNON]: { health: 220, damagePerSecond: 11, range: 32, formationBack: 8, towerShotsToKill: 8, gold: 50, experience: 70, goldPerUpgrade: 1 },
+  [MINION_KIND.SUPER]: { health: 320, damagePerSecond: 22, range: 14, formationBack: 0, towerShotsToKill: 14, gold: 50, experience: 70, goldPerUpgrade: 1 },
 });
+
+const MINION_UPGRADE_SECONDS = 90;
+
+// Cannons and super minions grow more valuable as the game goes on; the others stay the same.
+export function minionGoldAt(kind, gameSeconds) {
+  const { gold, goldPerUpgrade = 0 } = MINION_STATS[kind];
+  return gold + goldPerUpgrade * Math.floor(gameSeconds / MINION_UPGRADE_SECONDS);
+}
 
 export const MINION_FIRST_SPAWN_SECONDS = 30;
 export const MINION_WALK_SPEED = 22;

@@ -598,7 +598,9 @@ h1, h2 { font-family: var(--font-display); margin: 0; letter-spacing: 0.02em; }
 .champion-card--red .champion-panel__title { flex-direction: row-reverse; }
 .champion-panel__name { font-size: 16px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .champion-panel__role { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--color-text-muted); }
-.champion-panel__gold { margin-left: auto; font-size: 14px; font-weight: 600; color: var(--color-gold); }
+.champion-panel__cs { margin-left: auto; font-size: 12px; white-space: nowrap; color: var(--color-text-muted); }
+.champion-card--red .champion-panel__cs { margin-left: 0; margin-right: auto; }
+.champion-panel__gold { font-size: 14px; font-weight: 600; color: var(--color-gold); }
 .bar { height: 6px; background: var(--color-well); border-radius: 2px; overflow: hidden; }
 .bar__fill { height: 100%; transition: width var(--duration-medium) var(--ease-out); }
 .bar--health .bar__fill { background: var(--color-health); }

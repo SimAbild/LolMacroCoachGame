@@ -38,6 +38,6 @@ function hasActiveBuff(gameState, untilSeconds) {
   return gameState.gameSeconds < untilSeconds;
 }
 
-function itemGoldOf(championState) {
+export function itemGoldOf(championState) {
   return championState.items.reduce((sum, item) => sum + item.paidGold, 0);
 }

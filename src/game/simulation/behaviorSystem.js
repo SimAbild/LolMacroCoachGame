@@ -6,7 +6,9 @@ import {
 import { ACTIVITY } from '../activities.js';
 import { FOUNTAIN_POSITIONS, LANE_BY_ROLE } from '../mapLayout.js';
 import { pointAtLaneDistance } from '../laneGeometry.js';
+import { LAST_HIT_STEP_DISTANCE } from '../../config/laneRules.js';
 import { directionTowardEnemy, lanePushFor } from './laneSystem.js';
+import { pressureStandoffFor } from './lanePressure.js';
 import { chooseNextCamp } from './jungleSystem.js';
 import { hasItemsLeftToBuy, spendGoldOnBuild } from './economy.js';
 import { startRecall } from './recall.js';
@@ -159,10 +161,12 @@ function supportPost(gameState, championState, teamState) {
   return lanePost(gameState, championState, carryIsInLane ? SUPPORT_DISTANCE_BEHIND_CARRY : 0);
 }
 
+// Behind the wave, further back under pressure, and a step closer while going for a last hit.
 function lanePost(gameState, championState, extraDistanceBehind) {
   const laneState = laneStateOf(gameState, championState);
-  const distanceBehindWave = (LANE_STANDOFF_DISTANCE + extraDistanceBehind) * directionTowardEnemy(championState.team);
-  return pointAtLaneDistance(laneState.lane, laneState.frontDistance - distanceBehindWave);
+  const lastHitStep = gameState.gameSeconds < championState.steppingInUntilSeconds ? LAST_HIT_STEP_DISTANCE : 0;
+  const standoff = LANE_STANDOFF_DISTANCE + extraDistanceBehind + pressureStandoffFor(laneState, championState.team) - lastHitStep;
+  return pointAtLaneDistance(laneState.lane, laneState.frontDistance - standoff * directionTowardEnemy(championState.team));
 }
 
 function carryOf(teamState) {

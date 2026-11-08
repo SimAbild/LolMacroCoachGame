@@ -1,37 +1,30 @@
 import { ACTION_KIND } from '../../config/actions.js';
-import { SHOVE_FARM_MULTIPLIER } from '../../config/combatRules.js';
-import {
-  FARM_KILLS_PER_SECOND, FARM_RANGE, MAX_PUSH_VALUE, MINION_EXPERIENCE, MINION_GOLD, SHARED_LANE_EXPERIENCE_RATIO, TOWER_HOLD_DISTANCE,
-} from '../../config/gameRules.js';
-import { SHOVE_CLEAR_DAMAGE_PER_SECOND } from '../../config/minionRules.js';
-import { ROLE } from '../../config/roles.js';
-import { TEAM, opposingTeam } from '../../config/teams.js';
+import { FARM_RANGE, MAX_PUSH_VALUE, TOWER_HOLD_DISTANCE } from '../../config/gameRules.js';
+import { EXPERIENCE_RANGE } from '../../config/laneRules.js';
+import { TEAM } from '../../config/teams.js';
 import { ACTIVITY } from '../activities.js';
 import { allChampionStates } from '../gameState.js';
 import { distanceBetween } from '../geometry.js';
 import { laneLength, pointAtLaneDistance } from '../laneGeometry.js';
 import { LANE_BY_ROLE } from '../mapLayout.js';
-import { isShovingWave } from '../stances.js';
 import { frontStructureOf, laneDistanceOfStructure } from '../structures.js';
-import { grantExperience, grantGold } from './economy.js';
-import {
-  removeDeadMinions, shootMinionsFromTowers, spawnDueMinions, updateMinionCombat, updateWaveFront, weakestEnemyAtFront,
-} from './minionSystem.js';
-
-const TEAMS = [TEAM.BLUE, TEAM.RED];
+import { clearWaveWithShovers, grantLaneExperience, resolveLastHits } from './laneFarmSystem.js';
+import { updateLanePressure } from './lanePressure.js';
+import { removeDeadMinions, shootMinionsFromTowers, spawnDueMinions, updateMinionCombat, updateWaveFront } from './minionSystem.js';
 
 export { directionTowardEnemy } from '../laneGeometry.js';
 
 export function updateLanes(gameState, tickSeconds) {
   for (const laneState of gameState.lanes) {
     const limits = waveFrontLimits(gameState, laneState);
-    const championsAtWave = championsAtWaveByTeam(gameState, laneState);
+    const championsAtWave = championsNearWave(gameState, laneState, FARM_RANGE);
+    updateLanePressure(gameState, laneState);
     spawnDueMinions(gameState, laneState);
     updateMinionCombat(gameState, laneState, { limits, tickSeconds });
     shootMinionsFromTowers(gameState, laneState, tickSeconds);
     clearWaveWithShovers(laneState, championsAtWave, tickSeconds);
-    resolveFarming(laneState, championsAtWave, tickSeconds);
-    grantLaneExperience(removeDeadMinions(laneState), championsAtWave);
+    resolveLastHits(gameState, laneState, championsAtWave);
+    grantLaneExperience(removeDeadMinions(laneState), championsNearWave(gameState, laneState, EXPERIENCE_RANGE));
     updateWaveFront(laneState, { limits, tickSeconds });
   }
 }
@@ -58,62 +51,17 @@ export function waveFrontLimits(gameState, laneState) {
   };
 }
 
-// A shoving champion hits the enemy wave hard, so their minions die first and ours walk on.
-function clearWaveWithShovers(laneState, championsAtWave, tickSeconds) {
-  for (const team of TEAMS) {
-    for (const shover of championsAtWave[team].filter(isShovingWave)) {
-      const target = weakestEnemyAtFront(laneState, shover.team);
-      if (target) {
-        target.health -= SHOVE_CLEAR_DAMAGE_PER_SECOND * tickSeconds;
-      }
-    }
-  }
-}
-
-// Supports leave the farm to their carry. A farmer takes a minion now and then, at a set rate.
-function resolveFarming(laneState, championsAtWave, tickSeconds) {
-  for (const team of TEAMS) {
-    for (const farmer of championsAtWave[team].filter(championState => championState.role !== ROLE.SUPPORT)) {
-      farmNearestMinion(laneState, farmer, tickSeconds);
-    }
-  }
-}
-
-function farmNearestMinion(laneState, farmer, tickSeconds) {
-  const target = weakestEnemyAtFront(laneState, farmer.team);
-  if (!target) {
-    return;
-  }
-  farmer.farmProgress += FARM_KILLS_PER_SECOND * (isShovingWave(farmer) ? SHOVE_FARM_MULTIPLIER : 1) * tickSeconds;
-  if (farmer.farmProgress >= 1) {
-    farmer.farmProgress -= 1;
-    target.health = 0;
-    grantGold(farmer, MINION_GOLD);
-  }
-}
-
-// Experience goes to the enemies of a dead minion who stand near the wave, whoever killed it.
-function grantLaneExperience(deadMinions, championsAtWave) {
-  for (const { team } of deadMinions) {
-    const receivers = championsAtWave[opposingTeam(team)];
-    const experienceShare = receivers.length > 1 ? SHARED_LANE_EXPERIENCE_RATIO : 1;
-    for (const receiver of receivers) {
-      grantExperience(receiver, MINION_EXPERIENCE * experienceShare);
-    }
-  }
-}
-
-function championsAtWaveByTeam(gameState, laneState) {
+// The champions playing this lane (or grouped on it) who stand within range of the wave.
+function championsNearWave(gameState, laneState, range) {
   const frontPosition = waveFrontPosition(laneState);
-  const championsAtWave = { [TEAM.BLUE]: [], [TEAM.RED]: [] };
+  const championsNear = { [TEAM.BLUE]: [], [TEAM.RED]: [] };
   for (const championState of allChampionStates(gameState)) {
     const isInThisLane = LANE_BY_ROLE[championState.role] === laneState.lane;
-    const isNearWave = distanceBetween(championState.position, frontPosition) <= FARM_RANGE;
     const isLaningHere = isInThisLane && championState.activity === ACTIVITY.LANING;
     const isGroupedHere = championState.activeAction?.kind === ACTION_KIND.GROUP && championState.activeAction.lane === laneState.lane;
-    if ((isLaningHere || isGroupedHere) && !championState.inFightId && isNearWave) {
-      championsAtWave[championState.team].push(championState);
+    if ((isLaningHere || isGroupedHere) && !championState.inFightId && distanceBetween(championState.position, frontPosition) <= range) {
+      championsNear[championState.team].push(championState);
     }
   }
-  return championsAtWave;
+  return championsNear;
 }

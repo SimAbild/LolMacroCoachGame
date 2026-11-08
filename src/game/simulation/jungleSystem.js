@@ -1,6 +1,6 @@
 import { ROLE } from '../../config/roles.js';
 import {
-  ARRIVAL_DISTANCE, JUNGLE_CAMP_CLEAR_SECONDS, JUNGLE_CAMP_EXPERIENCE, JUNGLE_CAMP_GOLD, JUNGLE_CAMP_HEALTH_COST,
+  ARRIVAL_DISTANCE, JUNGLE_CAMP_CLEAR_SECONDS, JUNGLE_CAMP_CREEP_SCORE, JUNGLE_CAMP_EXPERIENCE, JUNGLE_CAMP_GOLD, JUNGLE_CAMP_HEALTH_COST,
   JUNGLE_CAMP_RESPAWN_SECONDS, MINIMUM_HEALTH_WITHOUT_COMBAT,
 } from '../../config/gameRules.js';
 import { ACTIVITY } from '../activities.js';
@@ -46,6 +46,7 @@ function clearCampIfInRange(gameState, jungler, tickSeconds) {
   camp.respawnAtSeconds = gameState.gameSeconds + JUNGLE_CAMP_RESPAWN_SECONDS;
   grantGold(jungler, JUNGLE_CAMP_GOLD);
   grantExperience(jungler, JUNGLE_CAMP_EXPERIENCE);
+  jungler.creepScore += JUNGLE_CAMP_CREEP_SCORE;
   jungler.healthRatio = Math.max(MINIMUM_HEALTH_WITHOUT_COMBAT, jungler.healthRatio - JUNGLE_CAMP_HEALTH_COST);
   jungler.targetCamp = null;
 }

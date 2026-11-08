@@ -177,7 +177,7 @@ function createMovement(team) {
 }
 
 function createScore() {
-  return { kills: 0, deaths: 0, assists: 0, killStreak: 0, deathStreak: 0, farmProgress: 0 };
+  return { kills: 0, deaths: 0, assists: 0, killStreak: 0, deathStreak: 0, creepScore: 0, nextLastHitAtSeconds: 0, steppingInUntilSeconds: 0 };
 }
 
 function createCombatState() {
@@ -206,6 +206,7 @@ function createLaneState(lane) {
     spawnQueue: [],
     nextMinionId: 1,
     towerShotCooldowns: { [TEAM.BLUE]: 0, [TEAM.RED]: 0 },
+    pressureForBlue: 0,
     nextWaveSeconds: MINION_FIRST_SPAWN_SECONDS,
     wavesSpawned: 0,
   };

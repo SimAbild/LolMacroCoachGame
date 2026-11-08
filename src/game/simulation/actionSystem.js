@@ -6,7 +6,7 @@ import {
   TRINKET_RECHARGE_SECONDS, WARD_DURATION_SECONDS, WARD_PLACE_DISTANCE,
 } from '../../config/combatRules.js';
 import {
-  CHAMPION_MOVE_SPEED, JUNGLE_CAMP_CLEAR_SECONDS, JUNGLE_CAMP_EXPERIENCE, JUNGLE_CAMP_GOLD, JUNGLE_CAMP_RESPAWN_SECONDS, MAX_PUSH_VALUE,
+  CHAMPION_MOVE_SPEED, JUNGLE_CAMP_CLEAR_SECONDS, JUNGLE_CAMP_CREEP_SCORE, JUNGLE_CAMP_EXPERIENCE, JUNGLE_CAMP_GOLD, JUNGLE_CAMP_RESPAWN_SECONDS, MAX_PUSH_VALUE,
 } from '../../config/gameRules.js';
 import { ACTIVITY } from '../activities.js';
 import { EVENT_KIND, addEvent } from '../events.js';
@@ -359,6 +359,7 @@ function stealCamp(gameState, championState, { action, tickSeconds }) {
   camp.respawnAtSeconds = gameState.gameSeconds + JUNGLE_CAMP_RESPAWN_SECONDS;
   grantGold(championState, JUNGLE_CAMP_GOLD);
   grantExperience(championState, JUNGLE_CAMP_EXPERIENCE);
+  championState.creepScore += JUNGLE_CAMP_CREEP_SCORE;
   addEvent(gameState, { kind: EVENT_KIND.CALL, team: championState.team, text: `${championState.champion.name} stole an enemy camp` });
   endAction(gameState, championState);
 }
