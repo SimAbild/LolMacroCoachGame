@@ -47,7 +47,7 @@ const CARD_STEPS = [
     title: 'Your champions',
     target: '.team-column--blue',
     body: 'Each card shows health, mana, level, CS (minions killed), gold and items, what the champion is doing right now, '
-      + 'and below it the calls you can give.',
+      + 'and the calls you can give.',
   }),
   dialogStep('rift.enemies', {
     screen: GAME,

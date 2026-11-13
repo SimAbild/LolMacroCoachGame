@@ -92,6 +92,19 @@
     color var(--duration-fast) var(--ease-out),
     box-shadow var(--duration-fast) var(--ease-out),
     transform var(--duration-fast) var(--ease-out);
+
+  /* Game screen layout */
+  --game-column-gap: 14px;
+  --side-column-min: 250px;
+  --side-column-max: 300px;
+  /* The player's own column may grow this wide, so its cards fit their calls beside the portrait.
+     Keep it above the 560px in the @container rule for wide cards, which cannot read a variable. */
+  --own-column-max: 580px;
+  --card-info-width: 280px;
+  /* Less than everything above and below the map (157px measured). The map is a square as tall as
+     the room it gets, so "viewport height minus this" is a width the map never needs more than.
+     The slack lets the team-call row grow a little without making the map shorter. */
+  --game-chrome-height: 130px;
 }
 
 * { box-sizing: border-box; }
@@ -503,8 +516,24 @@ h1, h2 { font-family: var(--font-display); margin: 0; letter-spacing: 0.02em; }
 .scoreboard__paused[hidden] { display: none; }
 @keyframes paused-blink { 50% { opacity: 0.55; } }
 
-.game-body { display: grid; grid-template-columns: minmax(250px, 300px) 1fr minmax(250px, 300px); gap: 14px; min-height: 0; }
-.team-column { display: flex; flex-direction: column; gap: 8px; min-height: 0; overflow-y: auto; }
+/* The map keeps a width equal to its height before the player's column may grow past the normal
+   maximum. On a window too narrow for that, the middle falls back to what is left between two
+   normal columns, which is the layout from before the player's column could grow. */
+.game-body {
+  --blue-column-max: var(--side-column-max);
+  --red-column-max: var(--side-column-max);
+  --map-min-width: min(100vh - var(--game-chrome-height), 100% - 2 * var(--side-column-max) - 2 * var(--game-column-gap));
+  display: grid;
+  grid-template-columns:
+    minmax(var(--side-column-min), var(--blue-column-max))
+    minmax(var(--map-min-width), 1fr)
+    minmax(var(--side-column-min), var(--red-column-max));
+  gap: var(--game-column-gap);
+  min-height: 0;
+}
+.game-screen[data-player-side="blue"] .game-body { --blue-column-max: var(--own-column-max); }
+.game-screen[data-player-side="red"] .game-body { --red-column-max: var(--own-column-max); }
+.team-column { display: flex; flex-direction: column; gap: 8px; min-height: 0; overflow-y: auto; container-type: inline-size; }
 .map-area { display: flex; flex-direction: column; gap: 10px; min-height: 0; min-width: 0; }
 .map-frame { position: relative; flex: 1; min-height: 0; display: flex; }
 .map-host { flex: 1; min-height: 0; display: grid; place-items: center; }
@@ -669,6 +698,28 @@ h1, h2 { font-family: var(--font-display); margin: 0; letter-spacing: 0.02em; }
 .action-chip:hover, .action-chip:focus-visible { border-color: var(--color-gold); color: var(--color-gold); }
 .action-chip[aria-expanded="true"], .action-chip.is-active { border-color: var(--color-gold); color: var(--color-gold); background: var(--color-gold-surface); }
 .help-targets .action-chip { background: var(--color-gold-surface); border-color: var(--color-gold-muted); color: var(--color-gold); }
+.champion-card__calls { display: flex; flex-direction: column; gap: 5px; }
+
+/* A wide column: the calls sit beside the portrait and bars instead of below them, so five cards
+   fit the height of the screen. The portrait stays on the outer edge, as in the stacked card.
+   560px is --card-info-width plus room for the widest row of calls; it must stay below
+   --own-column-max minus a scrollbar, or the wide layout never applies. */
+@container (min-width: 560px) {
+  .champion-card.is-own {
+    display: grid;
+    grid-template-columns: var(--card-info-width) minmax(0, 1fr);
+    grid-template-rows: auto 1fr;
+    grid-template-areas: "info calls" "status calls";
+    column-gap: 10px;
+  }
+  .champion-card--red.is-own {
+    grid-template-columns: minmax(0, 1fr) var(--card-info-width);
+    grid-template-areas: "calls info" "calls status";
+  }
+  .champion-card.is-own .champion-panel { grid-area: info; }
+  .champion-card.is-own .champion-card__status { grid-area: status; align-self: start; }
+  .champion-card.is-own .champion-card__calls { grid-area: calls; }
+}
 
 /* Narrow screens: the map goes on top at full width and the two teams sit side by side below it.
    The page scrolls instead of squeezing everything into one screen height. */
