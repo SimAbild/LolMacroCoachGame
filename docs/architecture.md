@@ -22,7 +22,7 @@ PixiJS (in `vendor/`) draws the map; everything else is DOM and CSS.
 | `src/render` | PixiJS layers for the map | Yes (canvas) |
 | `src/screens` | Home, matchmaking, draft, game, end | Yes |
 | `src/tutorial` | The guided game: runner, director, chapters, autopilot | Only `tutorial/ui` |
-| `src/ui` | Small DOM helpers: elements, dialog, toast, tooltip | Yes |
+| `src/ui` | Small DOM helpers: elements, dialog, toast, tooltip, the fullscreen button, the shortcut guard | Yes |
 | `tools` | Node scripts that run the simulation headless | No |
 
 The first four rows plus `src/game/simulation` run unchanged in Node. That is what makes the
@@ -34,6 +34,15 @@ checks in `tools/` possible.
 `mount...(root, context)` that builds its DOM and returns a clean-up function.
 
 home -> matchmaking -> draft (then the swap phase) -> game -> end
+
+The fullscreen button (`src/ui/fullscreenToggle.js`) is not part of a screen: `src/main.js` mounts
+it once, so it stays through every screen change.
+
+## Size and scale
+
+Every size in the stylesheets is in `rem`, and the root font size grows with the viewport beyond
+1920×911 (`--design-width`, `--design-height`), so the whole UI and the map scale together. See
+`docs/adr/0002-ui-scaling-with-rem.md` for the rule and its exceptions.
 
 ## From a click to the map
 
