@@ -42,7 +42,7 @@ every task.
     | `baron.contest` | Contest objective (team call) | 6.0 on every side |
 
   - `grep HOLE_PADDING src`: 0 hits. The four checks pass.
-- [x] built  [x] tests shown  [ ] reviewed  [ ] approved
+- [x] built  [x] tests shown  [ ] reviewed  [x] approved
 
 ## Task 2: Give the top bar a tighter ring
 
@@ -86,7 +86,7 @@ every task.
     `dragon-taken.jpg`. The automated Chrome's window was minimized, so the page could not be
     shown at full width; see PAPERCUTS.
   - The four checks pass.
-- [x] built  [x] tests shown  [ ] reviewed  [ ] approved
+- [x] built  [x] tests shown  [ ] reviewed  [x] approved
 
 ## Task 3: Show Auto-pause as unavailable in the guided game
 
@@ -129,7 +129,7 @@ every task.
     on big moments." Screenshot: `screenshots/wave-tempo-auto-pause.jpg`, with the dimmed button
     inside its ring.
   - The four checks pass.
-- [x] built  [x] tests shown  [ ] reviewed  [ ] approved
+- [x] built  [x] tests shown  [ ] reviewed  [x] approved
 
 ## Fixes after the review (2026-11-15)
 
@@ -152,7 +152,7 @@ The reviewer said CHANGES NEEDED, for the docs only. It found no bug in the code
   - `--opacity-disabled: 0.45` is a token, used by `.button:disabled` and the unavailable
     Auto-pause.
   - `docs/architecture.md` says the director touches the DOM too.
-  - AC1 states the 1/64 px tolerance, marked for Simon to confirm.
+  - AC1 states the 1/64 px tolerance. Simon confirmed it on 2026-11-15.
 - After the fixes: the padding is still 6.0 px on `baron.contest` and 2.0 px on `rift.clock`, with
   no warning. Auto-pause is unavailable in the guided game. The four checks pass.
 
@@ -162,3 +162,6 @@ The reviewer said CHANGES NEEDED, for the docs only. It found no bug in the code
 - [ ] Reviewer agent has read the whole diff against the spec
 - [x] ADR written, if a decision was made: no new ADR, ADR 0002 amended (see above)
 - [x] README milestone log updated, if the feature is a milestone (it is not)
+- [x] Simon: the tasks approved, AC9 and the AC1 tolerance. He approved in chat on 2026-11-15 and
+      asked for the boxes to be ticked in his name. "Reviewed" waits for the reviewer's second
+      pass.

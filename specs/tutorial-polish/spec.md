@@ -25,28 +25,29 @@ per area, and Auto-pause shows as unavailable in the guided game.
 
 Each one must be checkable: a `tools/check*.mjs` result, a number, or something to see in the browser.
 
-- [ ] AC1 (R1): On `rift.clock` and `wave.tempo`, the top of the ring around the clock row is at or
+- [x] AC1 (R1): On `rift.clock` and `wave.tempo`, the top of the ring around the clock row is at or
       below the bottom of the kill score's box. Measured with `getBoundingClientRect` at 1920×911
       and 2560×1440. The ring's soft glow may overlap; its solid border may not.
       Allowed within 1/64 px, the browser's layout unit.
-      *(Tolerance added after the review, for Simon to confirm: at 2560×1440 the row gap rounds
-      to 2.65625 px while the padding is 2.6667 px.)*
-- [ ] AC2 (R2): On `rift.clock` and `wave.tempo`, the ring around Slow-mo or Auto-pause keeps at
+      *(Tolerance added after the review; Simon confirmed it on 2026-11-15. At 2560×1440 the row
+      gap rounds to 2.65625 px while the padding is 2.6667 px.)*
+- [x] AC2 (R2): On `rift.clock` and `wave.tempo`, the ring around Slow-mo or Auto-pause keeps at
       least 2 px of clear space to each neighbouring button, the fullscreen button included.
       Measured at 1920×911 and 2560×1440.
-- [ ] AC3 (R3): At 1920×911, the padding is still 6 px (ring box minus target box) for a champion
+- [x] AC3 (R3): At 1920×911, the padding is still 6 px (ring box minus target box) for a champion
       card step, a map target and a team-call step.
-- [ ] AC4 (R4): `:root` holds the token, the top bar sets its own value, and
+- [x] AC4 (R4): `:root` holds the token, the top bar sets its own value, and
       `grep HOLE_PADDING src` finds nothing.
-- [ ] AC5 (R5): In the guided game, Auto-pause has `aria-disabled="true"`. After a click,
+- [x] AC5 (R5): In the guided game, Auto-pause has `aria-disabled="true"`. After a click,
       `aria-pressed` is still `false`, the title gives the reason, and the console shows no error.
       In a normal game (game screen mounted with `NO_TUTORIAL`), a click still sets `aria-pressed`
       to `true`.
-- [ ] AC6 (R6): A screenshot of `wave.tempo` shows the new text.
-- [ ] AC7: Screenshots of `rift.scoreboard`, `rift.clock`, `wave.tempo` and `dragon.taken` show the
+- [x] AC6 (R6): A screenshot of `wave.tempo` shows the new text.
+- [x] AC7: Screenshots of `rift.scoreboard`, `rift.clock`, `wave.tempo` and `dragon.taken` show the
       rings clear of their neighbours.
-- [ ] AC8: All four checks in `tools/` pass, output shown.
-- [ ] AC9: Own look; Simon looks at the screenshots and accepts them.
+- [x] AC8: All four checks in `tools/` pass, output shown.
+- [x] AC9: Own look; Simon looks at the screenshots and accepts them. *(Simon approved in chat on
+      2026-11-15 and asked for this to be ticked in his name.)*
 
 ## Out of scope
 
