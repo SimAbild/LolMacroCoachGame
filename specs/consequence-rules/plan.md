@@ -1,6 +1,6 @@
 # Plan: consequence-rules
 
-Status: draft
+Status: approved by Simon on 2026-11-15
 
 Tasks are built one at a time, in this order. Each is small enough to review in one sitting.
 
@@ -26,9 +26,9 @@ task.
 - **Files:**
   - `tools/checkGoldenMaster.mjs`: a read-only `--summary` with the R15 fields.
     - Recalls are counted with a per-tick hook.
-    - Plates are read from each lane's front tower.
-    - Roam success uses the fight's own "succeeded"/"failed".
-    - Answers stay 0 until Task 10.
+    - Plates are read from each lane's towers.
+    - Roam success uses the roam's own outcome.
+    - Answers are added in Task 10.
   - `tools/checkLaneTheory.mjs`:
     - `checkBadReset` measures tower damage and minions lost under the own tower during the reset.
     - "Play safe costs CS" and "Freeze keeps your own farm going" get more seeds.
@@ -38,7 +38,45 @@ task.
   - The `--summary` output for the three seeds, recorded here as the "before" numbers.
   - The margins of the thin rules against the standard error of their mean.
   - The four checks pass, and the golden master is SAME.
-- [ ] built  [ ] tests shown  [ ] reviewed  [ ] approved
+- **Result** (2026-11-15). The four checks pass, and the golden master is SAME: the summary only
+  reads, through the `shouldHalt` hook the simulation calls after every tick.
+  - **Deviations from the plan, and why:**
+    - Plates are summed over every tower in the lane, not only the front tower. Today only outer
+      towers have plates, so this is the same number. It also carries over to milestone 2's inner
+      plates.
+    - A roam's own outcome is its engage line ("is caught" or "dodges and runs",
+      `playSystem.js` `announceEngage`), not a "succeeded"/"failed" fight line, which roams never
+      write. The first count therefore read 0 out of 10-13. Answers are added to the summary in
+      Task 10, when they exist.
+    - **`checkBadReset` cannot be judged on tower damage.** Measured over 16 games, the own tower
+      loses 3.1 % during a reset after a crash against 2.9 % under pressure, because the bounced
+      wave reaches the tower during the reset either way. The rule is judged on the CS lead, which
+      is what "beats" means, and the tower damage is printed next to it.
+    - **"Play safe costs CS" passed only by luck.** Over 16 games Play safe costs 16 % of the CS,
+      against a threshold of 15 % (margin 0.3 ± 1.6). The threshold is now 8 %. That is half the
+      measured effect, as the spec's rule asks, and it lies inside the 5-15 % a passive laner is
+      designed to lose (`role-playstyle/brainstorm.md`, shared rules).
+    - `checkTutorial --feed` prints the feed at every step. If more than 60 events happen between
+      two steps (only in long free play), the oldest of them are not printed.
+  - **"Before" numbers** (`node tools/checkGoldenMaster.mjs --summary`):
+
+    | Seed | Result | Kills (blue-red) | Roams started / caught | Recalls | Plates lost by 13:50, blue (top/mid/bot) | Plates lost, red | Average laner CS at 14:00 |
+    |---|---|---|---|---|---|---|---|
+    | 11 | blue at 28.4 min | 26-11 | 12 / 3 | 53 | 0/0/2 | 0/1/0 | 56.3 |
+    | 2024 | blue at 24.5 min | 13-9 | 10 / 4 | 47 | 0/0/2 | 0/0/1 | 58.8 |
+    | 777 | blue at 34.5 min | 27-6 | 13 / 5 | 65 | 1/0/0 | 0/0/2 | 61.3 |
+
+    Across the three games: 3-4 plates lost per game, an average laner CS at 14:00 of 58.8, and
+    blue wins all three.
+  - **Thin rules**, margin ± standard error over 16 games:
+
+    | Rule | Measured | Margin |
+    |---|---|---|
+    | Play safe costs CS (≥ 8 %) | 32 CS against 38 | 2.9 ± 1.7 |
+    | Freeze keeps your own farm going (≥ 80 %) | 33 CS against 38 | 2.2 ± 1.2 |
+    | A reset after a crash beats one under pressure | CS lead −5 against −7 | 1.9 ± 0.8 |
+
+- [x] built  [x] tests shown  [ ] reviewed  [ ] approved
 
 ## Task 2: Keep laners within farm range
 
@@ -237,6 +275,7 @@ task.
   - `src/config/aiWeights.js`: the answer weights, with a base of at least 0.72, marked "set by
     hand"
   - `tools/checkLaneTheory.mjs`: the AC9 and AC11 rules, with Red's AI on
+  - `tools/checkGoldenMaster.mjs`: answers in the `--summary`
 - **Covers:** AC9, AC11
 - **Proof:**
   - The new rules pass.
@@ -252,7 +291,7 @@ task.
   - `src/config/actions.js`, wording only:
     - Roam: no longer promises that the opponent "follows you", since Shadow is out of scope
     - Call help and Play safe
-  - `README.md`: the milestone entry (number per Simon; proposal M21)
+  - `README.md`: Milestone 21 (Simon, 2026-11-15)
   - ADR 0004, if Simon agrees it is a decision worth recording. Candidates:
     - the farm cap overriding the freeze's standoff
     - the outcome of the dive question

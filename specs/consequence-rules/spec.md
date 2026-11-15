@@ -1,6 +1,6 @@
 # Spec: consequence-rules
 
-Status: draft
+Status: approved by Simon on 2026-11-15
 
 Milestone 1 of the macro roadmap (`specs/role-playstyle/brainstorm.md`). Designed by the
 brainstorm agent (`brainstorm.md`) and judged by the LoL judge (`judge.md`, APPROVED WITH
@@ -233,8 +233,8 @@ Simon approves before merge.
 
 ## Open questions
 
-- **The milestone number in the README.** M20 was reserved on 2026-11-08 for calibrating against an
-  mp4 that has not come. Proposal: this is Milestone 21, unless Simon wants M20.
+- ~~The milestone number in the README.~~ Settled: Milestone 21 (Simon, 2026-11-15). M20 stays
+  reserved for calibrating against an mp4.
 - One decision is planned inside the work: the dive question (R5). Task 5 always stops to show
   Simon the death numbers.
 - One decision may come up: if the farm cap breaks one of the freeze rules (R1).

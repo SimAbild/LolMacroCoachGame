@@ -1,8 +1,10 @@
 // Plays the guided tutorial headless with the same steps, runner and commands as the browser,
 // giving every expected action itself, and checks that it plays out the way the text promises.
-// Run: node tools/checkTutorial.mjs [--draft-only] [--twice]   (needs network for Data Dragon)
+// Run: node tools/checkTutorial.mjs [--draft-only] [--twice] [--feed]   (needs network for Data Dragon)
 //   --draft-only  stop after the draft and swap chapters
 //   --twice       play it twice and check that both runs are identical (determinism)
+//   --feed        also print the kill feed as the game writes it, to read whether the chapter texts
+//                 still match what happens
 import { loadGameData } from '../src/data/gameDataRepository.js';
 import { ROLE } from '../src/config/roles.js';
 import { BUILD_TYPE } from '../src/config/buildTypes.js';
@@ -16,6 +18,7 @@ import { hasWard } from '../src/tutorial/predicates.js';
 
 const AI_TEAM = opposingTeam(TUTORIAL_SIDE);
 const isDraftOnly = process.argv.includes('--draft-only');
+const isFeedShown = process.argv.includes('--feed');
 // Branches the lessons are built for. Taking another one is not wrong in the browser (the text
 // covers it), but here it means the setup no longer produces the intended situation.
 const EXPECTED_STEPS = Object.freeze([
@@ -39,7 +42,7 @@ console.log(problems.length === 0 ? 'OK: the tutorial plays through as written' 
 process.exitCode = problems.length === 0 ? 0 : 1;
 
 function playTutorial() {
-  const run = { trace: [], problems: [] };
+  const run = { trace: [], problems: [], seenEvents: new WeakSet() };
   const autopilot = createAutopilot({
     steps: createTutorialScript(scenario),
     scenario,
@@ -50,15 +53,31 @@ function playTutorial() {
   });
   autopilot.start();
   autopilot.playUntil(step => isDraftOnly && step.screen !== 'draft');
+  printNewFeedLines(run, autopilot.gameState);
   run.problems.push(...checkOutcome(run, autopilot));
   return run;
 }
 
 function traceStep(run, step, { gameState }) {
+  printNewFeedLines(run, gameState);
   const time = gameState ? `tick ${gameState.tickCount} | ${formatGameTime(gameState.gameSeconds)}` : 'draft';
   const line = `${step.id.padEnd(20)} | ${step.kind.padEnd(6)} | ${time}`;
   run.trace.push(line);
   console.log(line);
+}
+
+// The feed keeps only its latest events, so it is read at every step, oldest first. If more events
+// than the feed keeps happen between two steps (possible only in long free play), the oldest of
+// them are not printed.
+function printNewFeedLines(run, gameState) {
+  if (!isFeedShown || !gameState) {
+    return;
+  }
+  const newEvents = gameState.events.filter(event => !run.seenEvents.has(event));
+  for (const event of newEvents) {
+    run.seenEvents.add(event);
+    console.log(`    feed ${formatGameTime(event.gameSeconds)} [${event.kind}] ${event.text}`);
+  }
 }
 
 function checkWait(run, step, context) {

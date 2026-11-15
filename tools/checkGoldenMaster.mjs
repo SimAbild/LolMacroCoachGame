@@ -1,8 +1,10 @@
 // Golden master for refactoring: plays a few seeded games to the end (both teams AI, plus some
 // scripted player calls) and compares a fingerprint of each finished game with a saved baseline.
 // A refactor that keeps the behaviour keeps every fingerprint. Run:
-//   node tools/checkGoldenMaster.mjs           compare with tools/goldenMaster.json
-//   node tools/checkGoldenMaster.mjs --update  save a new baseline (only after an intended change)
+//   node tools/checkGoldenMaster.mjs            compare with tools/goldenMaster.json
+//   node tools/checkGoldenMaster.mjs --update   save a new baseline (only after an intended change)
+//   add --summary to either to print what happened in each game, so a changed game can be judged
+//   before its baseline is saved
 // Needs network for Data Dragon; the baseline is only valid for the patch it was saved on.
 import { createHash } from 'node:crypto';
 import { readFileSync, writeFileSync } from 'node:fs';
@@ -11,7 +13,11 @@ import { createLoadoutWithAutomaticRoles } from '../src/draft/teamLoadout.js';
 import { allChampionStates, createInitialGameState } from '../src/game/gameState.js';
 import { createSimulation } from '../src/game/simulation/simulation.js';
 import { executeCommand } from '../src/game/playerCommands.js';
+import { ACTIVITY } from '../src/game/activities.js';
+import { EVENT_KIND } from '../src/game/events.js';
+import { STRUCTURE_TYPE } from '../src/game/mapLayout.js';
 import { INTENT } from '../src/core/intents.js';
+import { ROLE } from '../src/config/roles.js';
 import { TEAM } from '../src/config/teams.js';
 
 const BASELINE_PATH = new URL('./goldenMaster.json', import.meta.url);
@@ -28,9 +34,16 @@ const SCRIPTED_CALLS = Object.freeze(new Map([
   [2900, { type: INTENT.TEAM_CALL, callId: 'contestObjective' }],
   [9000, { type: INTENT.TEAM_CALL, callId: 'groupMid' }],
 ]));
+// The summary's snapshots: plates just before they fall at 14:00, and the laners' CS at 14:00.
+const PLATES_SNAPSHOT_SECONDS = 830;
+const CS_SNAPSHOT_SECONDS = 840;
+const LANER_ROLES = Object.freeze([ROLE.TOP, ROLE.MID, ROLE.BOT]);
+const LANES = Object.freeze(['top', 'mid', 'bot']);
+const TEAMS = Object.freeze([TEAM.BLUE, TEAM.RED]);
 
 const gameData = await loadGameData();
-const fingerprints = GAMES.map(game => ({ seed: game.seed, ...fingerprintOf(playToTheEnd(game)) }));
+const playedGames = GAMES.map(game => ({ seed: game.seed, ...playToTheEnd(game) }));
+const fingerprints = playedGames.map(({ seed, gameState }) => ({ seed, ...fingerprintOf(gameState) }));
 const isUpdate = process.argv.includes('--update');
 
 if (isUpdate) {
@@ -39,6 +52,9 @@ if (isUpdate) {
   fingerprints.forEach(printFingerprint);
 } else {
   process.exitCode = compareWithBaseline(fingerprints) ? 0 : 1;
+}
+if (process.argv.includes('--summary')) {
+  playedGames.forEach(printSummary);
 }
 
 function playToTheEnd({ seed, blue, red }) {
@@ -49,14 +65,94 @@ function playToTheEnd({ seed, blue, red }) {
     seed,
     aiControlledTeams: [TEAM.BLUE, TEAM.RED],
   });
-  const simulation = createSimulation(gameState, { shouldHalt: state => SCRIPTED_CALLS.has(state.tickCount) });
+  const observer = createObserver(gameState);
+  // The observer only reads, so watching every tick cannot change the game or its fingerprint.
+  const simulation = createSimulation(gameState, { shouldHalt: state => observer.observe(state) || SCRIPTED_CALLS.has(state.tickCount) });
   while (!gameState.winner && gameState.tickCount < MAX_TICKS) {
     const isHalted = simulation.advance(1);
     if (isHalted) {
       executeCommand(gameState, SCRIPTED_CALLS.get(gameState.tickCount));
     }
   }
-  return gameState;
+  return { gameState, observations: observer.observations };
+}
+
+// Counts what the fingerprint cannot show. The feed keeps only its latest events, and recalls
+// leave no trace at all, so both are counted as they happen, every tick.
+function createObserver(gameState) {
+  const observations = { roams: 0, roamsWon: 0, recalls: 0, platesLost: null, csAtFourteen: null };
+  const startingPlates = platesPerTower(gameState);
+  const seenPlayIds = new Set();
+  const seenEvents = new WeakSet();
+  const recallingIds = new Set();
+  function observe(state) {
+    countNewRoams(state, seenPlayIds, observations);
+    countNewRoamResults(state, seenEvents, observations);
+    countNewRecalls(state, recallingIds, observations);
+    takeSnapshots(state, startingPlates, observations);
+    return false;
+  }
+  return { observe, observations };
+}
+
+function countNewRoams(gameState, seenPlayIds, observations) {
+  for (const play of gameState.plays.filter(candidate => !seenPlayIds.has(candidate.id))) {
+    seenPlayIds.add(play.id);
+    observations.roams += play.label.startsWith('Roam') ? 1 : 0;
+  }
+}
+
+// New events are always at the end of the feed, so the scan stops at the first one already seen.
+// A roam's own outcome is its engage line (playSystem.js announceEngage): the target is caught,
+// or dodges and runs.
+function countNewRoamResults(gameState, seenEvents, observations) {
+  for (let index = gameState.events.length - 1; index >= 0 && !seenEvents.has(gameState.events[index]); index -= 1) {
+    const event = gameState.events[index];
+    seenEvents.add(event);
+    const isRoamCatch = event.kind === EVENT_KIND.FIGHT && event.text.startsWith('Roam') && event.text.includes(' is caught');
+    observations.roamsWon += isRoamCatch ? 1 : 0;
+  }
+}
+
+function countNewRecalls(gameState, recallingIds, observations) {
+  for (const championState of allChampionStates(gameState)) {
+    const isRecalling = championState.activity === ACTIVITY.RECALLING;
+    if (isRecalling && !recallingIds.has(championState.id)) {
+      observations.recalls += 1;
+    }
+    if (isRecalling) {
+      recallingIds.add(championState.id);
+    } else {
+      recallingIds.delete(championState.id);
+    }
+  }
+}
+
+function takeSnapshots(gameState, startingPlates, observations) {
+  if (!observations.platesLost && gameState.gameSeconds >= PLATES_SNAPSHOT_SECONDS) {
+    observations.platesLost = platesLostByLane(gameState, startingPlates);
+  }
+  if (!observations.csAtFourteen && gameState.gameSeconds >= CS_SNAPSHOT_SECONDS) {
+    observations.csAtFourteen = Object.fromEntries(TEAMS.map(team => [team, LANER_ROLES.map(role => championWithRole(gameState, team, role).creepScore)]));
+  }
+}
+
+function platesPerTower(gameState) {
+  return new Map(TEAMS.flatMap(team => towersOf(gameState, team).map(tower => [tower, tower.platesLeft])));
+}
+
+// Summed over every tower in the lane, so plates on inner towers would count too.
+function platesLostByLane(gameState, startingPlates) {
+  return Object.fromEntries(TEAMS.map(team => [team, Object.fromEntries(LANES.map(lane => [lane,
+    towersOf(gameState, team).filter(tower => tower.lane === lane).reduce((lost, tower) => lost + startingPlates.get(tower) - tower.platesLeft, 0)]))]));
+}
+
+function towersOf(gameState, team) {
+  return gameState.teams[team].structures.filter(structure => structure.type === STRUCTURE_TYPE.TOWER);
+}
+
+function championWithRole(gameState, team, role) {
+  return gameState.teams[team].champions.find(championState => championState.role === role);
 }
 
 function loadoutFor(championNames) {
@@ -113,4 +209,20 @@ function compareWithBaseline(currentFingerprints) {
 
 function printFingerprint({ seed, winner, minutes, hash }) {
   console.log(`seed ${String(seed).padEnd(5)} ${winner} won at ${minutes} min  ${hash}`);
+}
+
+function printSummary({ seed, gameState, observations }) {
+  const { roams, roamsWon, recalls, platesLost, csAtFourteen } = observations;
+  const kills = TEAMS.map(team => gameState.teams[team].kills).join('-');
+  console.log(`\nseed ${seed}: ${gameState.winner} won at ${(gameState.gameSeconds / 60).toFixed(1)} min, kills ${kills} (blue-red)`);
+  console.log(`  roams started ${roams}, target caught in ${roamsWon}; recalls ${recalls}`);
+  for (const team of TEAMS) {
+    const plates = platesLost ? LANES.map(lane => `${lane} ${platesLost[team][lane]}`).join(', ') : 'game ended before 13:50';
+    const cs = csAtFourteen ? LANER_ROLES.map((role, index) => `${role} ${csAtFourteen[team][index]}`).join(', ') : 'game ended before 14:00';
+    console.log(`  ${team}: plates lost by 13:50 ${plates}; CS at 14:00 ${cs}`);
+  }
+  if (csAtFourteen) {
+    const allCs = TEAMS.flatMap(team => csAtFourteen[team]);
+    console.log(`  average laner CS at 14:00: ${(allCs.reduce((sum, cs) => sum + cs, 0) / allCs.length).toFixed(1)}`);
+  }
 }

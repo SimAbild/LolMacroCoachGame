@@ -19,6 +19,9 @@ import { createScenario } from '../src/tutorial/scenario.js';
 import { createTutorialScript } from '../src/tutorial/chapters/tutorialScript.js';
 
 const SEEDS = Object.freeze([1, 2, 3, 4, 5, 6, 7, 8]);
+// Rules whose effect is small next to the noise between games get more games, and must pass by more
+// than the standard error of their mean, so an unrelated change cannot flip them by chance.
+const THIN_RULE_SEEDS = Object.freeze([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
 const LANE_SETTLED_TICKS = 900;
 const LANE_TEST_TICKS = 2400;
 const LEAD_TEST_TICKS = 4800;
@@ -31,10 +34,12 @@ const FREEZE_BREAK_TICKS = 600;
 const RESET_SETUP_TICKS = 450;
 const RESET_AWAY_TICKS = 600;
 const CRASH_PUSH = 98;
+const PLAY_SAFE_MAX_CS_SHARE = 0.92;
 
 const gameData = await loadGameData();
 // What the same lane does with no call at all: the yardstick for the rules below.
 const instinct = playWithCall(null);
+const instinctRunsForThinRules = playRunsWithCall(null, THIN_RULE_SEEDS);
 const rules = [
   checkLeadBecomesCsLead, checkPlaySafe, checkTrade, checkFreeze, checkShoveBreaksFreeze, checkGroupOverridesFreeze, checkShoveWithoutPlan, checkSlowPushCrash, checkAbsenceLosesFarm, checkBadReset,
   checkCannonRule, checkWavesAlwaysExist, checkMinionsNeverJump,
@@ -62,9 +67,29 @@ function call(gameState, actionId) {
   executeCommand(gameState, { type: INTENT.CHAMPION_ACTION, role: ROLE.TOP, actionId });
 }
 
-function averageOver(playLane) {
-  const runs = SEEDS.map(seed => playLane(startGame(seed)));
+function runsOver(playLane, seeds = SEEDS) {
+  return seeds.map(seed => playLane(startGame(seed)));
+}
+
+function averageOver(playLane, seeds = SEEDS) {
+  return averageOfRuns(runsOver(playLane, seeds));
+}
+
+function averageOfRuns(runs) {
   return Object.fromEntries(Object.keys(runs[0]).map(key => [key, runs.reduce((sum, run) => sum + run[key], 0) / runs.length]));
+}
+
+// How far a rule passes on average, per game, and how sure that is: the standard error of the mean
+// (standard deviation ÷ √games) shrinks as games are added, unlike the spread between games.
+function marginOf(margins) {
+  const mean = margins.reduce((sum, margin) => sum + margin, 0) / margins.length;
+  const variance = margins.reduce((sum, margin) => sum + (margin - mean) ** 2, 0) / (margins.length - 1);
+  return { mean, standardError: Math.sqrt(variance / margins.length) };
+}
+
+function expectMargin(ruleName, margins, measured) {
+  const { mean, standardError } = marginOf(margins);
+  return expect(ruleName, mean > standardError, `${measured}; margin ${mean.toFixed(1)} ± ${standardError.toFixed(1)} over ${margins.length} games`);
 }
 
 function laneResult(game) {
@@ -81,7 +106,11 @@ function laneResult(game) {
 }
 
 function playWithCall(actionId) {
-  return averageOver(game => {
+  return averageOfRuns(playRunsWithCall(actionId));
+}
+
+function playRunsWithCall(actionId, seeds = SEEDS) {
+  return runsOver(game => {
     if (actionId) {
       call(game.gameState, actionId);
     }
@@ -91,7 +120,12 @@ function playWithCall(actionId) {
       frontSum += game.lane.frontDistance;
     }
     return { ...laneResult(game), front: frontSum / LANE_TEST_TICKS };
-  });
+  }, seeds);
+}
+
+// The same seeds played twice, compared game by game, so the noise between seeds cancels out.
+function marginsPerGame(runs, baselineRuns, marginOfRun) {
+  return runs.map((run, index) => marginOfRun(run, baselineRuns[index]));
 }
 
 function expect(ruleName, isHeld, measured) {
@@ -115,7 +149,12 @@ function checkLeadBecomesCsLead() {
 }
 
 function checkPlaySafe() {
-  const safe = playWithCall('playSafe');
+  const safeRuns = playRunsWithCall('playSafe', THIN_RULE_SEEDS);
+  const safe = averageOfRuns(safeRuns);
+  const thinInstinct = averageOfRuns(instinctRunsForThinRules);
+  // At least 8 % less: half of the 16 % measured over 16 games on 2026-11-15, and inside the 5-15 %
+  // a passive laner is meant to lose (specs/role-playstyle/brainstorm.md, shared rules).
+  const csMargins = marginsPerGame(safeRuns, instinctRunsForThinRules, (run, baseline) => baseline.cs * PLAY_SAFE_MAX_CS_SHARE - run.cs);
   const gank = averageOver(game => {
     game.blueTop.cautiousUntilSeconds = 0;
     const before = gankChanceOn(game, game.blueTop, TEAM.RED);
@@ -123,7 +162,7 @@ function checkPlaySafe() {
     return { before, after: gankChanceOn(game, game.blueTop, TEAM.RED) };
   });
   return [
-    ...expect('Play safe costs CS', safe.cs <= instinct.cs * 0.85, `${round(safe.cs)} CS against ${round(instinct.cs)} without a call`),
+    ...expectMargin('Play safe costs CS', csMargins, `${round(safe.cs)} CS against ${round(thinInstinct.cs)} without a call`),
     ...expect('Play safe makes a gank harder', gank.after < gank.before, `${round(gank.after * 100)}% against ${round(gank.before * 100)}%`),
   ];
 }
@@ -141,6 +180,10 @@ function checkTrade() {
 
 function checkFreeze() {
   const freeze = playWithCall('freeze');
+  const freezeRunsForThinRule = playRunsWithCall('freeze', THIN_RULE_SEEDS);
+  const ownFarmMargins = marginsPerGame(freezeRunsForThinRule, instinctRunsForThinRules, (run, baseline) => run.cs - baseline.cs * 0.8);
+  const ownFarm = averageOfRuns(freezeRunsForThinRule);
+  const thinInstinct = averageOfRuns(instinctRunsForThinRules);
   const gankChanceAfter = withFreeze => averageOver(game => {
     if (withFreeze) {
       call(game.gameState, 'freeze');
@@ -153,7 +196,7 @@ function checkFreeze() {
   return [
     ...expect('Freeze makes them easier to gank', gankWithFreeze > gankWithoutFreeze, `${round(gankWithFreeze * 100)}% against ${round(gankWithoutFreeze * 100)}%`),
     ...expect('Freeze costs them CS', freeze.enemyCs <= instinct.enemyCs * 0.8, `${round(freeze.enemyCs)} CS against ${round(instinct.enemyCs)}`),
-    ...expect('Freeze keeps your own farm going', freeze.cs >= instinct.cs * 0.8, `${round(freeze.cs)} CS against ${round(instinct.cs)}`),
+    ...expectMargin('Freeze keeps your own farm going', ownFarmMargins, `${round(ownFarm.cs)} CS against ${round(thinInstinct.cs)}`),
     ...expect('Freeze holds the wave nearer your tower', freeze.front < instinct.front - 15, `front ${round(freeze.front)} against ${round(instinct.front)}`),
     ...expect('Freeze costs them experience', freeze.enemyExperience < instinct.enemyExperience, `${round(freeze.enemyExperience)} against ${round(instinct.enemyExperience)}`),
   ];
@@ -241,9 +284,9 @@ function checkAbsenceLosesFarm() {
 }
 
 // A reset after your own crash leaves the lane in better shape than one while their wave is pushing
-// you: the same time in base, but they farm under their tower instead of you under yours.
+// you: the same time in base, but their wave hits their own tower instead of yours.
 function checkBadReset() {
-  const measure = shoveFirst => averageOver(game => {
+  const measure = shoveFirst => runsOver(game => {
     if (shoveFirst) {
       call(game.gameState, 'shove');
     } else {
@@ -251,13 +294,25 @@ function checkBadReset() {
       game.redTop.laneOrders.waveSinceSeconds = game.gameState.gameSeconds;
     }
     game.simulation.runTicks(RESET_SETUP_TICKS);
+    const ownTower = outerTowerOf(game.gameState, TEAM.BLUE, 'top');
+    const healthAtReset = ownTower.healthRatio;
     call(game.gameState, 'reset');
     game.simulation.runTicks(RESET_AWAY_TICKS);
-    return { csLead: game.blueTop.creepScore - game.redTop.creepScore };
-  }).csLead;
-  const good = measure(true);
-  const bad = measure(false);
-  return expect('A reset after a crash beats one under pressure', good > bad, `CS lead ${round(good)} against ${round(bad)}`);
+    return { towerDamage: healthAtReset - ownTower.healthRatio, csLead: game.blueTop.creepScore - game.redTop.creepScore };
+  }, THIN_RULE_SEEDS);
+  const goodRuns = measure(true);
+  const badRuns = measure(false);
+  const good = averageOfRuns(goodRuns);
+  const bad = averageOfRuns(badRuns);
+  // Judged on the farm lost. The tower damage is shown too: in this simulation the bounced wave
+  // reaches your tower during the reset either way, so it barely differs (measured 2026-11-15).
+  const csMargins = marginsPerGame(goodRuns, badRuns, (goodRun, badRun) => goodRun.csLead - badRun.csLead);
+  return expectMargin('A reset after a crash beats one under pressure', csMargins,
+    `CS lead ${round(good.csLead)} against ${round(bad.csLead)} (your tower loses ${(good.towerDamage * 100).toFixed(1)}% against ${(bad.towerDamage * 100).toFixed(1)}%)`);
+}
+
+function outerTowerOf(gameState, team, lane) {
+  return gameState.teams[team].structures.find(structure => structure.lane === lane && structure.tier === 'outer');
 }
 
 function checkCannonRule() {
