@@ -99,7 +99,41 @@ task.
       of the cap, which would split `pressureStandoffFor` in `lanePressure.js`.
   - The four checks pass.
   - The golden master is DIFFERENT; record its `--summary`, then save it.
-- [ ] built  [ ] tests shown  [ ] reviewed  [ ] approved
+- **Result** (2026-11-15):
+  - **The cap.** `MAX_LANER_STANDOFF` = `FARM_RANGE` − 2 × `ARRIVAL_DISTANCE` = 72. The margin is
+    two arrival distances, because a champion stops near its post and the wave front keeps moving.
+    Only the laner branch of `postFor` passes the cap, so the support has none.
+  - **The new rule, before and after.** Red top gets twice the usual lead, so the average pressure
+    stays past the old cliff.
+
+    | | Blue top on Play safe | Blue top without | Average pressure |
+    |---|---|---|---|
+    | Before the cap | 6 CS | 22 CS | −0.44 (rule FAILS, 27 %) |
+    | After the cap | 20 CS | 23 CS | −0.42 (rule passes, 87 %) |
+
+    With the normal lead the pressure averaged only −0.15, short of the cliff, and the rule passed
+    even without the fix. So the test uses the double lead.
+  - **The freeze rules all still pass, so there was no stop:**
+    - "Freeze costs them CS": 25 against 41 (before: 22)
+    - "Freeze costs them experience": 1654 against 2086
+    - "A shove breaks a freeze": 0 % against 100 %
+    - "Freeze keeps your own farm going": 3.5 ± 0.9
+  - **`--summary` after the change**, saved as the new baseline:
+
+    | Seed | Result | Kills | Roams / caught | Recalls | Plates lost blue / red | Avg laner CS at 14:00 (before → after) |
+    |---|---|---|---|---|---|---|
+    | 11 | blue at 29.4 min | 23-10 | 11 / 3 | 53 | 0/0/2 · 0/0/0 | 56.3 → 67.7 |
+    | 2024 | blue at 23.8 min | 16-5 | 11 / 2 | 39 | 0/0/1 · 0/1/2 | 58.8 → 58.0 |
+    | 777 | blue at 34.7 min | 26-22 | 21 / 8 | 68 | 0/1/3 · 0/1/1 | 61.3 → 65.5 |
+
+    - The average laner CS at 14:00 across the three games goes from 58.8 to 63.7.
+    - The lowest laners were red's mid at 35 and 23 CS, a laner stuck careful outside farm range.
+      They now have 71 and 42.
+    - Seed 777 changed most: 21 roams instead of 13, and 22 red kills instead of 6. Blue still wins
+      all three.
+  - **Tutorial:** `checkTutorial --twice` takes the same steps on the same ticks, and the feed from
+    the gank chapter to the plates chapter reads as before.
+- [x] built  [x] tests shown  [ ] reviewed  [ ] approved
 
 ## Task 3: Count laners in lane pressure (Rule 1a)
 

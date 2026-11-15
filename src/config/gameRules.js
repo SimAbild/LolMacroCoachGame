@@ -9,6 +9,10 @@ export const MAX_PUSH_VALUE = 100;
 
 export const FARM_RANGE = 80;
 export const LANE_STANDOFF_DISTANCE = 28;
+// The furthest a laner stands from their wave, however careful, behind or frozen out they are: in
+// LoL you give up a share of your farm, not all of it. Two arrival distances under FARM_RANGE,
+// because a champion stops near its post and the wave front keeps moving.
+export const MAX_LANER_STANDOFF = FARM_RANGE - 2 * ARRIVAL_DISTANCE;
 export const SHARED_LANE_EXPERIENCE_RATIO = 0.65;
 
 export const PASSIVE_GOLD_START_SECONDS = 65;

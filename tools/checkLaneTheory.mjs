@@ -35,13 +35,16 @@ const RESET_SETUP_TICKS = 450;
 const RESET_AWAY_TICKS = 600;
 const CRASH_PUSH = 98;
 const PLAY_SAFE_MAX_CS_SHARE = 0.92;
+// Big enough that the lane pressure stays past the point where a careful laner used to fall out of
+// farm range (about −0.175).
+const BEHIND_LEAD_SIZE = 2;
 
 const gameData = await loadGameData();
 // What the same lane does with no call at all: the yardstick for the rules below.
 const instinct = playWithCall(null);
 const instinctRunsForThinRules = playRunsWithCall(null, THIN_RULE_SEEDS);
 const rules = [
-  checkLeadBecomesCsLead, checkPlaySafe, checkTrade, checkFreeze, checkShoveBreaksFreeze, checkGroupOverridesFreeze, checkShoveWithoutPlan, checkSlowPushCrash, checkAbsenceLosesFarm, checkBadReset,
+  checkLeadBecomesCsLead, checkPlaySafeWhileBehindStillFarms, checkPlaySafe, checkTrade, checkFreeze, checkShoveBreaksFreeze, checkGroupOverridesFreeze, checkShoveWithoutPlan, checkSlowPushCrash, checkAbsenceLosesFarm, checkBadReset,
   checkCannonRule, checkWavesAlwaysExist, checkMinionsNeverJump,
 ];
 const failures = rules.flatMap(checkRule => checkRule());
@@ -137,15 +140,42 @@ function round(value) {
   return Math.round(value);
 }
 
+function giveLead(championState, size = 1) {
+  grantExperience(championState, LEAD_EXPERIENCE * size);
+  championState.items.push({ itemId: 0, cost: LEAD_ITEM_GOLD * size, paidGold: LEAD_ITEM_GOLD * size, isStartingItem: false });
+}
+
 function checkLeadBecomesCsLead() {
   const withLead = averageOver(game => {
-    grantExperience(game.blueTop, LEAD_EXPERIENCE);
-    game.blueTop.items.push({ itemId: 0, cost: LEAD_ITEM_GOLD, paidGold: LEAD_ITEM_GOLD, isStartingItem: false });
+    giveLead(game.blueTop);
     game.simulation.runTicks(LEAD_TEST_TICKS);
     return laneResult(game);
   });
   const csLead = withLead.cs - withLead.enemyCs;
   return expect('A lead becomes a CS lead with no calls', csLead >= 10, `+${round(csLead)} CS after 8 minutes`);
+}
+
+// Careful costs a share of the farm, never all of it: a laner who is behind and plays safe still
+// stands within farm range (Simon's round-1 rule). The share is fixed at 50 %, a little under the
+// 58 % that Play safe's own last-hit factor predicts.
+function checkPlaySafeWhileBehindStillFarms() {
+  const measure = isSafe => averageOver(game => {
+    giveLead(game.redTop, BEHIND_LEAD_SIZE);
+    if (isSafe) {
+      call(game.gameState, 'playSafe');
+    }
+    const csAtStart = game.blueTop.creepScore;
+    let pressureSum = 0;
+    for (let tick = 0; tick < LANE_TEST_TICKS; tick += 1) {
+      game.simulation.runTicks(1);
+      pressureSum += game.lane.pressureForBlue;
+    }
+    return { cs: game.blueTop.creepScore - csAtStart, pressure: pressureSum / LANE_TEST_TICKS };
+  });
+  const safe = measure(true);
+  const normal = measure(false);
+  return expect('Playing safe while behind still farms', safe.cs > 0 && safe.cs >= normal.cs * 0.5,
+    `${round(safe.cs)} CS against ${round(normal.cs)} without Play safe, at an average pressure of ${safe.pressure.toFixed(2)}`);
 }
 
 function checkPlaySafe() {

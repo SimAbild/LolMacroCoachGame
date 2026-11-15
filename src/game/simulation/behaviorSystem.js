@@ -1,6 +1,6 @@
 import { ROLE } from '../../config/roles.js';
 import {
-  FARM_RANGE, LANE_STANDOFF_DISTANCE, RECALL_GOLD_THRESHOLD, RECALL_HEALTH_THRESHOLD, RECALL_MANA_THRESHOLD,
+  FARM_RANGE, LANE_STANDOFF_DISTANCE, MAX_LANER_STANDOFF, RECALL_GOLD_THRESHOLD, RECALL_HEALTH_THRESHOLD, RECALL_MANA_THRESHOLD,
   RECALL_HEALTH_THRESHOLD_DURING_CALL,
 } from '../../config/gameRules.js';
 import { ACTIVITY } from '../activities.js';
@@ -149,7 +149,8 @@ function postFor(gameState, championState, teamState) {
   if (championState.role === ROLE.SUPPORT) {
     return supportPost(gameState, championState, teamState);
   }
-  return lanePost(gameState, championState, isPlayingSafe(gameState, championState) ? PLAY_SAFE_EXTRA_STANDOFF : 0);
+  const extraDistanceBehind = isPlayingSafe(gameState, championState) ? PLAY_SAFE_EXTRA_STANDOFF : 0;
+  return lanePost(gameState, championState, extraDistanceBehind, MAX_LANER_STANDOFF);
 }
 
 function supportPost(gameState, championState, teamState) {
@@ -162,12 +163,14 @@ function supportPost(gameState, championState, teamState) {
   return lanePost(gameState, championState, (carryIsInLane ? SUPPORT_DISTANCE_BEHIND_CARRY : 0) + safeDistance);
 }
 
-// Behind the wave, further back under pressure, and a step closer while going for a last hit.
-function lanePost(gameState, championState, extraDistanceBehind) {
+// Behind the wave, further back under pressure, and a step closer while going for a last hit. A
+// laner never stands further back than maxStandoff; a support, who does not farm, has no limit.
+function lanePost(gameState, championState, extraDistanceBehind, maxStandoff = Infinity) {
   const laneState = laneStateOf(gameState, championState);
   const lastHitStep = gameState.gameSeconds < championState.steppingInUntilSeconds ? LAST_HIT_STEP_DISTANCE : 0;
   const tradeStep = isTrading(championState) ? TRADE_STANDOFF_FORWARD : 0;
-  const standoff = LANE_STANDOFF_DISTANCE + extraDistanceBehind + pressureStandoffFor(laneState, championState.team) - lastHitStep - tradeStep;
+  const standoff = Math.min(maxStandoff,
+    LANE_STANDOFF_DISTANCE + extraDistanceBehind + pressureStandoffFor(laneState, championState.team) - lastHitStep - tradeStep);
   return pointAtLaneDistance(laneState.lane, laneState.frontDistance - standoff * directionTowardEnemy(championState.team));
 }
 
