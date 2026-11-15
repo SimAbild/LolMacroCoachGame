@@ -198,7 +198,42 @@ task.
     from Task 2 in a real 2v1.
   - The four checks pass.
   - The golden master is DIFFERENT; record its `--summary`, then save it.
-- [ ] built  [ ] tests shown  [ ] reviewed  [ ] approved
+- **Result** (2026-11-15):
+  - **The new rules, before and after Task 4.** Over 8 games, with Blue's support kept away. The
+    "before" column already includes Task 3's pressure change.
+
+    | Rule | Before | After | Threshold (half measured) |
+    |---|---|---|---|
+    | Their ADC's CS gain on yours, away against present | 3.2 more | 3.6 more | ≥ 1.8 |
+    | Your ADC's lowest health, away against present (60 s) | 0.63 against 0.69 | 0.37 against 0.69 | drop ≥ 0.16 |
+    | Lone ADC on Play safe still farms | 5.8 CS in 60 s | 5.8 CS in 60 s | > 0 |
+    | Leaving on a crash against into their wave, lowest health (25 s) | 0.74 against 0.60 | 0.75 against 0.60 | gap ≥ 0.07 |
+    | Careful trader, health lost against not careful (30 s) | 0.019 against 0.099 (FAIL) | 0.123 against 0.117 | at least as much |
+
+  - **Test fixes found while measuring:**
+    - The crash comparison first left 45 s after the shove started. By then the wave had crashed
+      and bounced back (push about 0), so it showed no difference. It now leaves at the moment the
+      wave stands at the enemy tower, the moment a support roams on a crash.
+    - Over 60 s the crash protection is gone either way, so the comparison runs for 25 s, about as
+      long as a roam (the brainstorm measured about 21 s from the crash to the fight).
+  - **The crash exemption in the trade ratio barely matters (measured).** With it switched off, the
+    crash comparison reads 0.74 against 0.60 instead of 0.75. The crash itself does the work: the
+    duo stands at its own tower, out of trade range. The exemption stays because R3 asks for it, it
+    states the rule in code, and it matters more in longer crashes.
+  - **`--summary` after the change**, saved as the new baseline:
+
+    | Seed | Result | Kills | Roams / caught | Recalls (Task 3 → 4) | Plates lost blue / red | Avg laner CS at 14:00 |
+    |---|---|---|---|---|---|---|
+    | 11 | blue at 35.2 min | 29-16 | 16 / 3 | 46 → 67 | 2/0/0 · 0/0/1 | 59.2 (was 65.7) |
+    | 2024 | blue at 37.6 min | 35-16 | 20 / 7 | 64 → 67 | 0/0/3 · 0/2/0 | 60.3 (was 62.5) |
+    | 777 | blue at 27.3 min | 28-9 | 11 / 2 | 41 → 47 | 1/0/3 · 0/0/0 | 51.8 (was 54.8) |
+
+    - More recalls: a lone laner is now worn down and sent home.
+    - The average laner CS at 14:00 across the games goes from 61.0 to 57.1. Plates lost bot rise.
+    - Blue wins all three again; red's win in seed 777 after Task 3 did not last.
+  - **Tutorial:** `checkTutorial --twice` takes the same steps on the same ticks, the dragon chapter
+    (where Jinx is alone during Leona's ward) included.
+- [x] built  [x] tests shown  [ ] reviewed  [ ] approved
 
 ## Task 5: Measure what a support's absence costs
 

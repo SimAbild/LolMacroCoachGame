@@ -40,13 +40,23 @@ const PLAY_SAFE_MAX_CS_SHARE = 0.92;
 const BEHIND_LEAD_SIZE = 2;
 // Half of the 0.36 drop measured on 2026-11-15 (Task 3 of specs/consequence-rules).
 const MIN_PRESSURE_DROP_TWO_AGAINST_ONE = 0.18;
+// Half of what was measured on 2026-11-15 (Task 4 of specs/consequence-rules): their ADC gained
+// 3.6 CS more on yours, your ADC's lowest health fell by 0.32, and leaving on a crash kept the ADC
+// 0.15 healthier.
+const MIN_CS_LEAD_GAIN_TWO_AGAINST_ONE = 1.8;
+const MIN_HEALTH_DROP_TWO_AGAINST_ONE = 0.16;
+const MIN_HEALTH_GAP_ROAM_ON_CRASH = 0.07;
+const CAREFUL_TRADE_TICKS = 300;
+// About as long as a roam takes from the crash to the fight (measured in the brainstorm: ~21 s).
+const ROAM_TICKS = 250;
+const CAREFUL_TRADE_MIN_SHARE = 1;
 
 const gameData = await loadGameData();
 // What the same lane does with no call at all: the yardstick for the rules below.
 const instinct = playWithCall(null);
 const instinctRunsForThinRules = playRunsWithCall(null, THIN_RULE_SEEDS);
 const rules = [
-  checkLeadBecomesCsLead, checkPlaySafeWhileBehindStillFarms, checkPlaySafe, checkTrade, checkFreeze, checkShoveBreaksFreeze, checkGroupOverridesFreeze, checkShoveWithoutPlan, checkSlowPushCrash, checkAbsenceLosesFarm, checkBadReset, checkPressureCountsNumbers,
+  checkLeadBecomesCsLead, checkPlaySafeWhileBehindStillFarms, checkPlaySafe, checkTrade, checkFreeze, checkShoveBreaksFreeze, checkGroupOverridesFreeze, checkShoveWithoutPlan, checkSlowPushCrash, checkAbsenceLosesFarm, checkBadReset, checkTwoAgainstOne, checkTwoAgainstOneTiming, checkCarefulTraderTakesFullDamage,
   checkCannonRule, checkWavesAlwaysExist, checkMinionsNeverJump,
 ];
 const failures = rules.flatMap(checkRule => checkRule());
@@ -307,30 +317,101 @@ function laneOf(gameState, lane) {
   return gameState.lanes.find(laneState => laneState.lane === lane);
 }
 
-// Bot lane with Blue's support kept away for AWAY_TICKS: Blue's ADC alone against two.
-function playBotWithSupport({ isSupportAway }) {
-  return runsOver(game => {
+function callFor(gameState, role, actionId) {
+  executeCommand(gameState, { type: INTENT.CHAMPION_ACTION, role, actionId });
+}
+
+// Bot lane with Blue's support kept away for AWAY_TICKS: Blue's ADC alone against two. `setUp`
+// runs first, for example to crash a wave before the support leaves.
+function playBotWithSupport({ isSupportAway, setUp = () => {}, awayTicks = AWAY_TICKS }) {
+  return averageOver(game => {
+    setUp(game);
     const support = championOf(game.gameState, TEAM.BLUE, ROLE.SUPPORT);
+    const blueAdc = championOf(game.gameState, TEAM.BLUE, ROLE.BOT);
+    const redAdc = championOf(game.gameState, TEAM.RED, ROLE.BOT);
     const botLane = laneOf(game.gameState, 'bot');
+    const csAtStart = { blue: blueAdc.creepScore, red: redAdc.creepScore };
     let pressureSum = 0;
-    for (let tick = 0; tick < AWAY_TICKS; tick += 1) {
+    let lowestHealth = blueAdc.healthRatio;
+    for (let tick = 0; tick < awayTicks; tick += 1) {
       if (isSupportAway) {
         keepAway(support);
       }
       game.simulation.runTicks(1);
       pressureSum += botLane.pressureForBlue;
+      lowestHealth = Math.min(lowestHealth, blueAdc.healthRatio);
     }
-    return { pressure: pressureSum / AWAY_TICKS };
+    const cs = blueAdc.creepScore - csAtStart.blue;
+    return { pressure: pressureSum / awayTicks, cs, enemyCsLead: redAdc.creepScore - csAtStart.red - cs, lowestHealth };
   });
 }
 
-// Two laners weigh more than one: with Blue's support away, Blue's bot lane is under more pressure.
-function checkPressureCountsNumbers() {
-  const away = averageOfRuns(playBotWithSupport({ isSupportAway: true }));
-  const present = averageOfRuns(playBotWithSupport({ isSupportAway: false }));
-  const drop = present.pressure - away.pressure;
-  return expect('Two laners against one push the pressure', drop >= MIN_PRESSURE_DROP_TWO_AGAINST_ONE,
-    `bot pressure ${away.pressure.toFixed(2)} with the support away against ${present.pressure.toFixed(2)} present (drop ${drop.toFixed(2)})`);
+// Two laners weigh more than one: with Blue's support away, Blue's ADC is under more pressure,
+// falls behind in CS and gets worn down.
+function checkTwoAgainstOne() {
+  const away = playBotWithSupport({ isSupportAway: true });
+  const present = playBotWithSupport({ isSupportAway: false });
+  const pressureDrop = present.pressure - away.pressure;
+  const csLeadGain = away.enemyCsLead - present.enemyCsLead;
+  const healthDrop = present.lowestHealth - away.lowestHealth;
+  return [
+    ...expect('Two laners against one push the pressure', pressureDrop >= MIN_PRESSURE_DROP_TWO_AGAINST_ONE,
+      `bot pressure ${away.pressure.toFixed(2)} with the support away against ${present.pressure.toFixed(2)} present (drop ${pressureDrop.toFixed(2)})`),
+    ...expect('Alone against two loses the lane', csLeadGain >= MIN_CS_LEAD_GAIN_TWO_AGAINST_ONE,
+      `their ADC gains ${away.enemyCsLead.toFixed(1)} CS on yours with the support away against ${present.enemyCsLead.toFixed(1)} present`),
+    ...expect('Two wear one down', healthDrop >= MIN_HEALTH_DROP_TWO_AGAINST_ONE,
+      `your ADC's lowest health ${away.lowestHealth.toFixed(2)} with the support away against ${present.lowestHealth.toFixed(2)} present`),
+  ];
+}
+
+// Playing safe alone against two still farms (the cap on how far back a laner stands), and a
+// support who leaves on a crashed wave leaves the ADC far safer than one who leaves into a wave
+// crashing on their own tower.
+function checkTwoAgainstOneTiming() {
+  const safeAlone = playBotWithSupport({ isSupportAway: true, setUp: game => callFor(game.gameState, ROLE.BOT, 'playSafe') });
+  const crashed = playBotWithSupport({ isSupportAway: true, setUp: game => shoveFirst(game, TEAM.BLUE), awayTicks: ROAM_TICKS });
+  const pushedIn = playBotWithSupport({ isSupportAway: true, setUp: game => shoveFirst(game, TEAM.RED), awayTicks: ROAM_TICKS });
+  const healthGap = crashed.lowestHealth - pushedIn.lowestHealth;
+  return [
+    ...expect('Playing safe alone against two still farms', safeAlone.cs > 0, `${safeAlone.cs.toFixed(1)} CS in ${AWAY_TICKS / 10} s`),
+    ...expect('Leaving on a crashed wave costs the ADC less', healthGap >= MIN_HEALTH_GAP_ROAM_ON_CRASH,
+      `your ADC's lowest health ${crashed.lowestHealth.toFixed(2)} after your crash against ${pushedIn.lowestHealth.toFixed(2)} with their wave on your tower`),
+  ];
+}
+
+// The given team's bot ADC shoves until its wave stands at the enemy tower (or RESET_SETUP_TICKS
+// pass), then the order ends: the moment a support would roam on the crash.
+function shoveFirst(game, team) {
+  const adc = championOf(game.gameState, team, ROLE.BOT);
+  const botLane = laneOf(game.gameState, 'bot');
+  adc.laneOrders.wave = ACTION_KIND.SHOVE;
+  adc.laneOrders.waveSinceSeconds = game.gameState.gameSeconds;
+  for (let tick = 0; tick < RESET_SETUP_TICKS && lanePushFor(game.gameState, botLane, team) < CRASH_PUSH; tick += 1) {
+    game.simulation.runTicks(1);
+  }
+  adc.laneOrders.wave = null;
+}
+
+// Being careful must never make a trade safer: a careful laner who holds a Trade order takes the
+// trade's full damage.
+function checkCarefulTraderTakesFullDamage() {
+  const healthLost = isCareful => averageOver(game => {
+    call(game.gameState, 'trade');
+    const healthAtStart = game.blueTop.healthRatio;
+    let lowestHealth = healthAtStart;
+    for (let tick = 0; tick < CAREFUL_TRADE_TICKS; tick += 1) {
+      if (isCareful) {
+        game.blueTop.cautiousUntilSeconds = game.gameState.gameSeconds + 1;
+      }
+      game.simulation.runTicks(1);
+      lowestHealth = Math.min(lowestHealth, game.blueTop.healthRatio);
+    }
+    return { lost: healthAtStart - lowestHealth };
+  }).lost;
+  const careful = healthLost(true);
+  const normal = healthLost(false);
+  return expect('A careful trader takes the full trade', careful >= normal * CAREFUL_TRADE_MIN_SHARE,
+    `health lost ${careful.toFixed(3)} when careful against ${normal.toFixed(3)}`);
 }
 
 // Being away means the waves die without you: that farm is gone for good.

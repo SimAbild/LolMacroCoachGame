@@ -73,6 +73,9 @@ export const PRESSURE_WITH_LANE_ALONE = 0.5;
 // Per laner one side has more than the other, as when a support leaves their ADC alone against two.
 // About three levels' worth: a second champion is the biggest swing in kill threat a lane can have.
 export const PRESSURE_PER_EXTRA_LANER = 0.35;
+// A wave pushed this far (−100 at your own tower, 100 at theirs) has crashed: the enemies are busy
+// farming it under their tower, so being outnumbered there costs little in trades.
+export const CRASHED_WAVE_PUSH = 60;
 // Under pressure a champion stands further back; with the upper hand, a little further up.
 export const ZONED_EXTRA_STANDOFF = 40;
 export const FORWARD_STANDOFF = 8;

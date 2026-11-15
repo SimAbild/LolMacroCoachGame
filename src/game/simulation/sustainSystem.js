@@ -9,10 +9,11 @@ import { LANE_BY_ROLE } from '../mapLayout.js';
 import { isPlayingSafe, isTrading } from '../stances.js';
 import { PLAY_SAFE_TRADE_DAMAGE_FACTOR } from '../../config/combatRules.js';
 import {
-  LANE_TRADE_PRESSURE_EFFECT, TRADE_DAMAGE_DEALT_FACTOR, TRADE_DAMAGE_TAKEN_FACTOR, TRADE_MANA_COST_FACTOR, TRADE_MINION_AGGRO_FACTOR,
+  CRASHED_WAVE_PUSH, LANE_TRADE_PRESSURE_EFFECT, TRADE_DAMAGE_DEALT_FACTOR, TRADE_DAMAGE_TAKEN_FACTOR, TRADE_MANA_COST_FACTOR, TRADE_MINION_AGGRO_FACTOR,
 } from '../../config/laneRules.js';
 import { distanceBetween } from '../geometry.js';
 import { lanePressureFor } from './lanePressure.js';
+import { lanePushFor } from './laneSystem.js';
 
 const MIN_TRADE_INTENSITY = 0.4;
 const TRADE_INTENSITY_SPREAD = 1.2;
@@ -65,10 +66,37 @@ function applyLaneTrade(gameState, championState, { opponents, tickSeconds }) {
 
 function tradeDamageFactor(gameState, championState, opponents) {
   const laneState = laneStateOf(gameState, championState);
-  const stanceFactor = isPlayingSafe(gameState, championState) ? PLAY_SAFE_TRADE_DAMAGE_FACTOR : 1;
+  // Being careful keeps you out of trades, but a laner told to trade has chosen to take them.
+  const isKeptOutOfTrades = isPlayingSafe(gameState, championState) && !isTrading(championState);
+  const stanceFactor = isKeptOutOfTrades ? PLAY_SAFE_TRADE_DAMAGE_FACTOR : 1;
   const pressureFactor = 1 - lanePressureFor(laneState, championState.team) * LANE_TRADE_PRESSURE_EFFECT;
   const incomingTradeFactor = opponents.some(isTrading) ? TRADE_DAMAGE_DEALT_FACTOR : 1;
-  return stanceFactor * pressureFactor * incomingTradeFactor * ownTradeCostFactor(championState, laneState);
+  const numbersFactor = tradeNumbersFactor(gameState, championState, { laneState, opponents });
+  return stanceFactor * pressureFactor * incomingTradeFactor * numbersFactor * ownTradeCostFactor(championState, laneState);
+}
+
+// Two attackers deal about twice the damage, and the damage spreads over whoever stands there: one
+// against two takes double, each of the two takes half. Not while the outnumbered side's wave has
+// crashed into the other tower: the two are busy farming under it, which is why a support can roam
+// on a crash.
+function tradeNumbersFactor(gameState, championState, { laneState, opponents }) {
+  const allies = alliesInTradeRange(gameState, championState);
+  if (opponents.length === allies.length) {
+    return 1;
+  }
+  const outnumberedTeam = opponents.length > allies.length ? championState.team : opposingTeam(championState.team);
+  if (lanePushFor(gameState, laneState, outnumberedTeam) >= CRASHED_WAVE_PUSH) {
+    return 1;
+  }
+  return opponents.length / allies.length;
+}
+
+// The champion and the teammates laning beside it, close enough to share its trades.
+function alliesInTradeRange(gameState, championState) {
+  const lane = LANE_BY_ROLE[championState.role];
+  return gameState.teams[championState.team].champions.filter(ally => LANE_BY_ROLE[ally.role] === lane
+    && ally.activity === ACTIVITY.LANING
+    && distanceBetween(ally.position, championState.position) <= LANE_TRADE_RANGE);
 }
 
 // Stepping up costs health, and more with their bigger wave around you: minions turn on anyone who
