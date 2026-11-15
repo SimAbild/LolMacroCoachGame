@@ -251,7 +251,30 @@ task.
   - **Always stop here and show Simon the death numbers.** If the 2v1 deaths are about 0, he decides
     on Task 5b.
   - The golden master is SAME, because this is a test only.
-- [ ] built  [ ] tests shown  [ ] reviewed  [ ] approved
+- **Result** (2026-11-15). The golden master is SAME, and the four checks pass. Over 16 games of
+  3 minutes, with Red's AI on and Blue's support kept away against present:
+
+  | | Support away | Support present |
+  |---|---|---|
+  | Blue ADC killed by Red's duo | 12 | 8 |
+  | Blue ADC killed by a gank | 5 | 3 |
+  | Blue ADC killed by a tower | 0 | 0 |
+  | Blue ADC recalled or died ("sent out of lane") | 27 | 17 |
+  | Blue's bot tower health lost | 2.9 % | 3.4 % |
+  | Plates lost | 0 | 0 |
+
+  - **Rule:** "Alone against two gets sent out of lane". Per game: +0.6 measured, threshold +0.3
+    (half), margin 0.3 ± 0.2.
+  - **Deviations from AC5, and why:**
+    - **Recalls alone go down** (away 3, present 4 in the first 8-game run). The worn-down ADC dies
+      instead of recalling. So the rule counts recalls and deaths together, as "sent out of lane".
+    - **Plates and tower:** no plate falls in 3 minutes, and the tower loses no more with the
+      support away. Nobody pushes the lone lane on purpose yet; that is Rule 3, the AI answering an
+      absence. The tower part of the chain is printed as information now and becomes a rule in
+      Task 10.
+  - **Stop for Simon (the dive question).** A 2v1 already kills: Red's duo killed the lone ADC 12
+    times against 8, with no change to the AI's dives. Proposal: skip Task 5b.
+- [x] built  [x] tests shown  [ ] reviewed  [ ] approved
 
 ## Task 5b (only if Simon says yes in Task 5): Let the AI dive a lone laner earlier
 
@@ -368,7 +391,9 @@ task.
   - `src/game/simulation/aiLaneOptions.js`: the held reset
   - `src/config/aiWeights.js`: the answer weights, with a base of at least 0.72, marked "set by
     hand"
-  - `tools/checkLaneTheory.mjs`: the AC9 and AC11 rules, with Red's AI on
+  - `tools/checkLaneTheory.mjs`: the AC9 and AC11 rules, with Red's AI on, and the tower part of
+    the AC5 chain (moved here from Task 5: until the AI answers an absence, nobody pushes the lone
+    lane)
   - `tools/checkGoldenMaster.mjs`: answers in the `--summary`
 - **Covers:** AC9, AC11
 - **Proof:**

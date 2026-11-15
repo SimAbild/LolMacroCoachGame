@@ -50,22 +50,25 @@ const CAREFUL_TRADE_TICKS = 300;
 // About as long as a roam takes from the crash to the fight (measured in the brainstorm: ~21 s).
 const ROAM_TICKS = 250;
 const CAREFUL_TRADE_MIN_SHARE = 1;
+const CHAIN_TICKS = 1800;
+// Half of the 0.6 more times per game measured on 2026-11-15 (Task 5 of specs/consequence-rules).
+const MIN_SENT_OUT_GAIN_PER_GAME = 0.3;
 
 const gameData = await loadGameData();
 // What the same lane does with no call at all: the yardstick for the rules below.
 const instinct = playWithCall(null);
 const instinctRunsForThinRules = playRunsWithCall(null, THIN_RULE_SEEDS);
 const rules = [
-  checkLeadBecomesCsLead, checkPlaySafeWhileBehindStillFarms, checkPlaySafe, checkTrade, checkFreeze, checkShoveBreaksFreeze, checkGroupOverridesFreeze, checkShoveWithoutPlan, checkSlowPushCrash, checkAbsenceLosesFarm, checkBadReset, checkTwoAgainstOne, checkTwoAgainstOneTiming, checkCarefulTraderTakesFullDamage,
+  checkLeadBecomesCsLead, checkPlaySafeWhileBehindStillFarms, checkPlaySafe, checkTrade, checkFreeze, checkShoveBreaksFreeze, checkGroupOverridesFreeze, checkShoveWithoutPlan, checkSlowPushCrash, checkAbsenceLosesFarm, checkBadReset, checkTwoAgainstOne, checkTwoAgainstOneTiming, checkCarefulTraderTakesFullDamage, checkSupportAbsenceChain,
   checkCannonRule, checkWavesAlwaysExist, checkMinionsNeverJump,
 ];
 const failures = rules.flatMap(checkRule => checkRule());
 console.log(failures.length === 0 ? 'OK: the lanes follow the theory' : `FAILED:\n- ${failures.join('\n- ')}`);
 process.exitCode = failures.length === 0 ? 0 : 1;
 
-function startGame(seed) {
+function startGame(seed, { aiControlledTeams = [] } = {}) {
   const scenario = createScenario(gameData.champions);
-  scenario.gameOptions = { ...scenario.gameOptions, seed };
+  scenario.gameOptions = { ...scenario.gameOptions, seed, aiControlledTeams };
   const autopilot = createAutopilot({ steps: createTutorialScript(scenario), scenario, gameData });
   autopilot.playUpToStep('rift.walk');
   const { gameState } = autopilot;
@@ -82,8 +85,8 @@ function call(gameState, actionId) {
   executeCommand(gameState, { type: INTENT.CHAMPION_ACTION, role: ROLE.TOP, actionId });
 }
 
-function runsOver(playLane, seeds = SEEDS) {
-  return seeds.map(seed => playLane(startGame(seed)));
+function runsOver(playLane, seeds = SEEDS, gameOptions = {}) {
+  return seeds.map(seed => playLane(startGame(seed, gameOptions)));
 }
 
 function averageOver(playLane, seeds = SEEDS) {
@@ -412,6 +415,85 @@ function checkCarefulTraderTakesFullDamage() {
   const normal = healthLost(false);
   return expect('A careful trader takes the full trade', careful >= normal * CAREFUL_TRADE_MIN_SHARE,
     `health lost ${careful.toFixed(3)} when careful against ${normal.toFixed(3)}`);
+}
+
+// The whole chain of a support's absence, with Red's AI coach on, since only the AI trades and
+// dives on purpose: Blue's ADC alone for CHAIN_TICKS gets sent out of lane, by a recall or a death.
+// Deaths are reported with their cause, so Simon can judge whether a 2v1 can kill. The tower's
+// loss is shown too; it becomes a rule once the AI answers an absence (Rule 3), since until then
+// nobody pushes the lone lane on purpose.
+function checkSupportAbsenceChain() {
+  const awayRuns = playChainRuns({ isSupportAway: true });
+  const presentRuns = playChainRuns({ isSupportAway: false });
+  const away = totalOfChain(awayRuns);
+  const present = totalOfChain(presentRuns);
+  console.log(`     ADC deaths in ${THIN_RULE_SEEDS.length} games of ${CHAIN_TICKS / 600} min: support away ${describeDeaths(away)}; present ${describeDeaths(present)}`);
+  console.log(`     Your bot tower lost ${(away.towerDamage * 100).toFixed(1)}% with the support away against ${(present.towerDamage * 100).toFixed(1)}% present (plates ${away.platesLost} against ${present.platesLost})`);
+  const sentOutMargins = marginsPerGame(awayRuns, presentRuns, (awayRun, presentRun) => sentOutOf(awayRun) - sentOutOf(presentRun) - MIN_SENT_OUT_GAIN_PER_GAME);
+  return expectMargin('Alone against two gets sent out of lane', sentOutMargins,
+    `your ADC recalled or died ${sentOutOf(away)} times with the support away against ${sentOutOf(present)} present`);
+}
+
+// A worn-down ADC either recalls or dies, so both count as being sent out of lane.
+function sentOutOf(run) {
+  return run.recalls + Object.values(run.deaths).reduce((sum, deaths) => sum + deaths, 0);
+}
+
+function playChainRuns({ isSupportAway }) {
+  return runsOver(game => {
+    const support = championOf(game.gameState, TEAM.BLUE, ROLE.SUPPORT);
+    const adc = championOf(game.gameState, TEAM.BLUE, ROLE.BOT);
+    const tower = outerTowerOf(game.gameState, TEAM.BLUE, 'bot');
+    const atStart = { plates: tower.platesLeft, health: tower.healthRatio };
+    const counts = { recalls: 0, deaths: { duo: 0, gank: 0, tower: 0 } };
+    let lastActivity = adc.activity;
+    for (let tick = 0; tick < CHAIN_TICKS; tick += 1) {
+      if (isSupportAway) {
+        keepAway(support);
+      }
+      game.simulation.runTicks(1);
+      countActivityChange(game.gameState, adc, lastActivity, counts);
+      lastActivity = adc.activity;
+    }
+    return { ...counts, platesLost: atStart.plates - tower.platesLeft, towerDamage: atStart.health - tower.healthRatio };
+  }, THIN_RULE_SEEDS, { aiControlledTeams: [TEAM.RED] });
+}
+
+function totalOfChain(runs) {
+  const sum = pick => runs.reduce((total, run) => total + pick(run), 0);
+  return {
+    recalls: sum(run => run.recalls),
+    platesLost: sum(run => run.platesLost),
+    towerDamage: sum(run => run.towerDamage) / runs.length,
+    deaths: Object.fromEntries(['duo', 'gank', 'tower'].map(cause => [cause, sum(run => run.deaths[cause])])),
+  };
+}
+
+function countActivityChange(gameState, adc, lastActivity, counts) {
+  if (adc.activity === lastActivity) {
+    return;
+  }
+  if (adc.activity === ACTIVITY.RECALLING) {
+    counts.recalls += 1;
+  }
+  if (adc.activity === ACTIVITY.DEAD) {
+    counts.deaths[causeOfDeath(gameState, adc)] += 1;
+  }
+}
+
+// From the newest kill line naming the ADC: "<killer> killed <ADC>", or "Tower killed <ADC>".
+function causeOfDeath(gameState, adc) {
+  const killLine = [...gameState.events].reverse().find(event => event.kind === 'kill' && event.text.endsWith(`killed ${adc.champion.name}`));
+  const killerName = killLine?.text.split(' killed ')[0].split('! ').pop();
+  const killer = gameState.teams[TEAM.RED].champions.find(championState => championState.champion.name === killerName);
+  if (!killer) {
+    return 'tower';
+  }
+  return killer.role === ROLE.JUNGLE || killer.role === ROLE.MID || killer.role === ROLE.TOP ? 'gank' : 'duo';
+}
+
+function describeDeaths({ deaths }) {
+  return `${deaths.duo} by the duo, ${deaths.gank} by a gank, ${deaths.tower} by a tower`;
 }
 
 // Being away means the waves die without you: that farm is gone for good.
