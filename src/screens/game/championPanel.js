@@ -30,7 +30,8 @@ export function createChampionPanel(championState, { version, itemCatalog, isOwn
   }, createPanel(championState, { parts, isOwnTeam }));
   const actionControls = isOwnTeam ? createActionControls(championState, { onIntent, onActionHover }) : null;
   if (actionControls) {
-    card.append(parts.status.element, ...actionControls.rows);
+    // One box for all the call rows, so the stylesheet can place them beside the portrait on a wide card.
+    card.append(parts.status.element, createElement('div', { className: 'champion-card__calls' }, ...actionControls.rows));
   }
 
   function update(displayedState) {

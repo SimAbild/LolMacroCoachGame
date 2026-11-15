@@ -17,24 +17,24 @@
 
 .coach-ring {
   position: fixed;
-  border: 2px solid var(--color-gold);
-  border-radius: 8px;
-  box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-gold) 18%, transparent);
+  border: 0.125rem solid var(--color-gold);
+  border-radius: 0.5rem;
+  box-shadow: 0 0 0 0.25rem color-mix(in srgb, var(--color-gold) 18%, transparent);
   animation: coach-ring-pulse 1.6s var(--ease-out) infinite;
 }
 .coach-ring[hidden] { display: none; }
 @keyframes coach-ring-pulse {
-  50% { box-shadow: 0 0 0 9px color-mix(in srgb, var(--color-gold) 6%, transparent); }
+  50% { box-shadow: 0 0 0 0.5625rem color-mix(in srgb, var(--color-gold) 6%, transparent); }
 }
 
 .coach-card {
   position: fixed;
-  width: min(360px, calc(100vw - 32px));
-  padding: 14px 16px 12px;
+  width: min(22.5rem, calc(100vw - 2rem));
+  padding: 0.875rem 1rem 0.75rem;
   color: var(--color-text);
   background: var(--color-surface);
   border: 1px solid var(--color-border);
-  border-top: 3px solid var(--color-gold);
+  border-top: 0.1875rem solid var(--color-gold);
   border-radius: var(--radius);
   box-shadow: var(--shadow-modal);
   pointer-events: auto;
@@ -42,27 +42,27 @@
 }
 .coach-card--centered { left: 50%; top: 50%; transform: translate(-50%, -50%); }
 /* Bottom right: the enemy cards have no calls on them, so this corner of the screen stays free. */
-.coach-card--corner { right: 16px; bottom: 16px; top: auto; width: min(300px, calc(100vw - 32px)); }
+.coach-card--corner { right: 1rem; bottom: 1rem; top: auto; width: min(18.75rem, calc(100vw - 2rem)); }
 .coach-card.is-shaking { animation: coach-card-shake 360ms var(--ease-out); }
-.coach-card__header { display: flex; justify-content: space-between; gap: 10px; margin-bottom: 6px; }
+.coach-card__header { display: flex; justify-content: space-between; gap: 0.625rem; margin-bottom: 0.375rem; }
 .coach-card__chapter, .coach-card__status {
-  font: 600 12px var(--font-display);
+  font: 600 0.75rem var(--font-display);
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--color-text-muted);
 }
 .coach-card__status { color: var(--color-gold); }
-.coach-card__title { margin: 0 0 6px; font: 700 20px var(--font-display); letter-spacing: 0.03em; text-transform: uppercase; }
+.coach-card__title { margin: 0 0 0.375rem; font: 700 1.25rem var(--font-display); letter-spacing: 0.03em; text-transform: uppercase; }
 .coach-card__body { margin: 0; line-height: 1.5; color: var(--color-text); }
-.coach-card__footer { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 12px; }
-.coach-card__footer .button { padding: 7px 16px; }
+.coach-card__footer { display: flex; justify-content: space-between; align-items: center; gap: 0.625rem; margin-top: 0.75rem; }
+.coach-card__footer .button { padding: 0.4375rem 1rem; }
 .coach-card__next[hidden] { display: none; }
 /* A real button on every card: a player who wants out should never have to look for the way. */
-.coach-card__footer .coach-card__exit { padding: 7px 12px; font-size: 13px; white-space: nowrap; }
+.coach-card__footer .coach-card__exit { padding: 0.4375rem 0.75rem; font-size: 0.8125rem; white-space: nowrap; }
 @keyframes coach-card-in { from { opacity: 0; } }
 @keyframes coach-card-shake {
-  20% { translate: -6px 0; }
-  40% { translate: 6px 0; }
-  60% { translate: -4px 0; }
-  80% { translate: 4px 0; }
+  20% { translate: -0.375rem 0; }
+  40% { translate: 0.375rem 0; }
+  60% { translate: -0.25rem 0; }
+  80% { translate: 0.25rem 0; }
 }

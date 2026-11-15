@@ -9,13 +9,13 @@ import { createObjectiveTimers } from './objectiveTimers.js';
 import { createTeamRoster } from './teamRoster.js';
 import { createMapPanel } from './mapPanel.js';
 
-// Builds the game screen: scoreboard, the two team columns, the map and the team calls.
-// `handlers` is { onIntent, onSpeedChange, onPauseToggle, onSlowMotionToggle, onLeave }.
+// Builds the game screen: the top bar with the scoreboard, the two team columns, the map and the team calls.
+// `handlers` is { onIntent, onSpeedChange, onPauseToggle, onSlowMotionToggle, onAutoPauseToggle, onLeave }.
 export function createGameLayout({ gameState, gameData, playerSide, handlers }) {
   const element = createElement('section', { className: 'game-screen', dataset: { playerSide } });
   const overlay = createCoordinationOverlay(element);
-  const { onIntent, onSpeedChange, onPauseToggle, onSlowMotionToggle, onLeave } = handlers;
-  const topBar = createTopBar({ playerSide, onSpeedChange, onPauseToggle, onSlowMotionToggle, onLeave });
+  const { onIntent, onSpeedChange, onPauseToggle, onSlowMotionToggle, onAutoPauseToggle, onLeave } = handlers;
+  const topBar = createTopBar({ playerSide, onSpeedChange, onPauseToggle, onSlowMotionToggle, onAutoPauseToggle, onLeave });
   const eventFeed = createEventFeed(playerSide);
   const alertBanner = createAlertBanner();
   const objectiveTimers = createObjectiveTimers();

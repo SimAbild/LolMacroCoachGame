@@ -68,8 +68,9 @@ const RESULT_STEPS = [
   dialogStep('wave.tempo', {
     screen: GAME,
     title: 'You have time',
-    target: '[data-anchor="clock"]',
+    target: ['[data-anchor="clock"]', '[data-anchor="auto-pause"]'],
     body: 'Five champions is a lot, so you steer lanes, not every wave: orders last until you change them, and instinct covers the rest. '
-      + 'Need a moment? Pause with Space and give your calls, or press 0 for half speed. Auto-pause stops the game on big moments.',
+      + 'Need a moment? Pause with Space and give your calls, or press 0 for half speed. Auto-pause, in the top-right corner, '
+      + 'stops the game on big moments.',
   }),
 ];
