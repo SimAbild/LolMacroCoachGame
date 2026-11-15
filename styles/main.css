@@ -168,7 +168,7 @@ h1, h2 { font-family: var(--font-display); margin: 0; letter-spacing: 0.02em; }
   transition: var(--transition-control);
 }
 :is(.button, .role-filter, .segment, .icon-button, .speed-button, .top-bar__leave,
-  .cancel-action, .team-call, .action-chip):active:not(:disabled) {
+  .cancel-action, .team-call, .action-chip):active:not(:disabled, [aria-disabled="true"]) {
   transform: translateY(1px);
 }
 
@@ -622,7 +622,10 @@ h1, h2 { font-family: var(--font-display); margin: 0; letter-spacing: 0.02em; }
   padding: 0 0.4375rem;
   cursor: pointer;
 }
-.speed-button:hover:not(.is-active) { color: var(--color-text); border-color: var(--color-border-strong); }
+.speed-button:hover:not(.is-active, [aria-disabled="true"]) { color: var(--color-text); border-color: var(--color-border-strong); }
+/* Unavailable (Auto-pause in the guided game): looks like a disabled .button, but stays focusable
+   so its title can say why. */
+.speed-button[aria-disabled="true"] { opacity: 0.45; cursor: default; }
 .speed-button.is-active { color: var(--color-on-gold); background: var(--color-gold); border-color: var(--color-gold-dark); }
 .speed-button--pause { min-width: 1.75rem; }
 .speed-button--pause svg { width: 0.75rem; height: 0.75rem; fill: currentColor; }

@@ -17,12 +17,13 @@ const ICONS = Object.freeze({
 
 // The bar along the top: Leave, the scoreboard in the middle, and the settings toggles in the
 // corner. The game screen moves the app's fullscreen button into `corner`, after the toggles.
-export function createTopBar({ playerSide, onSpeedChange, onPauseToggle, onSlowMotionToggle, onAutoPauseToggle, onLeave }) {
+// `isAutoPauseAvailable` is false in the guided game, which decides itself when it stands still.
+export function createTopBar({ playerSide, onSpeedChange, onPauseToggle, onSlowMotionToggle, onAutoPauseToggle, onLeave, isAutoPauseAvailable }) {
   const scoreboard = createScoreboard({ playerSide, onSpeedChange, onPauseToggle });
   const leaveButton = createButton('Leave', onLeave, 'top-bar__leave');
   leaveButton.dataset.anchor = 'leave';
   const corner = createElement('div', { className: 'top-bar__corner' },
-    createSlowMotionButton(onSlowMotionToggle), createAutoPauseButton(onAutoPauseToggle));
+    createSlowMotionButton(onSlowMotionToggle), createAutoPauseButton(onAutoPauseToggle, isAutoPauseAvailable));
   const element = createElement('div', { className: 'top-bar' }, leaveButton, scoreboard.element, corner);
   return { element, corner, update: scoreboard.update, setClockState: scoreboard.setClockState };
 }
@@ -132,20 +133,35 @@ function createSlowMotionButton(onSlowMotionToggle) {
   return createToggleButton({ label: 'Slow-mo', title: 'Slow down on important moments', anchor: 'slow-motion', isInitiallyOn: true, onToggle: onSlowMotionToggle });
 }
 
-function createAutoPauseButton(onAutoPauseToggle) {
-  return createToggleButton({ label: 'Auto-pause', title: 'Pause on important moments, so you can give your calls', anchor: 'auto-pause', isInitiallyOn: false, onToggle: onAutoPauseToggle });
+function createAutoPauseButton(onAutoPauseToggle, isAvailable) {
+  return createToggleButton({
+    label: 'Auto-pause',
+    title: 'Pause on important moments, so you can give your calls',
+    anchor: 'auto-pause',
+    isInitiallyOn: false,
+    onToggle: onAutoPauseToggle,
+    unavailableReason: isAvailable ? null : 'Not in the guided game: the guide decides when the game stands still',
+  });
 }
 
-function createToggleButton({ label, title, anchor, isInitiallyOn, onToggle }) {
+// An unavailable toggle uses aria-disabled rather than disabled, so it can still be focused and
+// hovered: the player can read why it is off, and screen readers say it is unavailable.
+function createToggleButton({ label, title, anchor, isInitiallyOn, onToggle, unavailableReason = null }) {
   const button = createButton(label, () => {
+    if (unavailableReason) {
+      return;
+    }
     const isEnabled = !button.classList.contains('is-active');
     button.classList.toggle('is-active', isEnabled);
     button.setAttribute('aria-pressed', String(isEnabled));
     onToggle(isEnabled);
   }, `speed-button speed-button--toggle${isInitiallyOn ? ' is-active' : ''}`);
-  button.title = title;
+  button.title = unavailableReason ?? title;
   button.dataset.anchor = anchor;
   button.setAttribute('aria-pressed', String(isInitiallyOn));
+  if (unavailableReason) {
+    button.setAttribute('aria-disabled', 'true');
+  }
   return button;
 }
 

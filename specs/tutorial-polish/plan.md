@@ -112,7 +112,24 @@ every task.
   - In a game screen mounted with `NO_TUTORIAL`: `aria-pressed` becomes `true` after a click.
   - A screenshot of `wave.tempo`.
   - The four checks pass.
-- [ ] built  [ ] tests shown  [ ] reviewed  [ ] approved
+- **Result** (2026-11-15):
+
+  | | Guided game (`wave.tempo`) | Normal game (`NO_TUTORIAL`) |
+  |---|---|---|
+  | `aria-disabled` | `true` | not set |
+  | `aria-pressed` before → after a click | `false` → `false` | `false` → `true` |
+  | opacity | 0.45 | 1 |
+  | `tabIndex` (focusable) | 0 | 0 |
+  | title | "Not in the guided game: the guide decides when the game stands still" | "Pause on important moments, so you can give your calls" |
+
+  - No errors on the iframe's window during either run.
+  - The shared press nudge and the speed-button hover skip `[aria-disabled="true"]`, so the
+    unavailable button does not react as if it worked.
+  - The `wave.tempo` card reads "In a real game, Auto-pause, in the top-right corner, stops the game
+    on big moments." Screenshot: `screenshots/wave-tempo-auto-pause.jpg`, with the dimmed button
+    inside its ring.
+  - The four checks pass.
+- [x] built  [x] tests shown  [ ] reviewed  [ ] approved
 
 ## After the last task
 
