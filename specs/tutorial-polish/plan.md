@@ -60,7 +60,33 @@ every task.
     `specs/tutorial-polish/screenshots/`.
   - The four checks pass.
   - **Stop and ask Simon if:** 2 px is not enough to meet AC1 and AC2.
-- [ ] built  [ ] tests shown  [ ] reviewed  [ ] approved
+- **Result** (2026-11-15). 2 px is enough, so there was no stop. Measured with
+  `getBoundingClientRect`, in px:
+
+  | Size | Step | Before (6 px) | After (0.125rem) |
+  |---|---|---|---|
+  | 1920×911 | `rift.clock`: ring top minus the kill score's bottom | −4.0 | 0.0 |
+  | 1920×911 | `rift.clock`: Slow-mo ring to Auto-pause | 0.0 | 4.0 |
+  | 1920×911 | `wave.tempo`: Auto-pause ring to Slow-mo / to fullscreen | 0.0 / 0.0 | 4.0 / 4.0 |
+  | 2560×1440 | `rift.clock`: ring top minus the kill score's bottom | −5.3 | −0.016 |
+  | 2560×1440 | corner rings to their neighbours | 0.0 | 5.3 |
+
+  - **The −0.016 at 2560×1440** is 1/64 px, Chrome's layout unit.
+    - At that scale the padding is 2.6667 px and the row gap 2.6563 px, so the ring snaps 1/64 px
+      past the row edge.
+    - It cannot be seen. A full-size zoom at 2560×1440 shows clear space between the ring and the
+      digits "1 — 0".
+    - So AC1 holds within the browser's layout rounding.
+  - **The "before" column already includes Task 1**, where the default became `rem`. At 2560 it
+    is 8 px; the old fixed 6 px gave −2.7 there.
+  - On `dragon.taken`, the ring around blue's drake slots now starts 8 px below row 1's stats
+    (top 41.5 against 33.5); with 6 px it reached into row 1.
+  - **Screenshots** (`screenshots/`) were taken at 1920×911, shown at 70 % and cropped to the top
+    of the screen: `rift-scoreboard.jpg`, `rift-clock.jpg`, `wave-tempo-ring.jpg` and
+    `dragon-taken.jpg`. The automated Chrome's window was minimized, so the page could not be
+    shown at full width; see PAPERCUTS.
+  - The four checks pass.
+- [x] built  [x] tests shown  [ ] reviewed  [ ] approved
 
 ## Task 3: Show Auto-pause as unavailable in the guided game
 
