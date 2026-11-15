@@ -70,6 +70,9 @@ export const PRESSURE_PER_LEVEL = 0.12;
 export const PRESSURE_PER_THOUSAND_ITEM_GOLD = 0.15;
 export const PRESSURE_PER_HEALTH = 0.6;
 export const PRESSURE_WITH_LANE_ALONE = 0.5;
+// Per laner one side has more than the other, as when a support leaves their ADC alone against two.
+// About three levels' worth: a second champion is the biggest swing in kill threat a lane can have.
+export const PRESSURE_PER_EXTRA_LANER = 0.35;
 // Under pressure a champion stands further back; with the upper hand, a little further up.
 export const ZONED_EXTRA_STANDOFF = 40;
 export const FORWARD_STANDOFF = 8;

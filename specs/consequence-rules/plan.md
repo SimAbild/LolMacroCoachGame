@@ -152,7 +152,32 @@ task.
   - The new rule passes, and the measured drop is recorded.
   - The four checks pass.
   - The golden master is DIFFERENT; record its `--summary`, then save it.
-- [ ] built  [ ] tests shown  [ ] reviewed  [ ] approved
+- **Result** (2026-11-15):
+  - **The new rule, before and after.** Bot pressure for Blue, with Blue's support kept away for
+    60 s, against present, over 8 games:
+
+    | | Support away | Support present | Drop |
+    |---|---|---|---|
+    | Before the change | 0.00 | −0.02 | −0.02 (alone was *better*, as the brainstorm predicted) |
+    | After the change | −0.38 | −0.02 | 0.36 |
+
+    The threshold is 0.18, half of the measured 0.36. The drop exceeds the constant's 0.35 because
+    the lone ADC also loses health while alone.
+  - Every older lane-theory rule still passes.
+  - **`--summary` after the change**, saved as the new baseline:
+
+    | Seed | Result | Kills | Roams / caught | Recalls | Plates lost blue / red | Avg laner CS at 14:00 |
+    |---|---|---|---|---|---|---|
+    | 11 | blue at 27.2 min | 27-8 | 10 / 2 | 46 | 0/0/1 · 2/0/1 | 65.7 (was 67.7) |
+    | 2024 | blue at 36.2 min | 21-24 | 17 / 5 | 64 | 1/0/0 · 1/0/3 | 62.5 (was 58.0) |
+    | 777 | **red** at 23.3 min | 7-13 | 13 / 1 | 41 | 0/0/2 · 0/0/2 | 54.8 (was 65.5) |
+
+    - The average laner CS at 14:00 across the three games goes from 63.7 to 61.0.
+    - For the first time, red wins a baseline game (seed 777).
+    - Plates lost by 13:50 rise a little, mostly bot: 3-5 per game, against 3-4 before. That is the
+      lane that now swings with the support's presence.
+  - **Tutorial:** `checkTutorial --twice` takes the same steps on the same ticks.
+- [x] built  [x] tests shown  [ ] reviewed  [ ] approved
 
 ## Task 4: Count laners in trades, and stop caution from making trades safer (Rule 1b)
 

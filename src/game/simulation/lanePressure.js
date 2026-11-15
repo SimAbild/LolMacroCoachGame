@@ -1,5 +1,6 @@
 import {
-  FORWARD_STANDOFF, FROZEN_OUT_STANDOFF, PRESSURE_PER_HEALTH, PRESSURE_PER_LEVEL, PRESSURE_PER_THOUSAND_ITEM_GOLD, PRESSURE_WITH_LANE_ALONE, ZONED_EXTRA_STANDOFF,
+  FORWARD_STANDOFF, FROZEN_OUT_STANDOFF, PRESSURE_PER_EXTRA_LANER, PRESSURE_PER_HEALTH, PRESSURE_PER_LEVEL, PRESSURE_PER_THOUSAND_ITEM_GOLD,
+  PRESSURE_WITH_LANE_ALONE, ZONED_EXTRA_STANDOFF,
 } from '../../config/laneRules.js';
 import { TEAM, opposingTeam } from '../../config/teams.js';
 import { ACTIVITY } from '../activities.js';
@@ -19,9 +20,11 @@ export function updateLanePressure(gameState, laneState) {
     laneState.pressureForBlue = (blueLaners.length > 0 ? PRESSURE_WITH_LANE_ALONE : 0) - (redLaners.length > 0 ? PRESSURE_WITH_LANE_ALONE : 0);
     return;
   }
+  // Averages say how strong each side is; the count says how many of them there are.
   const pressure = (average(blueLaners, championState => championState.level) - average(redLaners, championState => championState.level)) * PRESSURE_PER_LEVEL
     + (average(blueLaners, itemGoldOf) - average(redLaners, itemGoldOf)) / GOLD_PER_THOUSAND * PRESSURE_PER_THOUSAND_ITEM_GOLD
-    + (average(blueLaners, championState => championState.healthRatio) - average(redLaners, championState => championState.healthRatio)) * PRESSURE_PER_HEALTH;
+    + (average(blueLaners, championState => championState.healthRatio) - average(redLaners, championState => championState.healthRatio)) * PRESSURE_PER_HEALTH
+    + (blueLaners.length - redLaners.length) * PRESSURE_PER_EXTRA_LANER;
   laneState.pressureForBlue = Math.min(MAX_PRESSURE, Math.max(-MAX_PRESSURE, pressure));
 }
 

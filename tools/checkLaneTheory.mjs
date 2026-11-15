@@ -38,13 +38,15 @@ const PLAY_SAFE_MAX_CS_SHARE = 0.92;
 // Big enough that the lane pressure stays past the point where a careful laner used to fall out of
 // farm range (about −0.175).
 const BEHIND_LEAD_SIZE = 2;
+// Half of the 0.36 drop measured on 2026-11-15 (Task 3 of specs/consequence-rules).
+const MIN_PRESSURE_DROP_TWO_AGAINST_ONE = 0.18;
 
 const gameData = await loadGameData();
 // What the same lane does with no call at all: the yardstick for the rules below.
 const instinct = playWithCall(null);
 const instinctRunsForThinRules = playRunsWithCall(null, THIN_RULE_SEEDS);
 const rules = [
-  checkLeadBecomesCsLead, checkPlaySafeWhileBehindStillFarms, checkPlaySafe, checkTrade, checkFreeze, checkShoveBreaksFreeze, checkGroupOverridesFreeze, checkShoveWithoutPlan, checkSlowPushCrash, checkAbsenceLosesFarm, checkBadReset,
+  checkLeadBecomesCsLead, checkPlaySafeWhileBehindStillFarms, checkPlaySafe, checkTrade, checkFreeze, checkShoveBreaksFreeze, checkGroupOverridesFreeze, checkShoveWithoutPlan, checkSlowPushCrash, checkAbsenceLosesFarm, checkBadReset, checkPressureCountsNumbers,
   checkCannonRule, checkWavesAlwaysExist, checkMinionsNeverJump,
 ];
 const failures = rules.flatMap(checkRule => checkRule());
@@ -292,6 +294,43 @@ function checkSlowPushCrash() {
   const slowPush = largestCrashWith('slowPush');
   const shove = largestCrashWith('shove');
   return expect('Slow push crashes a bigger wave than a shove', slowPush > shove, `${slowPush.toFixed(1)} minions against ${shove.toFixed(1)}`);
+}
+
+// Keeps a champion out of the game for the next tick, as if dead, the same way for every rule.
+function keepAway(championState) {
+  championState.isAlive = false;
+  championState.activity = ACTIVITY.DEAD;
+  championState.activitySecondsLeft = AWAY_TICKS;
+}
+
+function laneOf(gameState, lane) {
+  return gameState.lanes.find(laneState => laneState.lane === lane);
+}
+
+// Bot lane with Blue's support kept away for AWAY_TICKS: Blue's ADC alone against two.
+function playBotWithSupport({ isSupportAway }) {
+  return runsOver(game => {
+    const support = championOf(game.gameState, TEAM.BLUE, ROLE.SUPPORT);
+    const botLane = laneOf(game.gameState, 'bot');
+    let pressureSum = 0;
+    for (let tick = 0; tick < AWAY_TICKS; tick += 1) {
+      if (isSupportAway) {
+        keepAway(support);
+      }
+      game.simulation.runTicks(1);
+      pressureSum += botLane.pressureForBlue;
+    }
+    return { pressure: pressureSum / AWAY_TICKS };
+  });
+}
+
+// Two laners weigh more than one: with Blue's support away, Blue's bot lane is under more pressure.
+function checkPressureCountsNumbers() {
+  const away = averageOfRuns(playBotWithSupport({ isSupportAway: true }));
+  const present = averageOfRuns(playBotWithSupport({ isSupportAway: false }));
+  const drop = present.pressure - away.pressure;
+  return expect('Two laners against one push the pressure', drop >= MIN_PRESSURE_DROP_TWO_AGAINST_ONE,
+    `bot pressure ${away.pressure.toFixed(2)} with the support away against ${present.pressure.toFixed(2)} present (drop ${drop.toFixed(2)})`);
 }
 
 // Being away means the waves die without you: that farm is gone for good.

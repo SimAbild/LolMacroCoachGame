@@ -4,20 +4,20 @@
     {
       "seed": 11,
       "winner": "blue",
-      "minutes": 29.4,
-      "hash": "91b1ac4a3d402b68"
+      "minutes": 27.2,
+      "hash": "23cad891ad76130f"
     },
     {
       "seed": 2024,
       "winner": "blue",
-      "minutes": 23.8,
-      "hash": "4e106ca1bd23e13f"
+      "minutes": 36.2,
+      "hash": "a6ccaadeb2e24a40"
     },
     {
       "seed": 777,
-      "winner": "blue",
-      "minutes": 34.7,
-      "hash": "a9bf11dab8646272"
+      "winner": "red",
+      "minutes": 23.3,
+      "hash": "2b36e94c1d913236"
     }
   ]
 }
