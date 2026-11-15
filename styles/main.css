@@ -104,6 +104,8 @@
      header and the game's scoreboard) keep this much room free for it. */
   --corner-control-size: 1.75rem;
   --corner-control-room: calc(var(--corner-control-size) + 0.625rem);
+  /* The height of the buttons in the game's top bar: the 24 px (WCAG 2.2) target at scale 1. */
+  --bar-control-height: 1.5rem;
 
   /* Game screen layout */
   --game-column-gap: 0.875rem;
@@ -147,11 +149,11 @@ h1, h2 { font-family: var(--font-display); margin: 0; letter-spacing: 0.02em; }
 :focus-visible { outline: 0.125rem solid var(--color-gold); outline-offset: 0.125rem; }
 
 /* Shared feedback for everything clickable: same speed of hover, and a small press on click. */
-:is(.button, .role-filter, .segment, .icon-button, .speed-button, .scoreboard__leave,
+:is(.button, .role-filter, .segment, .icon-button, .speed-button, .top-bar__leave,
   .cancel-action, .team-call, .action-chip, .champion-search, .summoner-select) {
   transition: var(--transition-control);
 }
-:is(.button, .role-filter, .segment, .icon-button, .speed-button, .scoreboard__leave,
+:is(.button, .role-filter, .segment, .icon-button, .speed-button, .top-bar__leave,
   .cancel-action, .team-call, .action-chip):active:not(:disabled) {
   transform: translateY(1px);
 }
@@ -451,26 +453,32 @@ h1, h2 { font-family: var(--font-display); margin: 0; letter-spacing: 0.02em; }
   height: 100%;
   display: grid;
   grid-template-rows: auto 1fr;
-  gap: 0.625rem;
+  /* Small, so the two-row top bar fits in the height that the one-row bar and a 0.625rem gap used
+     to take. On a 1080p screen the map is limited by height, so every pixel here is map. */
+  gap: 0.25rem;
   padding: 0.625rem 0.875rem 0.875rem;
 }
 .coordination-overlay { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; opacity: 0; transition: opacity var(--duration-fast) var(--ease-out); }
 .coordination-overlay.is-visible { opacity: 1; }
 .coordination-overlay path { fill: none; stroke: var(--color-gold); stroke-width: 2; stroke-dasharray: 6 4; }
 
-.scoreboard {
+/* The top bar: Leave, the scoreboard and the corner toggles. Equal outer columns keep the
+   scoreboard exactly centred, whatever sits beside it. */
+.top-bar {
   display: grid;
-  grid-template-columns: auto 1fr auto 1fr auto;
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
-  gap: 1.125rem;
-  /* The right padding leaves room for the fullscreen button, which sits inside the bar's end. */
-  padding: 0.375rem calc(0.875rem + var(--corner-control-room)) 0.375rem 0.875rem;
+  column-gap: 1.125rem;
+  padding: 0.125rem 0.875rem;
   background: linear-gradient(to bottom, var(--color-surface), var(--color-surface-sunken));
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
   font-family: var(--font-display);
 }
-.scoreboard__leave {
+/* The right padding leaves room for the fullscreen button, which is placed over the bar's end. */
+.top-bar__corner { justify-self: end; display: flex; align-items: center; padding-right: var(--corner-control-room); }
+.top-bar__leave {
+  justify-self: start;
   font: 600 0.75rem var(--font-display);
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -481,17 +489,54 @@ h1, h2 { font-family: var(--font-display); margin: 0; letter-spacing: 0.02em; }
   padding: 0.25rem 0.625rem;
   cursor: pointer;
 }
-.scoreboard__leave:hover { color: var(--color-red-light); border-color: var(--color-red-muted); }
-.scoreboard__team { display: flex; align-items: center; gap: 1rem; font-size: 1.125rem; font-weight: 600; }
-.scoreboard__team--red { flex-direction: row-reverse; }
-.scoreboard__team-name { font-size: 1.375rem; font-weight: 700; letter-spacing: 0.04em; white-space: nowrap; }
+.top-bar__leave:hover { color: var(--color-red-light); border-color: var(--color-red-muted); }
+
+/* Two rows: the kills over the clock in the middle, and each team spanning both rows. The teams
+   take the rows from the scoreboard (subgrid), so their two lines sit level with the middle's. */
+.scoreboard {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  grid-template-rows: auto var(--bar-control-height);
+  align-items: center;
+  column-gap: 1.5rem;
+  row-gap: 0.125rem;
+}
+.scoreboard__team {
+  grid-row: 1 / span 2;
+  display: grid;
+  grid-template-rows: subgrid;
+  align-items: center;
+  column-gap: 0.875rem;
+  font-size: 1rem;
+  font-weight: 600;
+}
+/* Mirrored and read from the outside in, with the numbers hugging the middle. */
+.scoreboard__team--blue {
+  grid-column: 1;
+  justify-content: end;
+  justify-items: end;
+  grid-template-areas: "name towers gold" "you drakes grubs";
+}
+.scoreboard__team--red {
+  grid-column: 3;
+  justify-content: start;
+  justify-items: start;
+  grid-template-areas: "gold towers name" "grubs drakes you";
+}
+.scoreboard__team--blue :is(.scoreboard__team-name, .scoreboard__you) { justify-self: start; }
+.scoreboard__team--red :is(.scoreboard__team-name, .scoreboard__you) { justify-self: end; }
+.scoreboard__team-name { grid-area: name; font-size: 1.125rem; line-height: 1.1; font-weight: 700; letter-spacing: 0.04em; white-space: nowrap; }
 .scoreboard__team--blue .scoreboard__team-name { color: var(--color-blue); }
 .scoreboard__team--red .scoreboard__team-name { color: var(--color-red); }
+.scoreboard__you { grid-area: you; font-size: 0.6875rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--color-text-muted); }
+.scoreboard__team .drake-slots { grid-area: drakes; }
 .stat { display: inline-flex; align-items: center; gap: 0.3125rem; }
 .stat__icon { display: inline-flex; width: 1.0625rem; height: 1.0625rem; }
 .stat__icon svg { width: 100%; height: 100%; fill: currentColor; }
-.scoreboard__team .stat:nth-of-type(2) { color: var(--color-gold); }
-.scoreboard__team .stat:nth-of-type(3) .stat__icon { color: var(--color-void); }
+.stat--towers { grid-area: towers; }
+.stat--gold { grid-area: gold; color: var(--color-gold); }
+.stat--grubs { grid-area: grubs; }
+.stat--grubs .stat__icon { color: var(--color-void); }
 .drake-slots { display: inline-flex; gap: 0.25rem; }
 .drake-slot { width: 0.6875rem; height: 0.6875rem; transform: rotate(45deg); border: 1px solid var(--color-border-strong); }
 .drake-slot[data-element]:not([data-element=""]) { background: var(--element-color, var(--color-gold)); border-color: var(--element-color, var(--color-gold)); }
@@ -501,25 +546,52 @@ h1, h2 { font-family: var(--font-display); margin: 0; letter-spacing: 0.02em; }
 [data-element="Cloud"] { --element-color: var(--element-cloud); }
 [data-element="Hextech"] { --element-color: var(--element-hextech); }
 [data-element="Chemtech"] { --element-color: var(--element-chemtech); }
-.scoreboard__center { display: flex; align-items: center; gap: 0.625rem; font-size: 1.75rem; font-weight: 700; }
+.scoreboard__center {
+  grid-column: 2;
+  grid-row: 1;
+  justify-self: center;
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  font-size: 1.25rem;
+  line-height: 1.1;
+  font-weight: 700;
+}
 .scoreboard__kills--blue { color: var(--color-blue); }
 .scoreboard__kills--red { color: var(--color-red); }
-.scoreboard__divider { color: var(--color-border-strong); font-size: 1.25rem; }
-.scoreboard__clock { display: flex; align-items: center; gap: 0.75rem; }
-.scoreboard__timer { font-size: 1.5rem; font-weight: 600; min-width: 4rem; text-align: right; font-variant-numeric: tabular-nums; }
+.scoreboard__divider { color: var(--color-border-strong); font-size: 1rem; }
+/* Pause on the left of the time and the speeds on its right. Equal outer columns keep the time
+   straight under the kills. */
+.scoreboard__clock {
+  grid-column: 2;
+  grid-row: 2;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  column-gap: 0.5rem;
+}
+.scoreboard__clock .speed-button--pause { justify-self: end; }
+.scoreboard__clock .speed-buttons { justify-self: start; }
+.scoreboard__time { display: inline-flex; align-items: center; gap: 0.375rem; }
+/* A fixed width, so the time does not nudge the middle each time a digit changes. */
+.scoreboard__timer { font-size: 1.125rem; line-height: 1; font-weight: 600; min-width: 3.25rem; text-align: center; font-variant-numeric: tabular-nums; }
 .speed-buttons { display: flex; gap: 0.1875rem; }
 .speed-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: var(--bar-control-height);
   font: 600 0.8125rem var(--font-display);
   color: var(--color-text-muted);
   background: var(--color-surface-raised);
   border: 1px solid var(--color-border);
   border-radius: 0.1875rem;
-  padding: 0.1875rem 0.4375rem;
+  padding: 0 0.4375rem;
   cursor: pointer;
 }
 .speed-button:hover:not(.is-active) { color: var(--color-text); border-color: var(--color-border-strong); }
 .speed-button.is-active { color: var(--color-on-gold); background: var(--color-gold); border-color: var(--color-gold-dark); }
-.speed-button--pause { display: inline-flex; align-items: center; justify-content: center; min-width: 1.75rem; margin-right: 0.375rem; }
+.speed-button--pause { min-width: 1.75rem; }
 .speed-button--pause svg { width: 0.75rem; height: 0.75rem; fill: currentColor; }
 .scoreboard__clock.is-paused .speed-button[data-speed].is-active { opacity: 0.5; }
 .scoreboard__clock.is-paused .scoreboard__timer { color: var(--color-text-muted); }

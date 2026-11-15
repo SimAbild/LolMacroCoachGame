@@ -139,6 +139,6 @@
 .fullscreen-toggle:hover { color: var(--color-text); border-color: var(--color-border-strong); }
 .fullscreen-toggle[aria-pressed="true"] { color: var(--color-gold); }
 .fullscreen-toggle svg { width: 1rem; height: 1rem; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
-/* On the game screen it sits inside the end of the scoreboard, after the speed buttons, at their
-   height and on their line (the scoreboard starts 0.625rem down and is 3rem tall). */
-body:has(.game-screen) .fullscreen-toggle { top: 1.375rem; right: 1.75rem; width: 1.5rem; height: 1.5rem; }
+/* On the game screen it sits inside the end of the top bar, after Slow-mo and Auto-pause, at their
+   height and on their line (the bar starts 0.625rem down and is 3.375rem tall). */
+body:has(.game-screen) .fullscreen-toggle { top: 1.5625rem; right: 1.75rem; width: 1.5rem; height: 1.5rem; }

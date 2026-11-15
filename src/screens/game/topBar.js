@@ -15,23 +15,28 @@ const ICONS = Object.freeze({
   play: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5l11 7-11 7z"/></svg>',
 });
 
-// The scoreboard along the top: Leave, both teams' stats, the kill score, and the clock controls.
+// The bar along the top: Leave, the scoreboard in the middle, and the settings toggles in the corner.
 export function createTopBar({ playerSide, onSpeedChange, onPauseToggle, onSlowMotionToggle, onAutoPauseToggle, onLeave }) {
-  const teamStats = { [TEAM.BLUE]: createTeamStats(TEAM.BLUE, playerSide), [TEAM.RED]: createTeamStats(TEAM.RED, playerSide) };
-  const kills = {
-    [TEAM.BLUE]: createElement('span', { className: 'scoreboard__kills scoreboard__kills--blue' }),
-    [TEAM.RED]: createElement('span', { className: 'scoreboard__kills scoreboard__kills--red' }),
-  };
-  const clockControls = createClockControls({ onSpeedChange, onPauseToggle, onSlowMotionToggle, onAutoPauseToggle });
-  const leaveButton = createButton('Leave', onLeave, 'scoreboard__leave');
+  const scoreboard = createScoreboard({ playerSide, onSpeedChange, onPauseToggle });
+  const leaveButton = createButton('Leave', onLeave, 'top-bar__leave');
   leaveButton.dataset.anchor = 'leave';
+  const corner = createElement('div', { className: 'top-bar__corner' },
+    createSlowMotionButton(onSlowMotionToggle), createAutoPauseButton(onAutoPauseToggle));
+  const element = createElement('div', { className: 'top-bar' }, leaveButton, scoreboard.element, corner);
+  return { element, update: scoreboard.update, setClockState: scoreboard.setClockState };
+}
+
+// Laid out like a broadcast scoreboard: the two teams mirrored around the kill score, the clock under it.
+function createScoreboard({ playerSide, onSpeedChange, onPauseToggle }) {
+  const teamStats = { [TEAM.BLUE]: createTeamStats(TEAM.BLUE, playerSide), [TEAM.RED]: createTeamStats(TEAM.RED, playerSide) };
+  const kills = { [TEAM.BLUE]: createKills(TEAM.BLUE), [TEAM.RED]: createKills(TEAM.RED) };
+  const clockControls = createClockControls({ onSpeedChange, onPauseToggle });
   const element = createElement('div', { className: 'scoreboard' },
-    leaveButton,
     teamStats[TEAM.BLUE].element,
     createElement('div', { className: 'scoreboard__center' },
       kills[TEAM.BLUE], createElement('span', { className: 'scoreboard__divider', text: '—' }), kills[TEAM.RED]),
-    teamStats[TEAM.RED].element,
     clockControls.element,
+    teamStats[TEAM.RED].element,
   );
 
   function update(gameState) {
@@ -45,16 +50,21 @@ export function createTopBar({ playerSide, onSpeedChange, onPauseToggle, onSlowM
   return { element, update, setClockState: clockControls.setClockState };
 }
 
+function createKills(team) {
+  return createElement('span', { className: `scoreboard__kills scoreboard__kills--${team}` });
+}
+
+// One team's half, read from the outside in: name, towers, gold on top; "You", drakes, grubs below.
 function createTeamStats(team, playerSide) {
-  const youSuffix = team === playerSide ? ' (you)' : '';
   const values = { towers: createStatValue(), gold: createStatValue(), grubs: createStatValue() };
   const drakeSlots = Array.from({ length: DRAKES_FOR_SOUL }, () => createElement('span', { className: 'drake-slot' }));
   const element = createElement('div', { className: `scoreboard__team scoreboard__team--${team}` },
-    createElement('span', { className: 'scoreboard__team-name', text: `${TEAM_LABELS[team].toUpperCase()}${youSuffix}` }),
-    createStat('tower', 'Towers destroyed', values.towers),
-    createStat('gold', 'Total gold', values.gold),
-    createStat('grub', 'Void grubs', values.grubs),
+    createElement('span', { className: 'scoreboard__team-name', text: TEAM_LABELS[team].toUpperCase() }),
+    createStat('tower', 'Towers destroyed', values.towers, 'stat--towers'),
+    createStat('gold', 'Total gold', values.gold, 'stat--gold'),
+    team === playerSide ? createElement('span', { className: 'scoreboard__you', text: 'You' }) : null,
     createElement('span', { className: 'drake-slots', attributes: { title: 'Drakes' } }, ...drakeSlots),
+    createStat('grub', 'Void grubs', values.grubs, 'stat--grubs'),
   );
 
   // A drake slot takes the colour of the element of the drake taken in that slot.
@@ -71,17 +81,17 @@ function createTeamStats(team, playerSide) {
   return { element, update };
 }
 
-// Game time, the "Paused" pill, pause, the game speeds and the slow-motion toggle.
-function createClockControls({ onSpeedChange, onPauseToggle, onSlowMotionToggle, onAutoPauseToggle }) {
+// Pause, the game time and the game speeds, under the kill score, plus the "Paused" pill.
+function createClockControls({ onSpeedChange, onPauseToggle }) {
   const timer = createElement('span', { className: 'scoreboard__timer' });
   const pausedPill = createElement('span', { className: 'scoreboard__paused', text: 'Paused' });
   const pauseButton = createButton('', onPauseToggle, 'speed-button speed-button--pause');
   pauseButton.dataset.anchor = 'pause';
   const speedButtons = GAME_SPEEDS.map((speed, speedIndex) => createSpeedButton(speed, GAME_SPEED_KEYS[speedIndex], onSpeedChange));
   const element = createElement('div', { className: 'scoreboard__clock', dataset: { anchor: 'clock' } },
-    pausedPill,
-    timer,
-    createElement('div', { className: 'speed-buttons' }, pauseButton, ...speedButtons, createSlowMotionButton(onSlowMotionToggle), createAutoPauseButton(onAutoPauseToggle)),
+    pauseButton,
+    createElement('span', { className: 'scoreboard__time' }, pausedPill, timer),
+    createElement('div', { className: 'speed-buttons' }, ...speedButtons),
   );
 
   // Only pauses the player can lift show as "Paused"; tutorial halts are shown by the tutorial itself.
@@ -140,10 +150,10 @@ function createStatValue() {
   return createElement('span', { className: 'stat__value' });
 }
 
-function createStat(iconName, title, valueElement) {
+function createStat(iconName, title, valueElement, modifier) {
   const icon = createElement('span', { className: 'stat__icon' });
   icon.innerHTML = ICONS[iconName];
-  return createElement('span', { className: 'stat', attributes: { title } }, icon, valueElement);
+  return createElement('span', { className: `stat ${modifier}`, attributes: { title } }, icon, valueElement);
 }
 
 function formatGold(gold) {

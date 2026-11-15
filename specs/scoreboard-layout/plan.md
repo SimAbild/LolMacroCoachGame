@@ -56,7 +56,34 @@ R7's purpose better than a height token would.
   - Measured at 1920×911 and 1920×1080: the bar's height, the gap, and the map canvas size.
   - A height budget per row. If 24 px buttons do not fit, **I stop here and show Simon the choice**
     (smaller buttons, or a few px less map), as the spec says.
-- [ ] built  [ ] tests shown  [ ] reviewed  [ ] approved
+- **Result** (measured 2026-11-15 in Chrome, in a same-origin iframe of each size, on
+  `?tutorial&from=rift`; the root font size is 16 px at both, so scale 1):
+
+  | | 1920×911 | 1920×1080 |
+  |---|---|---|
+  | Bar | 48 px (padding 6 + 6, border 1 + 1) | 48 px |
+  | Gap under the bar | 10 px | 10 px |
+  | Top of `.game-body` | 68 px | 68 px |
+  | **Map canvas (AC4 baseline)** | **754 × 754** | **923 × 923** |
+  | Map host | 984 × 754, so the map is limited by height | 984 × 923, limited by height |
+  | Speed button | 24 px | 24 px |
+
+  Because the map is limited by height, it keeps its size as long as bar + gap ≤ 58 px.
+
+  **Budget, which fits, so there is no stop.** The gap goes from 10 to 4 px (0.25rem), so the bar
+  may be 54 px:
+
+  | Part | px |
+  |---|---|
+  | Border | 2 |
+  | Padding | 2 + 2 (0.125rem each) |
+  | Row 1 | 22 |
+  | Row gap | 2 (0.125rem) |
+  | Row 2 | 24, buttons at the full 24 px |
+
+  Row 1 at 22 px holds the kills in 1.25rem (20 px) with `line-height: 1.1`, team names in 1.125rem
+  and stats in 1rem. `--bar-control-height` is 1.5rem (24 px).
+- [x] built  [x] tests shown  [ ] reviewed  [ ] approved
 
 ## Task 3: Rebuild the top bar as a two-row scoreboard
 
@@ -97,7 +124,33 @@ R7's purpose better than a height token would.
   - Space and 0–3 still work.
   - The narrowest width without a sideways scroll, measured.
   - The four checks pass.
-- [ ] built  [ ] tests shown  [ ] reviewed  [ ] approved
+- **Result** (2026-11-15):
+
+  | Measure | 1920×911 | 1920×1080 | 2560×1440 |
+  |---|---|---|---|
+  | Bar | 54 px, as budgeted | 54 px | 71.3 px |
+  | Top of `.game-body` | 68 px, as before | 68 px, as before | 90 px |
+  | **Map canvas** | **754 × 754**, as before | **923 × 923**, as before | 1234 × 1234 |
+  | Time centre minus kills centre | 0.00 px | 0.00 px | 0.01 px |
+  | Scoreboard centre | 960 of 960 | 960 of 960 | 1280 of 1280 |
+  | Speed button | 24 px | 24 px | 32 px |
+
+  - **Normal games.** In a drafted game as blue and as red (the tab was 1920×855, still scale 1),
+    "You" shows only on the player's own side. The time minus the kills is 0.01 px.
+  - **Screenshots:** `top-bar-blue-1920.png`, `top-bar-red-1920.png` and
+    `top-bar-2560-at-75pct.png`.
+  - **Stat colours.**
+    - Before: the tower number was gold and the gold icon purple. See
+      `specs/fullscreen/game-1920x1080-at-80pct.jpg`.
+    - After: the gold number is gold and the grub icon is purple.
+  - **Keys.** Space pauses (pill shown) and resumes. 0 / 2 / 3 / 1 set 0.5x / 2x / 3x / 1x.
+  - **Narrowest width without a sideways scroll: 920 px** (it was 1231 on `feature/fullscreen`
+    and 1193 on `main`). At 910 px it is the map and the columns that overflow, no longer the bar.
+  - **Extra.** The absolute fullscreen button's `top` was updated for the 54 px bar (centre 37.0
+    against the bar's 37.0). Task 5 replaces the rule.
+  - **Checks.** The four checks pass: golden master SAME, determinism SAME, lane theory OK,
+    tutorial `--twice` SAME and OK.
+- [x] built  [x] tests shown  [ ] reviewed  [ ] approved
 
 ## Task 4: The paused look
 
