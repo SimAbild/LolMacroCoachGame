@@ -28,7 +28,8 @@ scale 1. These stay in `px`:
   counter's `1px` padding, `1px` outline offsets and `translateY(±1px)` nudges, and the outer ring
   of the map's frame (`calc(0.25rem + 1px)`);
 - `999px` for fully rounded pills, where any large value works;
-- the `initial-value` of a registered `@property` (`--coach-hole-padding: 6px`). The browser
+- the `initial-value` of a registered `@property` (`initial-value: 6px` in the rule for
+  `--coach-hole-padding`). The browser
   rejects an initial value in `rem`, because it depends on the root. It then drops the whole rule,
   so the property is plain text again: JavaScript would read `"0.375rem"`. Chrome confirmed on
   2026-11-15: "not computationally independent". The value actually used is set in `rem`, in

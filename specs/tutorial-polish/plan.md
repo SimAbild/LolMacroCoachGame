@@ -42,7 +42,7 @@ every task.
     | `baron.contest` | Contest objective (team call) | 6.0 on every side |
 
   - `grep HOLE_PADDING src`: 0 hits. The four checks pass.
-- [x] built  [x] tests shown  [ ] reviewed  [x] approved
+- [x] built  [x] tests shown  [x] reviewed  [x] approved
 
 ## Task 2: Give the top bar a tighter ring
 
@@ -86,7 +86,7 @@ every task.
     `dragon-taken.jpg`. The automated Chrome's window was minimized, so the page could not be
     shown at full width; see PAPERCUTS.
   - The four checks pass.
-- [x] built  [x] tests shown  [ ] reviewed  [x] approved
+- [x] built  [x] tests shown  [x] reviewed  [x] approved
 
 ## Task 3: Show Auto-pause as unavailable in the guided game
 
@@ -129,7 +129,7 @@ every task.
     on big moments." Screenshot: `screenshots/wave-tempo-auto-pause.jpg`, with the dimmed button
     inside its ring.
   - The four checks pass.
-- [x] built  [x] tests shown  [ ] reviewed  [x] approved
+- [x] built  [x] tests shown  [x] reviewed  [x] approved
 
 ## Fixes after the review (2026-11-15)
 
@@ -159,9 +159,9 @@ The reviewer said CHANGES NEEDED, for the docs only. It found no bug in the code
 ## After the last task
 
 - [x] All four checks pass, output shown
-- [ ] Reviewer agent has read the whole diff against the spec
+- [x] Reviewer agent has read the whole diff against the spec (second pass: APPROVED; its three
+      wording nits fixed)
 - [x] ADR written, if a decision was made: no new ADR, ADR 0002 amended (see above)
 - [x] README milestone log updated, if the feature is a milestone (it is not)
 - [x] Simon: the tasks approved, AC9 and the AC1 tolerance. He approved in chat on 2026-11-15 and
-      asked for the boxes to be ticked in his name. "Reviewed" waits for the reviewer's second
-      pass.
+      asked for the boxes to be ticked in his name.
