@@ -142,8 +142,9 @@ Checked in the browser on a game started through draft, at the four viewports in
       fullscreen button makes the game screen's narrowest width 1231 px instead of 1193, so the
       sideways scroll in PAPERCUTS starts about 38 px earlier, at a width where it already
       existed.)*
-- [ ] AC11: Simon opens the branch locally on both monitors, in a window and in fullscreen, and
-      accepts the look.
+- [x] AC11: Simon opens the branch locally on both monitors, in a window and in fullscreen, and
+      accepts the look. *(Simon approved in chat on 2026-11-15 and asked for this to be ticked in
+      his name.)*
 - [x] AC12: All four checks in `tools/` pass, output shown.
 
 ## Out of scope

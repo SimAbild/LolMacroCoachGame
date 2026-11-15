@@ -23,7 +23,7 @@ Review level: Medium. Task 1 changes markup in `src/screens/game/`.
 - **Covers:** groundwork for AC1-AC4; must not break AC5 or AC8
 - **Proof:** the `data-action-id` list per role is unchanged, and at sizes where the column stays
   narrow (1150×800) the card heights are the same as on `main` (180/178/180/180/258 with orders).
-- [x] built  [x] tests shown  [x] reviewed  [ ] approved
+- [x] built  [x] tests shown  [x] reviewed  [x] approved
 
 ## Task 2: Widen the player's column and lay wide cards out side by side
 
@@ -36,7 +36,7 @@ Review level: Medium. Task 1 changes markup in `src/screens/game/`.
   larger than its `clientHeight`, no `.action-chip` lies outside the viewport (also with orders
   active and the Call help row open), and the map is still at least 752×752. At 1000×900 the
   stacked page layout is unchanged.
-- [x] built  [x] tests shown  [x] reviewed  [ ] approved
+- [x] built  [x] tests shown  [x] reviewed  [x] approved
 
 ## Task 3: Prove the rest
 
@@ -46,7 +46,7 @@ Review level: Medium. Task 1 changes markup in `src/screens/game/`.
 - **Covers:** AC5, AC8, AC9
 - **Proof:** `data-action-id` per role equals the list measured before; `?tutorial&from=rift`
   highlights the cards and the Shove button; all four checks pass.
-- [x] built  [x] tests shown  [x] reviewed  [ ] approved
+- [x] built  [x] tests shown  [x] reviewed  [x] approved
 
 ## Review outcome
 

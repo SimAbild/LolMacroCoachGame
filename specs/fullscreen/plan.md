@@ -31,7 +31,7 @@ Review level: Medium (`styles/`, `src/ui/`, `src/screens/`, `src/render/`, `src/
 - **Result:** `rem`. Under zoom the canvas was shown 1235 px wide but drawn with 926, the map's
   far corner came out at (1588, 1014) against the canvas's (1897, 1324), and a tooltip was centred
   at x 3126 for a button at 2344. Recorded in `docs/adr/0002-ui-scaling-with-rem.md`.
-- [x] built  [x] tests shown  [x] reviewed  [ ] approved
+- [x] built  [x] tests shown  [x] reviewed  [x] approved
 
 ## Task 2: Scale the UI by the rule
 
@@ -62,7 +62,7 @@ Review level: Medium (`styles/`, `src/ui/`, `src/screens/`, `src/render/`, `src/
   px with a 1235 px buffer, far corner 1 px inside the canvas box, tooltip centred on its button
   8 px away, no page scroll, player's column 1333 / 1333. At 2560×1271 the canvas is 1066 (796).
   All four checks pass.
-- [x] built  [x] tests shown  [x] reviewed  [ ] approved
+- [x] built  [x] tests shown  [x] reviewed  [x] approved
 
 ## Task 3: Lay the end screen out to fit
 
@@ -84,7 +84,7 @@ Review level: Medium (`styles/`, `src/ui/`, `src/screens/`, `src/render/`, `src/
   chart's text sizes had become `rem` in Task 2, but inside the chart's `viewBox` that scaled the
   text twice; they are back in `px` (tick text 14 px at 1920×911, 18 px at 2560×1440) and the ADR
   lists SVG text as an exception. `end-before-1920x911.jpg`, `end-after-1920x911.jpg`.
-- [x] built  [x] tests shown  [x] reviewed  [ ] approved
+- [x] built  [x] tests shown  [x] reviewed  [x] approved
 
 ## Task 4: Add the fullscreen button and the F key
 
@@ -111,7 +111,7 @@ Review level: Medium (`styles/`, `src/ui/`, `src/screens/`, `src/render/`, `src/
   back, Shift+F works, Ctrl+F and a held F do not, F in the draft's search field does not, and the
   button keeps its state from home to matchmaking to draft. With `allow="fullscreen 'none'"` the
   button is absent, F does nothing, no errors.
-- [x] built  [x] tests shown  [x] reviewed  [ ] approved
+- [x] built  [x] tests shown  [x] reviewed  [x] approved
 
 ## Task 5: Prove the rest
 
@@ -126,11 +126,11 @@ Review level: Medium (`styles/`, `src/ui/`, `src/screens/`, `src/render/`, `src/
   land on the map centre, the cards and the Shove button. Found: the scoreboard's room for the
   button makes the game screen's narrowest width 1231 px instead of 1193 (PAPERCUTS updated). The
   four checks pass. Screenshots in this folder.
-- [x] built  [x] tests shown  [x] reviewed  [ ] approved
+- [x] built  [x] tests shown  [x] reviewed  [x] approved
 
 ## After the last task
 
 - [x] All four checks pass, output shown
 - [x] Reviewer agent has read the whole diff against the spec (2026-11-15; findings fixed or decided by Simon)
 - [x] ADR written, if a decision was made (0002)
-- [ ] README milestone log updated, if the feature is a milestone (not a milestone)
+- [x] README milestone log updated, if the feature is a milestone (not a milestone)
