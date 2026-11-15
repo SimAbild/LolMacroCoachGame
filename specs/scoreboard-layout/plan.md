@@ -39,7 +39,7 @@ R7's purpose better than a height token would.
     - The click logs nothing.
   - Auto-pause is off in the tutorial by design (`gameScreen.js:147`).
   - The four checks pass.
-- [x] built  [x] tests shown  [ ] reviewed  [ ] approved
+- [x] built  [x] tests shown  [x] reviewed  [ ] approved
 
 ## Task 2: Measure, and budget the height (no code)
 
@@ -83,7 +83,7 @@ R7's purpose better than a height token would.
 
   Row 1 at 22 px holds the kills in 1.25rem (20 px) with `line-height: 1.1`, team names in 1.125rem
   and stats in 1rem. `--bar-control-height` is 1.5rem (24 px).
-- [x] built  [x] tests shown  [ ] reviewed  [ ] approved
+- [x] built  [x] tests shown  [x] reviewed  [ ] approved
 
 ## Task 3: Rebuild the top bar as a two-row scoreboard
 
@@ -150,7 +150,7 @@ R7's purpose better than a height token would.
     against the bar's 37.0). Task 5 replaces the rule.
   - **Checks.** The four checks pass: golden master SAME, determinism SAME, lane theory OK,
     tutorial `--twice` SAME and OK.
-- [x] built  [x] tests shown  [ ] reviewed  [ ] approved
+- [x] built  [x] tests shown  [x] reviewed  [ ] approved
 
 ## Task 4: The paused look
 
@@ -185,13 +185,16 @@ R7's purpose better than a height token would.
   - Screenshot: `top-bar-paused-1920.png`.
   - **Deviation from the proof as written:**
     - The tutorial halt was set directly through `lmcDebug`, not reached in `?tutorial&from=rift`.
-      That chapter opens on dialog steps, which pause with the dialog reason and so show the pill,
-      as they did before.
+      The reason given here at first was wrong: tutorial dialog steps pause with
+      `PAUSE_REASON.TUTORIAL` (`gameTutorialApi.js:17`), not the dialog reason, which only the
+      Leave and "Back to home" confirm dialogs use. So the real path does not show the pill, and
+      `tutorial/rift-clock.jpg` proves it: the time on that step is a plain `0:00`. *(Corrected
+      after the second review.)*
     - The DevTools accessibility tree cannot be opened from the automated Chrome. The check is
       `hidden` plus `innerText`; a `display: none` element is left out of the accessibility tree,
       and a clipped one is kept.
   - The four checks pass.
-- [x] built  [x] tests shown  [ ] reviewed  [ ] approved
+- [x] built  [x] tests shown  [x] reviewed  [ ] approved
 
 ## Task 5: Move the fullscreen button into the top bar on the game screen
 
@@ -260,13 +263,14 @@ R7's purpose better than a height token would.
   - **Narrowest width without a sideways scroll: still 920 px.** At 910 px the bar and the body
     overflow together, and it is the body's columns that set the minimum.
   - **Checks.** The four checks pass.
-- [x] built  [x] tests shown  [ ] reviewed  [ ] approved
+- [x] built  [x] tests shown  [x] reviewed  [ ] approved
 
 ## Task 6: Update the tutorial's words and check its targets
 
 - **Concept:** a coach mark finds its element with a CSS selector. `checkTutorial` runs without a
   DOM, so a wrong selector passes the check. The highlights must therefore be looked at in the
-  browser. Only wording changes; Task 3 kept the selectors.
+  browser. Only wording changes; Task 3 kept the selectors. *(The first review found that two
+  steps needed a second target after all; see "Fixes after the first review".)*
 - **Files:**
   - `src/tutorial/chapters/gameTourChapter.js`: the scoreboard step mentions the time; the time
     step says Slow-mo sits in the top-right corner.
@@ -293,8 +297,8 @@ R7's purpose better than a height token would.
     | Step | Highlights | Notes |
     |---|---|---|
     | `rift.scoreboard` | the middle scoreboard block | Before, it was the whole bar. New text. |
-    | `rift.clock` | row 2: pause, time, speeds | New text about Slow-mo in the corner. |
-    | `wave.tempo` | the clock row | New text about Auto-pause in the corner. |
+    | `rift.clock` | row 2: pause, time, speeds, and Slow-mo | New text about Slow-mo in the corner. Slow-mo was added after the first review. |
+    | `wave.tempo` | the clock row and Auto-pause | New text about Auto-pause in the corner. Auto-pause was added after the first review. |
     | `dragon.taken` | blue's drake slots | One Hextech drake is filled. |
     | `dragon.lost` | red's drake slots | Shown with `director.startAt('dragon.lost')` in the same game, because the scripted game always takes the drake. |
     | `plates.lead` | the scoreboard | 23.7K against 18.8K. |
@@ -306,7 +310,7 @@ R7's purpose better than a height token would.
     - the review row on the fullscreen button marked fixed
     - a new row on `checkTutorial` not seeing selectors
   - **Checks.** The four checks pass.
-- [x] built  [x] tests shown  [ ] reviewed  [ ] approved
+- [x] built  [x] tests shown  [x] reviewed  [ ] approved
 
 ## Fixes after the first review (2026-11-15)
 
@@ -339,7 +343,9 @@ The reviewer said CHANGES NEEDED. Fixed:
 ## After the last task
 
 - [x] All four checks pass, output shown
-- [ ] Reviewer agent has read the whole diff against the spec
-- [ ] ADR written, if a decision was made
-- [ ] README milestone log updated, if the feature is a milestone
+- [x] Reviewer agent has read the whole diff against the spec (second run: APPROVED; its
+      nice-to-haves fixed, checks passed again)
+- [x] ADR written, if a decision was made: `docs/adr/0003-screens-borrow-the-fullscreen-button.md`
+- [x] README milestone log updated, if the feature is a milestone: not a milestone (like the other
+      branches stacked under it), so no entry
 - [ ] Simon: AC9 (own look) and AC11 (opens the branch and accepts the look)

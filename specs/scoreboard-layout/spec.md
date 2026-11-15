@@ -20,8 +20,10 @@ Status: approved by Simon on 2026-11-15
 - R6: The Auto-pause button works. Today its handler is dropped on the way to the button, so a click
   throws and auto-pause never turns on.
 - R7: On the game screen the fullscreen button sits inside the top bar, after Slow-mo and Auto-pause.
-  It covers nothing at any window width, and it has no hard-coded position: its place comes from the
-  top bar's grid, and its size from a token. These are the open findings 1 and 7 from the review of `specs/fullscreen`.
+  It covers nothing at any window width, and it has no hard-coded position: its place comes from
+  the top bar's grid, and its size from a token. These are the open findings 1 and 7 from the
+  review of `specs/fullscreen`.
+  *(Wording matched to AC7 after the first review. Simon approved it on 2026-11-15.)*
 - R8: Every tutorial step that points at the scoreboard, the clock or the corner controls still
   highlights the right element, and its text matches where things now are.
 
@@ -57,6 +59,8 @@ Each one must be checkable: a `tools/check*.mjs` result, a number, or something 
 - [ ] AC10: All four checks in `tools/` pass, output shown.
 - [ ] AC11: Simon opens the branch and accepts the look. While paused, DevTools → Accessibility
       shows "Paused" on the time.
+      *(DevTools check added after the first review, because the automated Chrome cannot open the
+      accessibility tree. Simon approved it on 2026-11-15.)*
 
 ## Out of scope
 
