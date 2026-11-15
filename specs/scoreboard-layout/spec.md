@@ -31,33 +31,33 @@ Status: approved by Simon on 2026-11-15
 
 Each one must be checkable: a `tools/check*.mjs` result, a number, or something to see in the browser.
 
-- [ ] AC1 (R1): A screenshot of the game screen at 1920×911 shows the mirrored rows as in R1, with
+- [x] AC1 (R1): A screenshot of the game screen at 1920×911 shows the mirrored rows as in R1, with
       "You" only on the player's side.
-- [ ] AC2 (R2): The time's horizontal centre is within 2 px of the kill score's centre at 1920×911
+- [x] AC2 (R2): The time's horizontal centre is within 2 px of the kill score's centre at 1920×911
       and 2560×1440 (measured with `getBoundingClientRect`).
-- [ ] AC3 (R3): Pause and the four speed buttons sit in row 2 of the middle block. Slow-mo and
+- [x] AC3 (R3): Pause and the four speed buttons sit in row 2 of the middle block. Slow-mo and
       Auto-pause sit in the top-right corner. Space and the keys 0–3 still pause and change speed.
-- [ ] AC4 (R4): The map canvas is the same size before and after at 1920×911 and 1920×1080,
+- [x] AC4 (R4): The map canvas is the same size before and after at 1920×911 and 1920×1080,
       measured on this branch's starting point and after the change.
-- [ ] AC5 (R5): With `?debug`, a user pause and a dialog pause show the blinking time. A tutorial
+- [x] AC5 (R5): With `?debug`, a user pause and a dialog pause show the blinking time. A tutorial
       halt (`?tutorial&from=rift`) does not. The word "Paused" is in the accessibility tree while
       paused.
-- [ ] AC6 (R6): With Auto-pause on, the game pauses on its own at the next important moment (read
+- [x] AC6 (R6): With Auto-pause on, the game pauses on its own at the next important moment (read
       the clock's pause reasons with `?debug`), and the console shows no error on the click.
-- [ ] AC7 (R7): At 1000×900, 1150×800, 1216×800, 1366×768, 1920×911 and 2560×1440 no visible
+- [x] AC7 (R7): At 1000×900, 1150×800, 1216×800, 1366×768, 1920×911 and 2560×1440 no visible
       control on the game screen overlaps the fullscreen button (measured). The button has no
       hard-coded position on the game screen: its place comes from the top bar's grid, and its size
       from a token. F still toggles fullscreen (tested against the Fullscreen API stub, as in
       `specs/fullscreen`).
       *(Second sentence changed with the plan, approved by Simon on 2026-11-15. It used to say the
       position comes from `:root` tokens.)*
-- [ ] AC8 (R8): A screenshot of each tutorial step that points at the scoreboard, the clock or the
+- [x] AC8 (R8): A screenshot of each tutorial step that points at the scoreboard, the clock or the
       corner shows the right element highlighted. The steps are in `gameTourChapter.js`,
       `waveChapter.js` (`wave.tempo`), `dragonChapter.js` (both drakes), `platesHeraldChapter.js`
       and `baronChapter.js`.
-- [ ] AC9: Own look: there are no logos, league tags or copied broadcast graphics. Simon looks.
-- [ ] AC10: All four checks in `tools/` pass, output shown.
-- [ ] AC11: Simon opens the branch and accepts the look. While paused, DevTools → Accessibility
+- [x] AC9: Own look: there are no logos, league tags or copied broadcast graphics. Simon looks.
+- [x] AC10: All four checks in `tools/` pass, output shown.
+- [x] AC11: Simon opens the branch and accepts the look. While paused, DevTools → Accessibility
       shows "Paused" on the time.
       *(DevTools check added after the first review, because the automated Chrome cannot open the
       accessibility tree. Simon approved it on 2026-11-15.)*

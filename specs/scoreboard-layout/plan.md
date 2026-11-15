@@ -39,7 +39,7 @@ R7's purpose better than a height token would.
     - The click logs nothing.
   - Auto-pause is off in the tutorial by design (`gameScreen.js:147`).
   - The four checks pass.
-- [x] built  [x] tests shown  [x] reviewed  [ ] approved
+- [x] built  [x] tests shown  [x] reviewed  [x] approved
 
 ## Task 2: Measure, and budget the height (no code)
 
@@ -83,7 +83,7 @@ R7's purpose better than a height token would.
 
   Row 1 at 22 px holds the kills in 1.25rem (20 px) with `line-height: 1.1`, team names in 1.125rem
   and stats in 1rem. `--bar-control-height` is 1.5rem (24 px).
-- [x] built  [x] tests shown  [x] reviewed  [ ] approved
+- [x] built  [x] tests shown  [x] reviewed  [x] approved
 
 ## Task 3: Rebuild the top bar as a two-row scoreboard
 
@@ -150,7 +150,7 @@ R7's purpose better than a height token would.
     against the bar's 37.0). Task 5 replaces the rule.
   - **Checks.** The four checks pass: golden master SAME, determinism SAME, lane theory OK,
     tutorial `--twice` SAME and OK.
-- [x] built  [x] tests shown  [x] reviewed  [ ] approved
+- [x] built  [x] tests shown  [x] reviewed  [x] approved
 
 ## Task 4: The paused look
 
@@ -194,7 +194,7 @@ R7's purpose better than a height token would.
       `hidden` plus `innerText`; a `display: none` element is left out of the accessibility tree,
       and a clipped one is kept.
   - The four checks pass.
-- [x] built  [x] tests shown  [x] reviewed  [ ] approved
+- [x] built  [x] tests shown  [x] reviewed  [x] approved
 
 ## Task 5: Move the fullscreen button into the top bar on the game screen
 
@@ -263,7 +263,7 @@ R7's purpose better than a height token would.
   - **Narrowest width without a sideways scroll: still 920 px.** At 910 px the bar and the body
     overflow together, and it is the body's columns that set the minimum.
   - **Checks.** The four checks pass.
-- [x] built  [x] tests shown  [x] reviewed  [ ] approved
+- [x] built  [x] tests shown  [x] reviewed  [x] approved
 
 ## Task 6: Update the tutorial's words and check its targets
 
@@ -310,7 +310,7 @@ R7's purpose better than a height token would.
     - the review row on the fullscreen button marked fixed
     - a new row on `checkTutorial` not seeing selectors
   - **Checks.** The four checks pass.
-- [x] built  [x] tests shown  [x] reviewed  [ ] approved
+- [x] built  [x] tests shown  [x] reviewed  [x] approved
 
 ## Fixes after the first review (2026-11-15)
 
@@ -348,4 +348,5 @@ The reviewer said CHANGES NEEDED. Fixed:
 - [x] ADR written, if a decision was made: `docs/adr/0003-screens-borrow-the-fullscreen-button.md`
 - [x] README milestone log updated, if the feature is a milestone: not a milestone (like the other
       branches stacked under it), so no entry
-- [ ] Simon: AC9 (own look) and AC11 (opens the branch and accepts the look)
+- [x] Simon: AC9 (own look) and AC11 (opens the branch and accepts the look). Simon approved in
+      chat on 2026-11-15 and asked for the boxes to be ticked in his name.
