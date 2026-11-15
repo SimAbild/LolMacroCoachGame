@@ -13,7 +13,7 @@ task.
 - New lane-theory rules measure the effect first, then set the threshold at about half of it. Both
   numbers are recorded here.
 - After each gameplay task, `checkTutorial --twice` runs, and the tutorial's feed lines are logged
-  and read (AC13).
+  and read (AC13). The browser walk-through of the tutorial happens once, in Task 11.
 
 ## Task 1: Make the tools ready
 
@@ -32,10 +32,11 @@ task.
   - `tools/checkLaneTheory.mjs`:
     - `checkBadReset` measures tower damage and minions lost under the own tower during the reset.
     - "Play safe costs CS" and "Freeze keeps your own farm going" get more seeds.
-- **Covers:** AC12
+  - `tools/checkTutorial.mjs`: logs the feed lines of the tutorial run, for AC13.
+- **Covers:** AC12, and prepares AC13
 - **Proof:**
   - The `--summary` output for the three seeds, recorded here as the "before" numbers.
-  - The margins of the thin rules against the spread between their seeds.
+  - The margins of the thin rules against the standard error of their mean.
   - The four checks pass, and the golden master is SAME.
 - [ ] built  [ ] tests shown  [ ] reviewed  [ ] approved
 
@@ -54,9 +55,10 @@ task.
 - **Covers:** AC1
 - **Proof:**
   - The new rule passes.
-  - "Freeze costs them CS" is measured with the cap, and the number is recorded.
-    - **Stop and ask Simon if it fails.** The alternative is to leave the freeze part out of the
-      cap, which would split `pressureStandoffFor` in `lanePressure.js`.
+  - The freeze rules ("Freeze costs them CS", "Freeze costs them experience", "A shove breaks a
+    freeze") are measured with the cap, and the numbers are recorded.
+    - **Stop and ask Simon if any of them fails.** The alternative is to leave the freeze part out
+      of the cap, which would split `pressureStandoffFor` in `lanePressure.js`.
   - The four checks pass.
   - The golden master is DIFFERENT; record its `--summary`, then save it.
 - [ ] built  [ ] tests shown  [ ] reviewed  [ ] approved
@@ -112,8 +114,10 @@ task.
   `aiControlledTeams: [RED]`.
 - **Covers:** AC5
 - **Proof:**
-  - The rule passes on recalls and plates, and the numbers, deaths included, are recorded here.
-  - **Stop and ask Simon if:** Blue's ADC dies in no run. The option is Task 5b.
+  - The rule passes on recalls and plates, and the numbers are recorded here. Deaths are recorded
+    with the support away and present, each with its cause.
+  - **Always stop here and show Simon the death numbers.** If the 2v1 deaths are about 0, he decides
+    on Task 5b.
   - The golden master is SAME, because this is a test only.
 - [ ] built  [ ] tests shown  [ ] reviewed  [ ] approved
 
@@ -168,7 +172,8 @@ task.
 - **Covers:** AC7, AC13 (the gank chapter is the known risk)
 - **Proof:**
   - The new rules pass.
-  - CS per laner at 14:00 is compared with Task 6's summary and recorded (at most 5 % lower).
+  - The average CS of all laners at 14:00 across the three games is compared with Task 6's summary
+    and recorded (at most 5 % lower).
   - `checkTutorial --twice` reaches the same steps. If the gank chapter changes, a scenario patch
     with a story reason, recorded here.
   - The four checks pass.
@@ -184,7 +189,8 @@ task.
   - Its episode memory lives in `gameState`, like `alertMemory`. Memory kept in a module would make
     the tutorial's second run differ.
 - **Files:**
-  - `src/game/simulation/`: the line, built with `addEvent` and a new event kind
+  - `src/game/simulation/`: the line, built with `addEvent`
+  - `src/game/events.js`: the new event kind
   - `styles/main.css`: a style for the new kind, from `:root` tokens
   - `tools/checkLaneTheory.mjs`: the AC8 rule
 - **Covers:** AC8
@@ -202,10 +208,11 @@ task.
   last hits ×0.9. A one-line guard makes Trade need an enemy laner present.
 - **Files:**
   - `src/game/simulation/aiLaneOptions.js`: the guard
-  - `tools/checkLaneTheory.mjs`: the AC10 rule, with Red's AI on
+  - `tools/checkLaneTheory.mjs`: the AC10 rule, with Red's AI on and a Blue laner kept away so a
+    lane is really empty
 - **Covers:** AC10
 - **Proof:**
-  - The new rule passes.
+  - The new rule passes, with the number of AI decisions made while a lane was empty (above 0).
   - The four checks pass.
   - The golden master is DIFFERENT; record its `--summary`, then save it.
 - [ ] built  [ ] tests shown  [ ] reviewed  [ ] approved
@@ -217,7 +224,8 @@ task.
   - The AI needs two things:
     - an option that gives the existing Shove, weighted by hand above Freeze (0.6255 against an
       empty lane)
-    - a reset that waits for the plate when the opponent is missing or dead
+    - a reset that waits for the plate when the opponent is missing, or dead or walking back after
+      respawn
   - After a seen recall, "crash and back" stays.
   - Which shove is an answer, and the front tower's plates at the start, are remembered in
     `gameState.aiCoaches[team]`.
