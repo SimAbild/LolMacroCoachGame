@@ -1,6 +1,6 @@
 # Spec: tutorial-polish
 
-Status: draft
+Status: approved by Simon on 2026-11-15
 
 Simon chose the approach for both open points on 2026-11-15: the ring's padding is set from CSS
 per area, and Auto-pause shows as unavailable in the guided game.

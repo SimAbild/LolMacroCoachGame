@@ -1,6 +1,6 @@
 # Plan: tutorial-polish
 
-Status: draft
+Status: approved by Simon on 2026-11-15
 
 Tasks are built one at a time, in this order. Each is small enough to review in one sitting.
 
@@ -29,7 +29,20 @@ every task.
     as before.
   - `grep HOLE_PADDING src` finds nothing.
   - The four checks pass.
-- [ ] built  [ ] tests shown  [ ] reviewed  [ ] approved
+- **Result** (2026-11-15):
+  - The root's computed `--coach-hole-padding` reads `6px` (0.375rem × 16), so the `@property`
+    registration hands over pixels.
+  - At 1920×911, measured as ring box minus target box (left/top/right/bottom):
+
+    | Step | Target | Padding |
+    |---|---|---|
+    | `gank.otherCalls` | the jungler's and top laner's action chips | 6.0 on every side |
+    | `dragon.timer` | `.objective-timers` | 6.0 on every side |
+    | `dragon.timer` | the dragon pit (map target) | 6.0 on every side |
+    | `baron.contest` | Contest objective (team call) | 6.0 on every side |
+
+  - `grep HOLE_PADDING src`: 0 hits. The four checks pass.
+- [x] built  [x] tests shown  [ ] reviewed  [ ] approved
 
 ## Task 2: Give the top bar a tighter ring
 
