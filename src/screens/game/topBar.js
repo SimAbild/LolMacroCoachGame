@@ -16,13 +16,13 @@ const ICONS = Object.freeze({
 });
 
 // The scoreboard along the top: Leave, both teams' stats, the kill score, and the clock controls.
-export function createTopBar({ playerSide, onSpeedChange, onPauseToggle, onSlowMotionToggle, onLeave }) {
+export function createTopBar({ playerSide, onSpeedChange, onPauseToggle, onSlowMotionToggle, onAutoPauseToggle, onLeave }) {
   const teamStats = { [TEAM.BLUE]: createTeamStats(TEAM.BLUE, playerSide), [TEAM.RED]: createTeamStats(TEAM.RED, playerSide) };
   const kills = {
     [TEAM.BLUE]: createElement('span', { className: 'scoreboard__kills scoreboard__kills--blue' }),
     [TEAM.RED]: createElement('span', { className: 'scoreboard__kills scoreboard__kills--red' }),
   };
-  const clockControls = createClockControls({ onSpeedChange, onPauseToggle, onSlowMotionToggle });
+  const clockControls = createClockControls({ onSpeedChange, onPauseToggle, onSlowMotionToggle, onAutoPauseToggle });
   const leaveButton = createButton('Leave', onLeave, 'scoreboard__leave');
   leaveButton.dataset.anchor = 'leave';
   const element = createElement('div', { className: 'scoreboard' },

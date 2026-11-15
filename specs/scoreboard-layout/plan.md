@@ -39,7 +39,7 @@ R7's purpose better than a height token would.
     - The click logs nothing.
   - Auto-pause is off in the tutorial by design (`gameScreen.js:147`).
   - The four checks pass.
-- [ ] built  [ ] tests shown  [ ] reviewed  [ ] approved
+- [x] built  [x] tests shown  [ ] reviewed  [ ] approved
 
 ## Task 2: Measure, and budget the height (no code)
 
