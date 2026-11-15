@@ -22,14 +22,15 @@ const TOUR_STEPS = [
     screen: GAME,
     title: 'Scoreboard',
     target: '.scoreboard',
-    body: 'Kills in the middle. For each team: towers destroyed, total gold, Void Grubs and drakes.',
+    body: 'Kills in the middle, with the game time under them. For each team: towers destroyed and total gold on top, '
+      + 'drakes and Void Grubs below.',
   }),
   dialogStep('rift.clock', {
     screen: GAME,
     title: 'Time and speed',
     target: '[data-anchor="clock"]',
     body: 'Pause with the button or Space, and calls still work while the game stands still. Change speed with the buttons '
-      + 'or the keys 0 to 3 (0 is half speed). Slow-mo slows big moments down so you have time to react.',
+      + 'or the keys 0 to 3 (0 is half speed). Slow-mo, in the top-right corner, slows big moments down so you have time to react.',
   }),
   dialogStep('rift.map', {
     screen: GAME,

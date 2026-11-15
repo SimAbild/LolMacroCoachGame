@@ -284,11 +284,33 @@ R7's purpose better than a height token would.
     `dragon.take` ends. If that cannot be done cleanly, its selector is checked to resolve to the
     red drake slots and shown highlighted directly.
   - The four checks pass.
-- [ ] built  [ ] tests shown  [ ] reviewed  [ ] approved
+- **Result** (2026-11-15):
+  - **How each step was shown.** It was shown on the real tutorial game: the autopilot plays up to
+    the step, and `director.startAt(stepId)` shows it. These are the same modules
+    `startTutorialAtChapter` uses, run from the test page; no code changed.
+  - **Every step highlights the right element:**
+
+    | Step | Highlights | Notes |
+    |---|---|---|
+    | `rift.scoreboard` | the middle scoreboard block | Before, it was the whole bar. New text. |
+    | `rift.clock` | row 2: pause, time, speeds | New text about Slow-mo in the corner. |
+    | `wave.tempo` | the clock row | New text about Auto-pause in the corner. |
+    | `dragon.taken` | blue's drake slots | One Hextech drake is filled. |
+    | `dragon.lost` | red's drake slots | Shown with `director.startAt('dragon.lost')` in the same game, because the scripted game always takes the drake. |
+    | `plates.lead` | the scoreboard | 23.7K against 18.8K. |
+    | `baron.lead` | the scoreboard | 5 towers, 44.4K against 28.8K. |
+
+  - **Screenshots:** `specs/scoreboard-layout/tutorial/*.jpg`.
+  - **PAPERCUTS:**
+    - row 15 updated (920 px)
+    - the review row on the fullscreen button marked fixed
+    - a new row on `checkTutorial` not seeing selectors
+  - **Checks.** The four checks pass.
+- [x] built  [x] tests shown  [ ] reviewed  [ ] approved
 
 ## After the last task
 
-- [ ] All four checks pass, output shown
+- [x] All four checks pass, output shown
 - [ ] Reviewer agent has read the whole diff against the spec
 - [ ] ADR written, if a decision was made
 - [ ] README milestone log updated, if the feature is a milestone
