@@ -8,6 +8,9 @@ const ICONS = Object.freeze({
   exit: '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6 2v4H2M10 2v4h4M10 14v-4h4M6 14v-4H2"/></svg>',
 });
 
+// The app's one button and the place it lives, so a screen can borrow it (hostFullscreenToggle).
+let mountedToggle = null;
+
 // The fullscreen button and the F key, mounted once for the whole app, outside the screens, so it
 // survives every screen change. The browser reports every change, Esc included, with a
 // fullscreenchange event, so the button reads document.fullscreenElement instead of keeping a state
@@ -22,10 +25,28 @@ export function mountFullscreenToggle(parent) {
   window.addEventListener('keydown', toggleOnShortcutKey);
   showState();
   parent.append(button);
+  mountedToggle = { button, home: parent };
   return () => {
     document.removeEventListener('fullscreenchange', showState);
     window.removeEventListener('keydown', toggleOnShortcutKey);
     button.remove();
+    mountedToggle = null;
+  };
+}
+
+// Moves the app's fullscreen button into a screen's own place for it, and returns a function that
+// puts it back. Moving rather than copying keeps one button and one F key, and its tooltip stays
+// attached. Where fullscreen is not allowed there is no button, so there is nothing to move.
+export function hostFullscreenToggle(slot) {
+  if (!mountedToggle) {
+    return () => {};
+  }
+  const { button, home } = mountedToggle;
+  slot.append(button);
+  return () => {
+    if (mountedToggle?.button === button) {
+      home.append(button);
+    }
   };
 }
 

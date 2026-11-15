@@ -238,7 +238,29 @@ R7's purpose better than a height token would.
   - F toggles against the Fullscreen API stub.
   - The narrowest width without a sideways scroll, measured again.
   - The four checks pass.
-- [ ] built  [ ] tests shown  [ ] reviewed  [ ] approved
+- **Result** (2026-11-15):
+  - **Placement on `?tutorial&from=rift`, at all seven sizes** (1000×900, 1150×800, 1216×800,
+    1366×768, 1920×911, 1920×1080, 2560×1440):
+    - one `.fullscreen-toggle`, in `.top-bar__corner`
+    - it covers nothing
+    - its centre is level with the bar's (37.0 against 37.0; 49.0 against 49.0 at 2560)
+    - `position: relative`, `z-index: 85`
+    - no sideways scroll
+  - **The map canvas is unchanged:** 754 px at 1920×911 and 923 px at 1920×1080.
+  - **Above the tutorial's dimming:** `elementFromPoint` at the button's centre, with the coach
+    layer showing, hits the button's own icon.
+  - **F key**, against the Fullscreen API stub inside the bar: the click and each F press toggle
+    exactly once (true, false, true, false), so there is one listener.
+  - **The way back:** one toggle, back in `body`, after each of these:
+    - Leave → "Leave game" (home screen)
+    - the tutorial's "Back to home" → confirm (home screen)
+    - a drafted `?debug` game played to the end (end screen)
+
+    Inside the bar after a `?tutorial&from=` jump.
+  - **Narrowest width without a sideways scroll: still 920 px.** At 910 px the bar and the body
+    overflow together, and it is the body's columns that set the minimum.
+  - **Checks.** The four checks pass.
+- [x] built  [x] tests shown  [ ] reviewed  [ ] approved
 
 ## Task 6: Update the tutorial's words and check its targets
 

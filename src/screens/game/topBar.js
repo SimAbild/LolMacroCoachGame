@@ -15,7 +15,8 @@ const ICONS = Object.freeze({
   play: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5l11 7-11 7z"/></svg>',
 });
 
-// The bar along the top: Leave, the scoreboard in the middle, and the settings toggles in the corner.
+// The bar along the top: Leave, the scoreboard in the middle, and the settings toggles in the
+// corner. The game screen moves the app's fullscreen button into `corner`, after the toggles.
 export function createTopBar({ playerSide, onSpeedChange, onPauseToggle, onSlowMotionToggle, onAutoPauseToggle, onLeave }) {
   const scoreboard = createScoreboard({ playerSide, onSpeedChange, onPauseToggle });
   const leaveButton = createButton('Leave', onLeave, 'top-bar__leave');
@@ -23,7 +24,7 @@ export function createTopBar({ playerSide, onSpeedChange, onPauseToggle, onSlowM
   const corner = createElement('div', { className: 'top-bar__corner' },
     createSlowMotionButton(onSlowMotionToggle), createAutoPauseButton(onAutoPauseToggle));
   const element = createElement('div', { className: 'top-bar' }, leaveButton, scoreboard.element, corner);
-  return { element, update: scoreboard.update, setClockState: scoreboard.setClockState };
+  return { element, corner, update: scoreboard.update, setClockState: scoreboard.setClockState };
 }
 
 // Laid out like a broadcast scoreboard: the two teams mirrored around the kill score, the clock under it.

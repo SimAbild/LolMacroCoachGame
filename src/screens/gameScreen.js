@@ -1,4 +1,5 @@
 import { TOAST_VARIANT, dismissAllToasts, setToastHost, showToast } from '../ui/toast.js';
+import { hostFullscreenToggle } from '../ui/fullscreenToggle.js';
 import { throttle } from '../ui/throttle.js';
 import { createInitialGameState } from '../game/gameState.js';
 import { PAUSE_REASON, createGameClock } from '../game/gameClock.js';
@@ -80,6 +81,7 @@ export function mountGameScreen(root, { router, gameData, playerSide, loadouts, 
   function attachToPage() {
     return [
       setToastHost(layout.mapPanel.element),
+      hostFullscreenToggle(layout.topBar.corner),
       clock.subscribe(clockState => layout.topBar.setClockState(clockState)),
       attachGameShortcuts({ onTogglePause: togglePause, onSpeedChange: changeSpeed }),
       exposeDebugHook({ gameState, simulation, clock, worldToClient: layout.mapPanel.worldToClient }),
