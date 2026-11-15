@@ -171,7 +171,27 @@ R7's purpose better than a height token would.
   - In Chrome's accessibility tree (DevTools → Accessibility), "Paused" is present while paused and
     absent while running. The same is also checked with `element.hidden` and `innerText`.
   - The four checks pass.
-- [ ] built  [ ] tests shown  [ ] reviewed  [ ] approved
+- **Result** (2026-11-15, in a drafted `?debug` game):
+
+  | State | Time is the gold, blinking pill | Hidden "Paused" |
+  |---|---|---|
+  | Running | no | `hidden`, not in `innerText` |
+  | Space (user pause) | yes (`paused-blink`) | shown to screen readers, in `innerText` |
+  | Tutorial halt (`lmcDebug.clock.pause('tutorial')`, clock paused) | no | `hidden` |
+  | Leave's dialog (dialog pause) | yes | shown to screen readers |
+
+  - The time's box stays 60 × 24 px in every state, and the middle does not move (left edge 936.2
+    throughout).
+  - Screenshot: `top-bar-paused-1920.png`.
+  - **Deviation from the proof as written:**
+    - The tutorial halt was set directly through `lmcDebug`, not reached in `?tutorial&from=rift`.
+      That chapter opens on dialog steps, which pause with the dialog reason and so show the pill,
+      as they did before.
+    - The DevTools accessibility tree cannot be opened from the automated Chrome. The check is
+      `hidden` plus `innerText`; a `display: none` element is left out of the accessibility tree,
+      and a clipped one is kept.
+  - The four checks pass.
+- [x] built  [x] tests shown  [ ] reviewed  [ ] approved
 
 ## Task 5: Move the fullscreen button into the top bar on the game screen
 

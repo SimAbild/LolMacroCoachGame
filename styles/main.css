@@ -572,9 +572,19 @@ h1, h2 { font-family: var(--font-display); margin: 0; letter-spacing: 0.02em; }
 }
 .scoreboard__clock .speed-button--pause { justify-self: end; }
 .scoreboard__clock .speed-buttons { justify-self: start; }
-.scoreboard__time { display: inline-flex; align-items: center; gap: 0.375rem; }
-/* A fixed width, so the time does not nudge the middle each time a digit changes. */
-.scoreboard__timer { font-size: 1.125rem; line-height: 1; font-weight: 600; min-width: 3.25rem; text-align: center; font-variant-numeric: tabular-nums; }
+.scoreboard__time { display: inline-flex; align-items: center; }
+/* A fixed width and padding, so the time does not nudge the middle when a digit changes or when
+   it turns into the paused pill. */
+.scoreboard__timer {
+  font-size: 1.125rem;
+  line-height: 1;
+  font-weight: 600;
+  min-width: 3.75rem;
+  padding: 0.1875rem 0.5rem;
+  border-radius: 999px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
 .speed-buttons { display: flex; gap: 0.1875rem; }
 .speed-button {
   display: inline-flex;
@@ -594,18 +604,12 @@ h1, h2 { font-family: var(--font-display); margin: 0; letter-spacing: 0.02em; }
 .speed-button--pause { min-width: 1.75rem; }
 .speed-button--pause svg { width: 0.75rem; height: 0.75rem; fill: currentColor; }
 .scoreboard__clock.is-paused .speed-button[data-speed].is-active { opacity: 0.5; }
-.scoreboard__clock.is-paused .scoreboard__timer { color: var(--color-text-muted); }
-.scoreboard__paused {
-  font: 700 0.75rem var(--font-display);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+/* Paused by the player or a dialog: the time itself becomes the blinking gold pill. */
+.scoreboard__clock.is-paused .scoreboard__timer {
   color: var(--color-on-gold);
   background: var(--color-gold);
-  border-radius: 999px;
-  padding: 0.125rem 0.5625rem;
   animation: paused-blink 1.6s ease-in-out infinite;
 }
-.scoreboard__paused[hidden] { display: none; }
 @keyframes paused-blink { 50% { opacity: 0.55; } }
 
 /* The map keeps a width equal to its height before the player's column may grow past the normal

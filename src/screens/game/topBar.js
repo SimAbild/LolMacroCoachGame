@@ -81,16 +81,18 @@ function createTeamStats(team, playerSide) {
   return { element, update };
 }
 
-// Pause, the game time and the game speeds, under the kill score, plus the "Paused" pill.
+// Pause, the game time and the game speeds, under the kill score. While paused, the time itself is
+// shown as the blinking "paused" pill; there is no room for a separate one, so the word is kept
+// as visually hidden text for screen readers.
 function createClockControls({ onSpeedChange, onPauseToggle }) {
   const timer = createElement('span', { className: 'scoreboard__timer' });
-  const pausedPill = createElement('span', { className: 'scoreboard__paused', text: 'Paused' });
+  const pausedText = createElement('span', { className: 'visually-hidden', text: 'Paused' });
   const pauseButton = createButton('', onPauseToggle, 'speed-button speed-button--pause');
   pauseButton.dataset.anchor = 'pause';
   const speedButtons = GAME_SPEEDS.map((speed, speedIndex) => createSpeedButton(speed, GAME_SPEED_KEYS[speedIndex], onSpeedChange));
   const element = createElement('div', { className: 'scoreboard__clock', dataset: { anchor: 'clock' } },
     pauseButton,
-    createElement('span', { className: 'scoreboard__time' }, pausedPill, timer),
+    createElement('span', { className: 'scoreboard__time' }, pausedText, timer),
     createElement('div', { className: 'speed-buttons' }, ...speedButtons),
   );
 
@@ -102,7 +104,7 @@ function createClockControls({ onSpeedChange, onPauseToggle }) {
     for (const button of speedButtons) {
       button.classList.toggle('is-active', Number(button.dataset.speed) === speed);
     }
-    pausedPill.hidden = !showsPaused;
+    pausedText.hidden = !showsPaused;
     element.classList.toggle('is-paused', showsPaused);
   }
 
