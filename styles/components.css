@@ -1,5 +1,5 @@
-/* Shared UI components used across screens: tooltip, confirm dialog, toast stack and the
-   fullscreen button.
+/* Shared UI components used across screens: the .visually-hidden helper, tooltip, confirm dialog,
+   toast stack and the fullscreen button.
    Colours, layers and timings come from the tokens in main.css (:root). */
 
 /* Read by screen readers but not shown. Unlike `hidden` or display: none, it stays in the
@@ -161,5 +161,4 @@
   inset: auto;
   width: var(--bar-control-height);
   height: var(--bar-control-height);
-  margin-left: 0.5rem;
 }

@@ -28,7 +28,7 @@ const TOUR_STEPS = [
   dialogStep('rift.clock', {
     screen: GAME,
     title: 'Time and speed',
-    target: '[data-anchor="clock"]',
+    target: ['[data-anchor="clock"]', '[data-anchor="slow-motion"]'],
     body: 'Pause with the button or Space, and calls still work while the game stands still. Change speed with the buttons '
       + 'or the keys 0 to 3 (0 is half speed). Slow-mo, in the top-right corner, slows big moments down so you have time to react.',
   }),

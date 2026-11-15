@@ -308,6 +308,34 @@ R7's purpose better than a height token would.
   - **Checks.** The four checks pass.
 - [x] built  [x] tests shown  [ ] reviewed  [ ] approved
 
+## Fixes after the first review (2026-11-15)
+
+The reviewer said CHANGES NEEDED. Fixed:
+
+- **Must-fix 1.** `rift.clock` and `wave.tempo` name Slow-mo and Auto-pause, which moved to the
+  corner, but lit only the clock row. Each step now has two targets: the clock and
+  `[data-anchor="slow-motion"]` or `[data-anchor="auto-pause"]`. Both screenshots were retaken at
+  1920×911 (`tutorial/rift-clock.jpg`, `tutorial/wave-tempo.jpg`), and both elements are lit.
+- **Must-fix 2.** `docs/architecture.md` now says the game screen borrows the fullscreen button with
+  `hostFullscreenToggle`.
+- **Nice-to-haves:**
+  - The stacking-context comment on `.top-bar` names `.game-screen` and says "or anything else that
+    does".
+  - R7's wording now matches AC7. AC11 asks Simon to check "Paused" in DevTools → Accessibility.
+  - "Exactly centred" overstated it. Measured: the scoreboard is centred (0.0 px) in windows 1120 px
+    wide and up. Below that the corner group (160 px) is wider than its column, and the scoreboard
+    moves left: 1.5 px at 1115, 16.5 px at 1100, 54 px at 1000 and narrower. The comment now says
+    so.
+  - No vertical overflow at 2560×1440, 1920×911, 1600×900 or 1366×768 (measured 1.5 s after each
+    resize; see PAPERCUTS).
+  - The corner uses `gap: 0.375rem` instead of margins on the toggles and the fullscreen button.
+    The space before the fullscreen button goes from 8 to 6 px, so all three are spaced alike
+    (measured 6.0 and 6.0 px).
+  - `--duration-paused-blink: 1.6s` is a token; the computed animation is still `paused-blink 1.6s`.
+  - The header of `components.css` mentions `.visually-hidden`.
+- Not changed: the coach ring around the scoreboard cuts through the kill numbers. It is cosmetic;
+  Simon decides at AC11.
+
 ## After the last task
 
 - [x] All four checks pass, output shown

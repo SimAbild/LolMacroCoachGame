@@ -35,8 +35,10 @@ checks in `tools/` possible.
 
 home -> matchmaking -> draft (then the swap phase) -> game -> end
 
-The fullscreen button (`src/ui/fullscreenToggle.js`) is not part of a screen: `src/main.js` mounts
-it once, so it stays through every screen change.
+The fullscreen button (`src/ui/fullscreenToggle.js`) belongs to the app, not to a screen:
+`src/main.js` mounts it once, so it stays through every screen change. A screen with its own place
+for it borrows it with `hostFullscreenToggle(slot)`, which moves the one button there and returns a
+function that moves it back. The game screen does this to put it in the corner of the top bar.
 
 ## Size and scale
 
