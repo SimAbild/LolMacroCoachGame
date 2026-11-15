@@ -18,7 +18,7 @@ const ICONS = Object.freeze({
 // The bar along the top: Leave, the scoreboard in the middle, and the settings toggles in the
 // corner. The game screen moves the app's fullscreen button into `corner`, after the toggles.
 // `isAutoPauseAvailable` is false in the guided game, which decides itself when it stands still.
-export function createTopBar({ playerSide, onSpeedChange, onPauseToggle, onSlowMotionToggle, onAutoPauseToggle, onLeave, isAutoPauseAvailable }) {
+export function createTopBar({ playerSide, onSpeedChange, onPauseToggle, onSlowMotionToggle, onAutoPauseToggle, onLeave, isAutoPauseAvailable = true }) {
   const scoreboard = createScoreboard({ playerSide, onSpeedChange, onPauseToggle });
   const leaveButton = createButton('Leave', onLeave, 'top-bar__leave');
   leaveButton.dataset.anchor = 'leave';

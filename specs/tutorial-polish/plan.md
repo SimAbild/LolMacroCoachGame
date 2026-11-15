@@ -131,9 +131,34 @@ every task.
   - The four checks pass.
 - [x] built  [x] tests shown  [ ] reviewed  [ ] approved
 
+## Fixes after the review (2026-11-15)
+
+The reviewer said CHANGES NEEDED, for the docs only. It found no bug in the code. Fixed:
+
+- **Must-fix.** ADR 0002 still listed the highlight's padding as a JS pixel value that does not
+  scale. It now has a dated amendment, takes the padding out of that list, and adds the
+  `@property` initial value as a required px exception.
+  - Checked in Chrome: `CSS.registerProperty` with a `rem` initial value throws "not
+    computationally independent".
+  - An `@property` rule with one is dropped, and the property reads as the text `"0.375rem"`.
+- **Nice-to-haves:**
+  - The `@property` comment says why the initial value must stay in px.
+  - `holePaddingOf` reads the padding only if it ends in `px`. Otherwise it warns once and uses no
+    padding, so a missing registration cannot silently become 0.375 px.
+  - The map target's padding read has a comment: a map point has no element of its own.
+  - `isAutoPauseAvailable` defaults to `true` in `createTopBar` and `createGameLayout`, so a normal
+    game is the default.
+  - The scoreboard's row gap and the corner gap now point back to the top bar's padding.
+  - `--opacity-disabled: 0.45` is a token, used by `.button:disabled` and the unavailable
+    Auto-pause.
+  - `docs/architecture.md` says the director touches the DOM too.
+  - AC1 states the 1/64 px tolerance, marked for Simon to confirm.
+- After the fixes: the padding is still 6.0 px on `baron.contest` and 2.0 px on `rift.clock`, with
+  no warning. Auto-pause is unavailable in the guided game. The four checks pass.
+
 ## After the last task
 
-- [ ] All four checks pass, output shown
+- [x] All four checks pass, output shown
 - [ ] Reviewer agent has read the whole diff against the spec
-- [ ] ADR written, if a decision was made (expected: none; the token follows ADR 0002)
-- [ ] README milestone log updated, if the feature is a milestone (it is not)
+- [x] ADR written, if a decision was made: no new ADR, ADR 0002 amended (see above)
+- [x] README milestone log updated, if the feature is a milestone (it is not)

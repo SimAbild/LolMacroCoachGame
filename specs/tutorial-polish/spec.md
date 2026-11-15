@@ -28,6 +28,9 @@ Each one must be checkable: a `tools/check*.mjs` result, a number, or something 
 - [ ] AC1 (R1): On `rift.clock` and `wave.tempo`, the top of the ring around the clock row is at or
       below the bottom of the kill score's box. Measured with `getBoundingClientRect` at 1920×911
       and 2560×1440. The ring's soft glow may overlap; its solid border may not.
+      Allowed within 1/64 px, the browser's layout unit.
+      *(Tolerance added after the review, for Simon to confirm: at 2560×1440 the row gap rounds
+      to 2.65625 px while the padding is 2.6667 px.)*
 - [ ] AC2 (R2): On `rift.clock` and `wave.tempo`, the ring around Slow-mo or Auto-pause keeps at
       least 2 px of clear space to each neighbouring button, the fullscreen button included.
       Measured at 1920×911 and 2560×1440.

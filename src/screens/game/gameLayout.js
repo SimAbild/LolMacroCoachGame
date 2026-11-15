@@ -12,7 +12,7 @@ import { createMapPanel } from './mapPanel.js';
 // Builds the game screen: the top bar with the scoreboard, the two team columns, the map and the team calls.
 // `handlers` is { onIntent, onSpeedChange, onPauseToggle, onSlowMotionToggle, onAutoPauseToggle, onLeave }.
 // `isAutoPauseAvailable` is false in the guided game (see createTopBar).
-export function createGameLayout({ gameState, gameData, playerSide, handlers, isAutoPauseAvailable }) {
+export function createGameLayout({ gameState, gameData, playerSide, handlers, isAutoPauseAvailable = true }) {
   const element = createElement('section', { className: 'game-screen', dataset: { playerSide } });
   const overlay = createCoordinationOverlay(element);
   const { onIntent, onSpeedChange, onPauseToggle, onSlowMotionToggle, onAutoPauseToggle, onLeave } = handlers;
