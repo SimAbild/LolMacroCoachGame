@@ -21,7 +21,7 @@ PixiJS (in `vendor/`) draws the map; everything else is DOM and CSS.
 | `src/core` | Screen router, intents, storage flags | Router and storage only |
 | `src/render` | PixiJS layers for the map | Yes (canvas) |
 | `src/screens` | Home, matchmaking, draft, game, end | Yes |
-| `src/tutorial` | The guided game: runner, director, chapters, autopilot | Only `tutorial/ui` |
+| `src/tutorial` | The guided game: runner, director, chapters, autopilot | `tutorial/ui`, the director (it finds targets on the page and reads their ring padding) and `tutorialUrl.js` (reads the address); the runner, chapters and autopilot run headless |
 | `src/ui` | Small DOM helpers: elements, dialog, toast, tooltip, the fullscreen button, the shortcut guard | Yes |
 | `tools` | Node scripts that run the simulation headless | No |
 

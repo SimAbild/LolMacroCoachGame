@@ -33,7 +33,7 @@ export function mountGameScreen(root, { router, gameData, playerSide, loadouts, 
   const unmountController = new AbortController();
   const settings = { isSlowMotionEnabled: true, isAutoPauseEnabled: false };
   let endScreenTimer = null;
-  const layout = createGameLayout({ gameState, gameData, playerSide, handlers: createHandlers() });
+  const layout = createGameLayout({ gameState, gameData, playerSide, handlers: createHandlers(), isAutoPauseAvailable: !tutorial.isActive });
   const alertWatcher = createAlertWatcher({ banner: layout.alertBanner, onMajorAlert: reactToMajorAlert });
   // A game already under way has old alerts that should not all show at once.
   alertWatcher.markAllShown(gameState);

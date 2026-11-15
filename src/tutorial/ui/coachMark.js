@@ -1,11 +1,10 @@
 import { createButton, createElement } from '../../ui/dom.js';
-import { paddedRect, roundedRectPath } from '../../ui/geometry.js';
+import { roundedRectPath } from '../../ui/geometry.js';
 import { placeNear } from '../../ui/placement.js';
 import { replayAnimationClass } from '../../ui/motion.js';
 import { STEP_KIND } from '../tutorialRunner.js';
 
 const SVG_NAMESPACE = 'http://www.w3.org/2000/svg';
-const HOLE_PADDING = 6;
 const HOLE_RADIUS = 8;
 const CARD_GAP = 14;
 const KIND_STATUS = Object.freeze({
@@ -19,7 +18,8 @@ const DIMMING_KINDS = new Set([STEP_KIND.DIALOG, STEP_KIND.DO, STEP_KIND.SKIP]);
 // The tutorial's guide on screen: a dark layer with holes over what to look at, a pulsing ring
 // around each hole, and a card with the step's text. Clicks on the dark part are blocked; clicks
 // in a hole reach the page (where the tutorial still decides what is allowed).
-// findTargetRects(step) returns the rectangles to highlight, in viewport pixels.
+// findTargetRects(step) returns the rectangles to highlight, in viewport pixels, already including
+// the room each ring keeps around its target.
 export function createCoachMark({ findTargetRects, onNext, onExit }) {
   const shade = document.createElementNS(SVG_NAMESPACE, 'path');
   shade.setAttribute('class', 'coach-layer__shade');
@@ -46,7 +46,7 @@ export function createCoachMark({ findTargetRects, onNext, onExit }) {
 
   // Targets can move (resize, scroll, a map that pans), so the layer follows them every frame.
   function follow() {
-    const targetRects = findTargetRects(shownStep).map(rect => paddedRect(rect, HOLE_PADDING));
+    const targetRects = findTargetRects(shownStep);
     drawShade(shade, DIMMING_KINDS.has(shownStep.kind) ? targetRects : null);
     drawRings(rings, targetRects);
     card.placeBeside(targetRects[0] ?? null, shownStep.kind);

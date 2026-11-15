@@ -1,6 +1,6 @@
 import { STORAGE_KEY, writeFlag } from '../core/storage.js';
 import { DIALOG_TONE, confirmDialog } from '../ui/dialog.js';
-import { rectFrom } from '../ui/geometry.js';
+import { paddedRect, rectFrom } from '../ui/geometry.js';
 import { ScriptedDraftAi } from '../draft/scriptedDraftAi.js';
 import { mountHomeScreen } from '../screens/homeScreen.js';
 import { STEP_KIND, createTutorialRunner } from './tutorialRunner.js';
@@ -104,7 +104,9 @@ export function createTutorialDirector({ router, steps, scenario }) {
       return [];
     }
     const size = radius * center.scale;
-    return [rectFrom({ left: center.x - size, top: center.y - size, width: size * 2, height: size * 2 })];
+    const circleBox = rectFrom({ left: center.x - size, top: center.y - size, width: size * 2, height: size * 2 });
+    // A map point has no element of its own to read the padding from, so it takes the page's.
+    return [paddedRect(circleBox, holePaddingOf(document.documentElement))];
   }
 
   // A target that stays missing means the step points at nothing: worth a console warning while
@@ -180,10 +182,31 @@ function targetsOf(step) {
   return step?.target ? [].concat(step.target) : [];
 }
 
+// Each element's box plus the room its ring keeps around it.
 function elementRects(selector) {
   return [...document.querySelectorAll(selector)]
-    .map(element => element.getBoundingClientRect())
-    .filter(rect => rect.width > 0 && rect.height > 0);
+    .map(element => ({ element, rect: element.getBoundingClientRect() }))
+    .filter(({ rect }) => rect.width > 0 && rect.height > 0)
+    .map(({ element, rect }) => paddedRect(rect, holePaddingOf(element)));
+}
+
+// The room comes from CSS (--coach-hole-padding), so an area of the screen can set its own. The
+// property is registered as a <length>, so the browser hands it over in px.
+function holePaddingOf(element) {
+  const value = getComputedStyle(element).getPropertyValue('--coach-hole-padding').trim();
+  return value.endsWith('px') ? parseFloat(value) : noHolePadding(value);
+}
+
+// Without the @property registration the value is plain text such as "0.375rem", and reading it
+// as px would silently give 0.375. No padding keeps the holes and rings working; the warning says
+// what broke (see ADR 0002 on the px initial value).
+let hasWarnedAboutHolePadding = false;
+function noHolePadding(value) {
+  if (!hasWarnedAboutHolePadding) {
+    hasWarnedAboutHolePadding = true;
+    console.warn(`[tutorial] --coach-hole-padding is "${value}", not a length in px: is its @property rule missing?`);
+  }
+  return 0;
 }
 
 // Targets inside scrolling areas (like the champion grid) are scrolled into view once.

@@ -81,6 +81,9 @@
   --z-tooltip: 90;
   --z-toast: 100;
 
+  /* A control that cannot be used right now. */
+  --opacity-disabled: 0.45;
+
   /* Motion. Exits are a little faster than entrances, so the UI never feels like it lingers. */
   --duration-fast: 120ms;
   --duration-medium: 180ms;
@@ -108,6 +111,9 @@
   --corner-control-room: calc(var(--corner-control-size) + 0.625rem);
   /* The height of the buttons in the game's top bar: the 24 px (WCAG 2.2) target at scale 1. */
   --bar-control-height: 1.5rem;
+  /* Tutorial: the room between a highlighted element and the ring around it. An area may set a
+     smaller value (the top bar does); see @property below the :root block. */
+  --coach-hole-padding: 0.375rem;
 
   /* Game screen layout */
   --game-column-gap: 0.875rem;
@@ -121,6 +127,17 @@
      as tall as the room it gets, so "viewport height minus this" is a width the map never needs
      more than. The slack lets the team-call row grow a little without making the map shorter. */
   --game-chrome-height: 8.125rem;
+}
+
+/* Registered as a length, so getComputedStyle hands JavaScript a value in px, already scaled,
+   instead of the text "0.375rem" (src/tutorial/tutorialDirector.js reads it). Inherited, so a
+   value set on a container applies to everything inside it.
+   The initial value must stay in px: the browser rejects a rem one and then drops this whole
+   rule (ADR 0002). The value actually used is the rem one in :root. */
+@property --coach-hole-padding {
+  syntax: '<length>';
+  inherits: true;
+  initial-value: 6px;
 }
 
 * { box-sizing: border-box; }
@@ -156,7 +173,7 @@ h1, h2 { font-family: var(--font-display); margin: 0; letter-spacing: 0.02em; }
   transition: var(--transition-control);
 }
 :is(.button, .role-filter, .segment, .icon-button, .speed-button, .top-bar__leave,
-  .cancel-action, .team-call, .action-chip):active:not(:disabled) {
+  .cancel-action, .team-call, .action-chip):active:not(:disabled, [aria-disabled="true"]) {
   transform: translateY(1px);
 }
 
@@ -172,7 +189,7 @@ h1, h2 { font-family: var(--font-display); margin: 0; letter-spacing: 0.02em; }
   cursor: pointer;
 }
 .button:hover:not(:disabled) { background: var(--color-surface-hover); }
-.button:disabled { opacity: 0.45; cursor: default; }
+.button:disabled { opacity: var(--opacity-disabled); cursor: default; }
 .button--primary { background: var(--color-gold); border-color: var(--color-gold-dark); color: var(--color-on-gold); }
 .button--primary:hover:not(:disabled) { background: var(--color-gold-hover); }
 .button--large { font-size: 1.25rem; padding: 0.875rem 2.75rem; }
@@ -481,7 +498,13 @@ h1, h2 { font-family: var(--font-display); margin: 0; letter-spacing: 0.02em; }
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
   font-family: var(--font-display);
+  /* The bar is tightly packed: its rows are 0.125rem apart and the corner buttons 0.375rem. A
+     tutorial ring this close stays inside the row gap and clear of the next button, instead of
+     crossing the kill score or touching a neighbour. */
+  --coach-hole-padding: 0.125rem;
 }
+/* The gap must stay at least 2 px wider than the bar's --coach-hole-padding (above), so a tutorial
+   ring keeps clear of the next button. */
 .top-bar__corner { justify-self: end; display: flex; align-items: center; gap: 0.375rem; }
 .speed-button--toggle { white-space: nowrap; }
 .top-bar__leave {
@@ -506,6 +529,8 @@ h1, h2 { font-family: var(--font-display); margin: 0; letter-spacing: 0.02em; }
   grid-template-rows: auto var(--bar-control-height);
   align-items: center;
   column-gap: 1.5rem;
+  /* At least the top bar's --coach-hole-padding, so a tutorial ring around the clock row stays
+     off the kill score. */
   row-gap: 0.125rem;
 }
 .scoreboard__team {
@@ -606,7 +631,10 @@ h1, h2 { font-family: var(--font-display); margin: 0; letter-spacing: 0.02em; }
   padding: 0 0.4375rem;
   cursor: pointer;
 }
-.speed-button:hover:not(.is-active) { color: var(--color-text); border-color: var(--color-border-strong); }
+.speed-button:hover:not(.is-active, [aria-disabled="true"]) { color: var(--color-text); border-color: var(--color-border-strong); }
+/* Unavailable (Auto-pause in the guided game): looks like a disabled .button, but stays focusable
+   so its title can say why. */
+.speed-button[aria-disabled="true"] { opacity: var(--opacity-disabled); cursor: default; }
 .speed-button.is-active { color: var(--color-on-gold); background: var(--color-gold); border-color: var(--color-gold-dark); }
 .speed-button--pause { min-width: 1.75rem; }
 .speed-button--pause svg { width: 0.75rem; height: 0.75rem; fill: currentColor; }

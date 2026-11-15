@@ -2,6 +2,8 @@
 
 - Date: 2026-11-13
 - Status: accepted
+- Amended: 2026-11-15, `specs/tutorial-polish`. The tutorial highlight's padding moved from a JS
+  pixel value to the rem token `--coach-hole-padding`, which needs a px `initial-value`.
 
 ## Context
 
@@ -26,6 +28,12 @@ scale 1. These stay in `px`:
   counter's `1px` padding, `1px` outline offsets and `translateY(±1px)` nudges, and the outer ring
   of the map's frame (`calc(0.25rem + 1px)`);
 - `999px` for fully rounded pills, where any large value works;
+- the `initial-value` of a registered `@property` (`initial-value: 6px` in the rule for
+  `--coach-hole-padding`). The browser
+  rejects an initial value in `rem`, because it depends on the root. It then drops the whole rule,
+  so the property is plain text again: JavaScript would read `"0.375rem"`. Chrome confirmed on
+  2026-11-15: "not computationally independent". The value actually used is set in `rem`, in
+  `:root`;
 - media queries, because a media query reads `rem` as the browser default and not the root's;
 - sizes inside an SVG with a `viewBox` (the gold chart's text), because there a `px` is a chart
   unit and the chart already grows with the layout; in `rem` the text would scale twice.
@@ -34,7 +42,9 @@ A few gaps are set in pixels from JavaScript and do not scale either. They are s
 they look slightly tight rather than wrong:
 
 - `src/ui/placement.js`: the tooltip's gap (8) and its margin to the viewport edge (8);
-- `src/tutorial/ui/coachMark.js`: the highlight's padding (6) and radius (8), and the card's gap (14);
+- `src/tutorial/ui/coachMark.js`: the highlight's radius (8) and the card's gap (14). The
+  highlight's padding used to be here too; since 2026-11-15 it is the `rem` token
+  `--coach-hole-padding`, so it scales;
 - the gold chart's tooltip offset (12);
 - the coordination line's `stroke-width: 2` and dash `6 4` (`styles/main.css`); its SVG has no
   `viewBox`, so these are screen pixels.
