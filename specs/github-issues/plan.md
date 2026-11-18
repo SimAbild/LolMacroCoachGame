@@ -185,7 +185,70 @@ followed on GitHub. Tasks 4-6 build on it.
   - The four checks pass, and the golden master is SAME.
   - **This task stops for Simon to look at GitHub.** The question goes on Task 4's issue, labelled
     `needs-simon` (AC8).
-- [ ] built  [ ] tests shown  [ ] reviewed  [ ] approved
+- **Result** (2026-11-18). The code is in f26d688 and 6e89954; the published issues are #4-#23.
+  - **In order:**
+    1. The ask rules went in (28 in all).
+    2. The `Milestone:` line was committed on `feature/consequence-rules` (c7da916).
+    3. The reviewer read Tasks 1-3 and found one must-fix: `--apply` was accepted anywhere on the
+       command line, while the ask rule only sees it first, so a publish could skip Simon's prompt.
+       It also found four should-fixes. All five were fixed in 6e89954:
+       - `--apply` must come first
+       - `--apply` refuses unless gh writes as the owner (here SimAbild)
+       - a milestone is open while its issues are created and closed after them, because gh's
+         `--milestone` finds only open milestones; tested both ways against saved states
+       - a half-done change prints the issue number it created
+       - a detached HEAD stops the run
+
+       Also: label colours are compared lower case, folder names must be plain, and the `task`
+       label's description lost its `<…>`.
+    4. Simon saw both dry runs and the exact text of an issue (5b) before the first `--apply`.
+       Each `--apply` asked first.
+  - **AC3 and AC2.** `--apply specs/github-issues/plan.md` made 15 changes:
+    - 7 labels
+    - milestone "GitHub issues"
+    - issues #4-#10, with #4 and #5 (Tasks 1-2) closed as completed
+
+    A dry run straight after printed `0 changes`. Then
+    `--apply --ref feature/consequence-rules specs/consequence-rules/plan.md` made 14 changes:
+    - milestone "M21 Consequence rules"
+    - issues #11-#23
+
+    `gh api …/milestones?state=all`:
+
+    | Milestone | Open | Closed |
+    |---|---|---|
+    | GitHub issues | 5 | 2 |
+    | M21 Consequence rules | 7 | 6 |
+
+    `gh issue list` shows #11-#15 `CLOSED/COMPLETED`, #16 (5b) `CLOSED/NOT_PLANNED`, and #17-#23
+    open.
+  - **AC4.** A second `--apply` on each plan printed `applying 0 changes`.
+  - **AC6.** All 10 labels from before are still there, and the 7 from `labels.json` were added.
+  - **AC5 against the real issues.**
+    - The setup:
+      - On `feature/consequence-rules`, with untracked copies of the sync from this branch, removed
+        afterwards.
+      - Dry runs only, because that branch has no ask rules.
+    - The cases:
+      - The plan as committed: `0 changes`.
+      - Task 6 ticked, not committed: 1 change, `close issue #17 … (completed, with a comment)`, and
+        `--apply refuses it: the plan file has uncommitted changes`.
+      - Task 1's `built` unticked: 1 change, `reopen issue #11`.
+    - Both branches were clean afterwards.
+  - **Idea issue #24** (`idea`) is the golden master's lasting fix, as agreed with Simon.
+  - **The four checks** pass:
+    - the golden master SAME
+    - determinism SAME
+    - lane theory OK
+    - the tutorial twice the same
+  - **Found on the way:**
+    - **The ask rules live only on this branch.** On `feature/consequence-rules`,
+      `.claude/settings.json` is the old file. The sync also exists only here, so the tool and its
+      rules travel together until this feature is merged.
+    - Git Bash rewrote a `<ref>:<path>` argument (PAPERCUTS).
+    - With 0 changes the verdict now reads "GitHub already matches the plan".
+  - **AC8** is the stop below: `needs-simon` goes on #7 (Task 4), with the questions as a comment.
+- [x] built  [x] tests shown  [ ] reviewed  [ ] approved
 
 ## Task 4: Papercuts as issues
 

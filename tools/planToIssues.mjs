@@ -93,9 +93,10 @@ function compareAndPrint(report, state, options) {
   console.log(`  => ${verdictText(report, options)}\n`);
 }
 
-function verdictText({ verdict, refusal }, { isApply }) {
+function verdictText({ verdict, refusal, changes }, { isApply }) {
   if (!verdict.willMirror) return verdict.reason;
   if (refusal) return `--apply refuses it: ${refusal}`;
+  if (!changes.length) return 'GitHub already matches the plan';
   return isApply ? 'the changes above are applied below' : '--apply would make the changes above';
 }
 
