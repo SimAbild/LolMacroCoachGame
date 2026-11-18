@@ -2,7 +2,13 @@
 
 Status: draft | approved by Simon on YYYY-MM-DD
 
+Milestone: <the GitHub milestone, for example "M22 Jungle steps">
+
+Review level: <Low, Medium or High, from docs/review-rules.md>
+
 Tasks are built one at a time, in this order. Each is small enough to review in one sitting.
+Task ids are never renumbered or reused (add `2b` instead). A task that is dropped keeps its
+heading, and its box line becomes `Skipped (Simon, YYYY-MM-DD): <reason>`.
 
 ## Task 1: <verb + noun>
 
@@ -26,3 +32,4 @@ Tasks are built one at a time, in this order. Each is small enough to review in 
 - [ ] Reviewer agent has read the whole diff against the spec
 - [ ] ADR written, if a decision was made
 - [ ] README milestone log updated, if the feature is a milestone
+- [ ] Simon: approves the merge (High), reads the diff (Medium), or n/a (Low)

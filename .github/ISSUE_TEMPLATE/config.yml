@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Papercut (something failed or needed a workaround)
+    url: https://github.com/SimAbild/LolMacroCoachGame/blob/main/PAPERCUTS.md
+    about: Add a row to PAPERCUTS.md instead. The papercut sync makes the issue and writes its number back.
+  - name: A task of a feature
+    url: https://github.com/SimAbild/LolMacroCoachGame/blob/main/specs/README.md
+    about: Tasks live in specs/<feature>/plan.md. The plan sync makes their issues, so they are never opened by hand.

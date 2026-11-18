@@ -1,0 +1,23 @@
+name: Idea
+description: A wish for the game or the workflow that has no spec yet.
+labels: ["idea"]
+body:
+  - type: markdown
+    attributes:
+      value: >-
+        An idea becomes `specs/<feature>/intent.md` when it is picked up. Two to five lines are
+        enough, in your own words and in any language. No solution yet.
+  - type: textarea
+    id: what
+    attributes:
+      label: What
+      description: What do you want?
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why
+      description: What problem does it solve, or what does it make possible?
+    validations:
+      required: true

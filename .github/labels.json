@@ -1,0 +1,10 @@
+[
+  { "name": "task", "color": "1d76db", "description": "A task from a plan.md in specs/" },
+  { "name": "papercut", "color": "fbca04", "description": "A row from PAPERCUTS.md" },
+  { "name": "idea", "color": "c5def5", "description": "A wish that has no spec yet" },
+  { "name": "bug", "color": "d73a4a", "description": "Something isn't working" },
+  { "name": "review:low", "color": "c2e0c6", "description": "Low review level (docs/review-rules.md)" },
+  { "name": "review:medium", "color": "fef2c0", "description": "Medium review level (docs/review-rules.md)" },
+  { "name": "review:high", "color": "e99695", "description": "High review level: Simon approves before merge" },
+  { "name": "needs-simon", "color": "d93f0b", "description": "Claude is stopped at a gate and waits for Simon" }
+]
