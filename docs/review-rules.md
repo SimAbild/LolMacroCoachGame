@@ -8,6 +8,7 @@ Text, styling and docs. Nothing here can change how a game plays out.
 
 - `styles/`
 - `README.md`, `docs/`, `specs/`, `PAPERCUTS.md`
+- `.github/`: the pull request template, the issue forms and `labels.json`
 - Wording only (`label`, `description`, `pros`, `cons`, `bestWhen`) in `src/config/actions.js`
 - Wording only in `src/tutorial/chapters/`
 
@@ -32,6 +33,7 @@ Core logic, stored data, and anything that goes live.
   `src/config/actions.js`
 - `src/core/intents.js` and `src/game/playerCommands.js` — every input goes through them
 - `tools/goldenMaster.json` — a new baseline says "the game now plays differently, on purpose"
+- `tools/planToIssues.mjs` and `tools/issueSync/` — the issue sync publishes to a public repository
 - `src/core/storage.js` — what is saved in the player's browser, and any change to its keys
 - `.claude/settings.json`, `CLAUDE.md` and this file — the rules themselves
 - Any merge or push to `main`: GitHub Pages publishes it at once
@@ -39,6 +41,17 @@ Core logic, stored data, and anything that goes live.
 
 Login, money and data migration do not exist in this project today. The first feature that adds
 one of them (accounts or a server for PvP, for example) is High, and this file gets its paths.
+
+## Publishing to GitHub
+
+Issues, labels, milestones and comments are public.
+
+- Task issues and their milestones come only from the sync, for a plan Simon has approved
+  (`Status: approved`) and committed. Papercut issues come only from the sync, for rows in a
+  committed `PAPERCUTS.md`.
+- Ideas, bugs and the `needs-simon` gate comments are made by hand with `gh issue create`, `edit`
+  and `comment`.
+- Both ways ask first, like `git push` (`.claude/settings.json`). See ADR 0005.
 
 ## What every level needs
 
