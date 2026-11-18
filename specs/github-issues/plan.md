@@ -336,7 +336,44 @@ followed on GitHub. Tasks 4-6 build on it.
   - The four checks pass.
   - The template is used for this feature's PR body with `--body-file`.
   - After the merge, the two checks in "After the last task" below.
-- [ ] built  [ ] tests shown  [ ] reviewed  [ ] approved
+- **Result** (2026-11-18):
+  - **`.github/pull_request_template.md`** asks for:
+    - the spec, the milestone and the review level
+    - the last line of each of the four checks
+    - the reason for a new golden master
+    - that `node tools/planToIssues.mjs` prints `0 changes`, so the issues match the plan and every
+      review box is ticked before the merge (R4)
+    - the reviewer agent's findings and Simon's part
+    - `Closes #` for the review issue
+  - **`.github/ISSUE_TEMPLATE/`:**
+    - `idea.yml` (label `idea`): What and Why, both required, as in `intent.md`.
+    - `bug.yml` (label `bug`): what happened, steps and what you expected, all required. The seed
+      and tick and the place it happened (live site or branch) are optional; the form says to
+      read them with `?debug` as `lmcDebug.gameState.seed` and `tickCount`, so a game can be
+      replayed.
+    - `config.yml` turns blank issues off. Its two contact links send a papercut to
+      `PAPERCUTS.md` and a task to `specs/README.md`, because the sync makes both kinds of issue.
+      The sync and `gh issue create --body-file` use the API, so blank issues being off does not
+      touch them.
+  - **Checked before the merge.** GitHub validates the forms only on `main`, so they were checked
+    with PyYAML, installed in a throwaway venv in the scratchpad. A small script compared them
+    with the parts of GitHub's form schema that matter here:
+    - the top-level `name`, `description` and `body`
+    - a known `type` for every field
+    - a `label` for every field that is not markdown
+    - unique ids
+    - contact links with name, URL and about
+
+    Result: `OK: every form parses and has what GitHub requires`.
+  - **The four checks** pass:
+    - the golden master SAME
+    - determinism SAME
+    - lane theory OK
+    - the tutorial twice the same
+  - **Left for later:**
+    - The PR body comes when this feature's PR is opened.
+    - The two checks in "After the merge" come after Simon merges.
+- [x] built  [x] tests shown  [ ] reviewed  [ ] approved
 
 ## Task 6: Write the workflow down
 

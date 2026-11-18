@@ -1,0 +1,47 @@
+name: Bug
+description: Something in the game or the tools does not work as it should.
+labels: ["bug"]
+body:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What did you see? A screenshot helps.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps
+      description: How to get there, for example the draft, the calls you gave, the game speed.
+      placeholder: |
+        1. Start a game as blue
+        2. At 4:30, give Gank bot
+        3. ...
+    validations:
+      required: true
+  - type: input
+    id: seed
+    attributes:
+      label: Seed and tick, if known
+      description: >-
+        Open the game with ?debug in the URL, then type lmcDebug.gameState.seed and
+        lmcDebug.gameState.tickCount in the browser console. With the seed, the game can be
+        replayed exactly.
+      placeholder: "seed 2024, tick 2700"
+    validations:
+      required: false
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+  - type: input
+    id: where
+    attributes:
+      label: Where
+      description: The live site, or a branch or commit.
+      placeholder: live site
+    validations:
+      required: false
