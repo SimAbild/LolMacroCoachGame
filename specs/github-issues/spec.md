@@ -142,6 +142,7 @@ Simon's decisions (2026-11-18):
     - `gh api`
     - `gh pr merge`, because a merge to `main` goes live (widened after the Task 3 review)
   - **An ADR**, with the next free number when merged (ADR 0004 is reserved by consequence-rules).
+    It is ADR 0005.
     It records:
     - the mirror and why `plan.md` is the truth
     - what "milestone" means
@@ -155,7 +156,7 @@ Simon's decisions (2026-11-18):
 
 ## Acceptance criteria
 
-- [ ] AC1 (R2, R3): a dry run over `specs/` prints:
+- [x] AC1 (R2, R3): a dry run over `specs/` prints:
   - `_templates` skipped
   - all four merged plans parsed but left out (no `Milestone:` line): fullscreen 5 tasks,
     scoreboard-layout 6, support-card-overflow 3, tutorial-polish 3, all done
@@ -165,7 +166,7 @@ Simon's decisions (2026-11-18):
   - 1-5 done
   - 5b skipped, its whole reason quoted, its title without the condition
   - 6-11 open
-- [ ] AC2 (R2-R4): `--apply --ref feature/consequence-rules` creates milestone
+- [x] AC2 (R2-R4): `--apply --ref feature/consequence-rules` creates milestone
   `M21 Consequence rules` with 13 issues:
   - Tasks 1-5 closed as completed, each with a permalink comment
   - 5b closed as "not planned"
@@ -173,26 +174,26 @@ Simon's decisions (2026-11-18):
 
   `gh api "repos/…/milestones?state=all"` shows 7 open and 6 closed, and
   `gh issue list --json number,title,state,stateReason` shows the close reasons.
-- [ ] AC3 (R2-R4): `--apply` on `specs/github-issues/plan.md` creates milestone `GitHub issues`
+- [x] AC3 (R2-R4): `--apply` on `specs/github-issues/plan.md` creates milestone `GitHub issues`
   with 7 issues, Tasks 1-2 closed.
-- [ ] AC4 (R5): a second `--apply` on both prints "0 changes".
-- [ ] AC5 (R3-R5): against a saved GitHub state, with copies of the M21 plan:
+- [x] AC4 (R5): a second `--apply` on both prints "0 changes".
+- [x] AC5 (R3-R5): against a saved GitHub state, with copies of the M21 plan:
   - Task 6's two boxes ticked: exactly one change, close Task 6
   - Task 1's `built` unticked: exactly one change, reopen Task 1
   - a marker that appears twice: the sync stops
   - a plan file with uncommitted changes: `--apply` is refused
-- [ ] AC6 (R1): `gh label list` shows the labels from `.github/labels.json`. The ten labels saved
+- [x] AC6 (R1): `gh label list` shows the labels from `.github/labels.json`. The ten labels saved
   before Task 3 are all still there.
-- [ ] AC7 (R6): every `open` row in `PAPERCUTS.md` gets an issue labelled `papercut`, and its
+- [x] AC7 (R6): every `open` row in `PAPERCUTS.md` gets an issue labelled `papercut`, and its
   number is written back. There were four at approval, and five since the Data Dragon row from
   Task 1. The diff shows only the numbers, and the line endings are unchanged. A
   second run prints "0 changes".
-- [ ] AC8 (R8): at the stop after Task 3, `gh issue list --label needs-simon` shows exactly one
+- [x] AC8 (R8): at the stop after Task 3, `gh issue list --label needs-simon` shows exactly one
   open issue, github-issues Task 4, with the question as a comment.
 - [ ] AC9 (R7): this feature's PR is created with `gh pr create --body-file` from the template,
   filled in. After the merge, a new PR is filled in by itself, and both forms show under "New
   issue" (a check after the merge).
-- [ ] AC10 (R8, R9):
+- [x] AC10 (R8, R9):
   - `CLAUDE.md` holds the four workflow points.
   - `specs/README.md` and the plan template hold both lines.
   - `docs/review-rules.md` holds `.github/` and the publishing rule.

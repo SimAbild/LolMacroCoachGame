@@ -23,7 +23,7 @@ export function isSkippedFolder(planPath) {
   return SKIPPED_FOLDERS.has(featureOf(planPath));
 }
 
-export function readPlanSource(planPath, ref) {
+export function readSourceFile(planPath, ref) {
   const repoPath = toRepoPath(planPath);
   if (ref) return { repoPath, ref, commit: git(['rev-parse', ref]).trim(), text: git(['show', `${ref}:${repoPath}`]) };
   return { repoPath, ref: null, commit: git(['rev-parse', 'HEAD']).trim(), text: readFileSync(path.join(REPO_ROOT, repoPath), 'utf8') };

@@ -46,27 +46,34 @@ smallest possible change -> tests after the code -> reviewer agent -> proof (sho
 - If a decision was made, write an ADR in `docs/adr/`.
 - A one-line fix may skip intent, spec and plan. It still needs the tests and the review level.
 - "Done" means the proof has been shown, not that the code has been written.
-- When something fails or needs a workaround, add a row to `PAPERCUTS.md`, then sync it with
-  `--papercuts` and commit the issue number it writes back.
+- When something fails or needs a workaround, add a row to `PAPERCUTS.md` and commit it, then sync
+  with `--papercuts` and commit the issue number it writes back.
 - Run the reviewer by giving the `reviewer` agent the diff (`git diff main...HEAD`) and the path of
   the spec. It only reads; fix its findings in the main session.
 
-### GitHub issues (ADR 0004)
+### GitHub issues (ADR 0005)
 
 `plan.md` is the truth; GitHub only mirrors it. A feature is a milestone, a task is an issue.
 
-- Sync once Simon approves a plan, and after every task: show the dry run, push the branch (the
-  closing comments link to its commits), then run `--apply`.
-- At a gate, put `needs-simon` on the feature's next open issue (the review issue at the end) with
-  the question as a comment. Take it off when Simon answers. Only one open issue carries it.
+- Sync the feature's own plan (`node tools/planToIssues.mjs --apply specs/<feature>/plan.md`) once
+  Simon approves it, and after every task: show the dry run, push the branch (the closing comments
+  link to its commits), then apply. The links follow the branch the plan is read from.
+- After the merge, sync once more with `--ref main`, so the feature's links point at `main`.
+- A gate is any stop where Claude waits for Simon: the stop after each task, and every stop the
+  plan names. At a gate, put `needs-simon` on the feature's next open issue (the review issue at
+  the end), with the question as a comment. Take it off when Simon answers. Only one open issue
+  carries it.
 - End a task's commits with `Refs #<issue>`.
 - Never renumber a task or reuse its id (add `6b` instead), and skip a task with a `Skipped (…)`
   line instead of deleting it: the issue is matched by that id.
 
 ## Walls
 
-- `git push`, `gh pr merge`, and every publish to GitHub (`--apply`, `gh issue` and `gh label`
-  writes, any `gh api` call) need Simon's approval every time (`.claude/settings.json`).
+- These ask Simon every time (`.claude/settings.json`):
+  - `git push` and `gh pr merge`
+  - the sync's `--apply`, written `node tools/planToIssues.mjs --apply …` with a relative path
+  - every `gh issue` and `gh label` write
+  - any `gh api` call
 - Do not create, change or delete anything outside this project folder without asking first.
 
 ## More

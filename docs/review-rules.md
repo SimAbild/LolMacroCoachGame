@@ -33,6 +33,7 @@ Core logic, stored data, and anything that goes live.
   `src/config/actions.js`
 - `src/core/intents.js` and `src/game/playerCommands.js` — every input goes through them
 - `tools/goldenMaster.json` — a new baseline says "the game now plays differently, on purpose"
+- `tools/planToIssues.mjs` and `tools/issueSync/` — the issue sync publishes to a public repository
 - `src/core/storage.js` — what is saved in the player's browser, and any change to its keys
 - `.claude/settings.json`, `CLAUDE.md` and this file — the rules themselves
 - Any merge or push to `main`: GitHub Pages publishes it at once
@@ -43,9 +44,14 @@ one of them (accounts or a server for PvP, for example) is High, and this file g
 
 ## Publishing to GitHub
 
-Issues, labels and milestones are public. They are only made by `tools/planToIssues.mjs`, and only
-for a plan Simon has approved (`Status: approved`) and has committed. `--apply` asks first, like
-`git push` (`.claude/settings.json`). A change to the sync itself is `tools/` (Medium). See ADR 0004.
+Issues, labels, milestones and comments are public.
+
+- Task issues and their milestones come only from the sync, for a plan Simon has approved
+  (`Status: approved`) and committed. Papercut issues come only from the sync, for rows in a
+  committed `PAPERCUTS.md`.
+- Ideas, bugs and the `needs-simon` gate comments are made by hand with `gh issue create`, `edit`
+  and `comment`.
+- Both ways ask first, like `git push` (`.claude/settings.json`). See ADR 0005.
 
 ## What every level needs
 

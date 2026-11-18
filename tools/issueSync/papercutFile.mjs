@@ -2,7 +2,7 @@
 // after the issue is created. Every other byte of the file, line endings included, stays as it was.
 import { readFileSync, writeFileSync } from 'node:fs';
 
-const OPEN_STATUS_AT_END = /\|\s*open\s*\|\s*$/;
+const OPEN_STATUS_AT_END = /\|\s*open\s*\|(\s*)$/;
 
 export function writeBackIssueNumber(filePath, row, number) {
   // Split with the line endings kept, so a CRLF file is written back as CRLF: lines sit at even
@@ -14,6 +14,6 @@ export function writeBackIssueNumber(filePath, row, number) {
     throw new Error(`line ${row.lineIndex + 1} of ${filePath} is no longer the row from ${row.date}: write #${number} into its status by hand`);
   }
   if (!OPEN_STATUS_AT_END.test(line)) throw new Error(`the row from ${row.date} no longer ends in "| open |": write #${number} into its status by hand`);
-  parts[index] = line.replace(OPEN_STATUS_AT_END, `| open #${number} |`);
+  parts[index] = line.replace(OPEN_STATUS_AT_END, (match, trailing) => `| open #${number} |${trailing}`);
   writeFileSync(filePath, parts.join(''));
 }

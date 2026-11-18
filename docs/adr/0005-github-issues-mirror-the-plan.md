@@ -1,4 +1,4 @@
-# ADR 0004: GitHub issues mirror the plan; the plan stays the truth
+# ADR 0005: GitHub issues mirror the plan; the plan stays the truth
 
 - Date: 2026-11-18
 - Status: accepted
@@ -27,13 +27,16 @@ step, which turns the tasks of a spec into GitHub issues.
   feature, on its review issue. `Skipped (…)` closes an issue as "not planned".
 - **Open rows in `PAPERCUTS.md` get issues too.** The issue number is written back into the row,
   and that number is the link.
-- **Publishing asks first.** `--apply` comes first on the command line, and `.claude/settings.json`
-  asks before it runs, as it does for `gh pr merge` and every `gh issue`, `gh label` and `gh api`
-  call.
+- **Publishing asks first.**
+  - `--apply` comes first on the command line, and `.claude/settings.json` asks before it runs.
+  - The same goes for `gh pr merge`, every `gh issue` and `gh label` write, and any `gh api` call.
+  - `--apply` also needs the plan named, so a sync from one branch never touches another feature.
 - **`needs-simon` marks a gate.** It goes on the feature's next open issue, with the question as a
   comment.
-- **Links point at the branch, and permalinks at a commit.** The branch is pushed before a sync, so
-  the links work.
+- **Links follow the branch the plan is read from, and permalinks a commit.**
+  - The branch is pushed before a sync, so the links work.
+  - After the merge, one sync with `--ref main` points the feature's links at `main`, where they
+    stay when the branch is deleted.
 
 ## Alternatives considered
 
@@ -56,9 +59,13 @@ step, which turns the tasks of a spec into GitHub issues.
 - **Harder:**
   - A sync after every task costs a prompt or two.
   - The plan grammar is fixed (`## Task <id>: <title>`, the box line, `Skipped (`).
-  - Anything changed on GitHub by hand is overwritten by the next sync.
+  - On a task issue, a title, text, milestone or sync label (`task`, `review:*`) changed by hand is
+    overwritten by the next sync. Labels the sync does not own stay. A papercut issue keeps the
+    title and text it was created with; only its open or closed state follows the row.
 - **Until this feature is merged,** the sync and its ask rules exist only on its branch, so other
-  branches are synced from there with `--ref`.
+  branches are synced from there with `--ref`. After the merge, an open branch merges `main`
+  before its next sync or gate, so it gets the sync and its ask rules.
+- **The number.** This ADR is 0005, because the consequence-rules plan reserved 0004.
 - **Revisit:**
   - if Simon starts editing issues on GitHub more than plans
   - if a second person joins

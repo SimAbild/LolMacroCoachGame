@@ -15,10 +15,10 @@ The four checks, each with its last line:
 - [ ] `node tools/checkLaneTheory.mjs`:
 - [ ] `node tools/checkTutorial.mjs --twice`:
 
-<!-- A new golden master? Say why the game now plays differently, and paste its --summary. -->
+<!-- A new golden master? Say why the game now plays differently, and paste the fingerprints it prints. -->
 
-- [ ] `node tools/planToIssues.mjs` prints `0 changes`: the issues match the plan, and every box
-  under "After the last task" is ticked.
+- [ ] `node tools/planToIssues.mjs specs/<feature>/plan.md` prints `0 changes`: the issues match
+  the plan, and every box under "After the last task" is ticked.
 
 ## Review
 

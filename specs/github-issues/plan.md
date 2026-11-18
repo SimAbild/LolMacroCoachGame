@@ -247,7 +247,15 @@ followed on GitHub. Tasks 4-6 build on it.
       rules travel together until this feature is merged.
     - Git Bash rewrote a `<ref>:<path>` argument (PAPERCUTS).
     - With 0 changes the verdict now reads "GitHub already matches the plan".
-  - **AC8** is the stop below: `needs-simon` goes on #7 (Task 4), with the questions as a comment.
+  - **AC8** is the stop after this task. The questions were posted on #7 (Task 4) as a comment
+    (issuecomment-6980585986), and the label was added with `gh issue edit 7 --add-label
+    needs-simon`. Then:
+    - `gh issue list --label needs-simon` printed exactly one open issue:
+      `#7 github-issues · Task 4: Papercuts as issues`
+    - a dry run printed `0 changes`, so the sync leaves the label alone
+
+    The same gate ran after Task 4 (#8) and Task 5 (#9). Each time the label came off when Simon
+    answered, and his answer was posted on the issue.
 - [x] built  [x] tests shown  [ ] reviewed  [ ] approved
 
 ## Task 4: Papercuts as issues
@@ -416,8 +424,8 @@ followed on GitHub. Tasks 4-6 build on it.
       links.
     - It names four alternatives: issues as the truth, plain `taskstoissues`, a Project board and
       a GitHub Action.
-    - It takes 0004, the next free number on `main`. When consequence-rules reaches its Task 11, it
-      takes the next free one.
+    - It took 0004 at first, and became 0005 after the final review, because the spec says
+      consequence-rules reserved 0004 (see below).
   - **`README.md`:** one line under Tools.
   - **The four checks** pass:
     - the golden master SAME
@@ -429,6 +437,60 @@ followed on GitHub. Tasks 4-6 build on it.
   - **Deviation:** `docs/architecture.md` describes `tools` as "scripts that run the simulation
     headless", which is no longer the whole truth. That one cell now names the issue sync too.
 - [x] built  [x] tests shown  [ ] reviewed  [ ] approved
+
+## Fixes after the final review (2026-11-18)
+
+The reviewer read the whole diff (`git diff main...HEAD`, 28 files) and returned NOT APPROVED with
+one must-fix.
+
+- **Must-fix.** The issue links follow the branch the plan is read from. A sync of every plan from
+  another branch, after the merge, would point finished features' links at that branch, and the PR
+  template's `0 changes` box could never pass.
+  - `--apply` now needs the plan named. Without a path: `--apply refused: name the plan
+    (specs/<feature>/plan.md), so no other feature's links move to this branch`, exit 1, before
+    any write.
+  - The PR template checks `node tools/planToIssues.mjs specs/<feature>/plan.md`.
+  - CLAUDE.md and ADR 0005: after the merge, one sync with `--ref main` points the feature's links
+    at `main`. **This is for Simon to approve,** since a stale branch link is the other choice.
+- **Should-fixes:**
+  - **Ask rules.** CLAUDE.md's wall now lists exactly what asks, and says to run the sync with a
+    relative path. These were not added, because widening the rules is Simon's decision:
+    - a rule for an absolute path
+    - the `gh pr create`, `edit`, `comment`, `review` and `close` writes
+    - `gh release` and `gh repo edit`
+  - **`docs/review-rules.md`:**
+    - The publishing part now covers ideas, bugs and gate comments made by hand.
+    - `tools/planToIssues.mjs` and `tools/issueSync/` are High, because the sync publishes.
+  - **ADR number.** 0004 became 0005, as the approved spec says (consequence-rules reserved 0004),
+    and every reference was changed.
+  - **Template placeholders.** `Milestone: <…>` and `Review level: <…>` are now refused: a copy of
+    the template marked approved prints `refused: "Milestone:" is still the template's
+    placeholder`, then `refused: "Review level:" is missing`.
+  - **The template's checklist** has a box for Simon (approves, reads the diff, or n/a), so the
+    review issue does not close before him.
+  - **PR template:** `--summary` does not exist on `main`, so the template now asks for the
+    fingerprints.
+  - **Branches made before the merge** merge `main` before their next sync or gate, to get the sync
+    and its ask rules (ADR 0005).
+  - **AC8's output** is recorded under Task 3.
+- **Notes fixed:**
+  - Two rows on one issue: `PROBLEM: line 19: #25 is already the issue of an earlier row`.
+  - One papercut marker on two issues stops the sync, as tasks do.
+  - The write-back keeps trailing spaces as well as CRLF; a unit check wrote `open #42 |   \r\n`.
+  - The papercut dry run prints when `--apply` would refuse, and every `--apply` ends by saying to
+    commit `PAPERCUTS.md`, also when it stops halfway.
+  - CLAUDE.md: commit a new row before `--papercuts`.
+  - A gate is defined.
+  - `reviewed` and `approved` are ticked at the end (specs/README).
+  - `bug` is in `labels.json`, with GitHub's own colour and text, so 0 changes.
+  - `readPlanSource` is renamed `readSourceFile`.
+  - The ADR now says what the sync overwrites.
+  - The bug form no longer claims a seed alone replays a game.
+- **After the fixes:**
+  - The four checks pass: the golden master SAME, determinism SAME, lane theory OK, and the
+    tutorial twice the same.
+  - The form check is OK.
+  - Both plans and the papercuts dry-run as expected against the live GitHub.
 
 ## After the last task
 

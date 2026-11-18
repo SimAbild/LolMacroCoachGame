@@ -19,9 +19,13 @@ Under its title, `plan.md` has two lines the issue sync reads:
 
 - `Milestone: <title>` — the feature's GitHub milestone, for example `M21 Consequence rules` (the
   README's milestone number, when the feature is one) or `GitHub issues`.
-- `Review level: Low | Medium | High` — from `docs/review-rules.md`. Every issue gets it as a label.
+- `Review level: Low | Medium | High` — from `docs/review-rules.md`. Every task issue gets it as a
+  label.
 
 Once Simon approves the plan, `node tools/planToIssues.mjs specs/<feature>/plan.md` shows the issues
 it would make: one per `## Task <id>: <title>`, plus one for "After the last task". `--apply`,
 always first, makes them. A task closes when `built` and `tests shown` are ticked; a
 `Skipped (…)` line closes it as "not planned". Task ids are never renumbered or reused.
+
+`reviewed` and `approved` are ticked at the end: `reviewed` once the reviewer agent has read the
+whole diff, `approved` once Simon approves.

@@ -18,7 +18,10 @@ export function parsePapercuts(text) {
     if (!ROW.test(line)) return;
     const row = readRow(line, lineIndex);
     if (row.problem) problems.push(`line ${lineIndex + 1}: ${row.problem}`);
-    else rows.push(row);
+    else if (row.issueNumber && rows.some(other => other.issueNumber === row.issueNumber)) {
+      // Two rows on one issue would open and close it in turn on every sync.
+      problems.push(`line ${lineIndex + 1}: #${row.issueNumber} is already the issue of an earlier row`);
+    } else rows.push(row);
   });
   return { rows, problems };
 }
@@ -69,6 +72,7 @@ function ownedPapercutIssues(state, warnings) {
       warnings.push(`#${issue.number} carries a papercut marker but was opened by ${issue.author}; ignored`);
       continue;
     }
+    if (byMarker.has(marker[0])) throw new Error(`${marker[0]} is on #${byMarker.get(marker[0]).number} and #${issue.number}: close or edit one by hand, then sync again`);
     byNumber.set(issue.number, issue);
     byMarker.set(marker[0], issue);
   }

@@ -23,7 +23,7 @@ PixiJS (in `vendor/`) draws the map; everything else is DOM and CSS.
 | `src/screens` | Home, matchmaking, draft, game, end | Yes |
 | `src/tutorial` | The guided game: runner, director, chapters, autopilot | `tutorial/ui`, the director (it finds targets on the page and reads their ring padding) and `tutorialUrl.js` (reads the address); the runner, chapters and autopilot run headless |
 | `src/ui` | Small DOM helpers: elements, dialog, toast, tooltip, the fullscreen button, the shortcut guard | Yes |
-| `tools` | Node scripts: the checks that run the simulation headless, and the issue sync (`planToIssues.mjs` and `issueSync/`, ADR 0004) | No |
+| `tools` | Node scripts: the checks that run the simulation headless, and the issue sync (`planToIssues.mjs` and `issueSync/`, ADR 0005) | No |
 
 The first four rows plus `src/game/simulation` run unchanged in Node. That is what makes the
 checks in `tools/` possible.

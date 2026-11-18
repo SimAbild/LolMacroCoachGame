@@ -9,7 +9,7 @@
 //   --papercuts mirrors the open rows of PAPERCUTS.md instead of the plans.
 //   --github-state compares with a saved state instead of GitHub (for tests).
 import { parsePlan, taskState } from './issueSync/parsePlan.mjs';
-import { currentBranch, featureOf, isSkippedFolder, listPlanPaths, readLabelDefinitions, readPlanSource, uncommittedReason } from './issueSync/readPlan.mjs';
+import { currentBranch, featureOf, isSkippedFolder, listPlanPaths, readLabelDefinitions, readSourceFile, uncommittedReason } from './issueSync/readPlan.mjs';
 import { desiredState } from './issueSync/desiredState.mjs';
 import { changeCount, describeChange, labelChanges, planChanges } from './issueSync/planChanges.mjs';
 import { loadGithubState, refuseUnlessOwner } from './issueSync/githubState.mjs';
@@ -62,17 +62,19 @@ function readReport(planPath, options) {
   if (isSkippedFolder(planPath)) {
     return { planPath, verdict: { willMirror: false, isSkipped: true, reason: 'skipped: a template, never mirrored' } };
   }
-  const source = readPlanSource(planPath, options.ref);
+  const source = readSourceFile(planPath, options.ref);
   const plan = parsePlan(source.text);
   const verdict = mirrorVerdict(plan, featureOf(source.repoPath));
   return { planPath, source, plan, verdict, refusal: uncommittedReason(source) };
 }
 
 // R2: only an approved plan with a milestone and a review level is mirrored. The folder name goes
-// into every marker, so it must stay one plain word the marker pattern can read back.
+// into every marker, so it must stay one plain word the marker pattern can read back. A "<…>" is
+// a placeholder from the template that was never filled in.
 function mirrorVerdict(plan, feature) {
   if (!plan.milestone) return { willMirror: false, reason: 'left out: no "Milestone:" line' };
   if (!plan.isApproved) return { willMirror: false, reason: 'left out: its status is not "approved"' };
+  if (plan.milestone.startsWith('<')) return { willMirror: false, reason: 'refused: "Milestone:" is still the template\'s placeholder' };
   if (!plan.reviewLevel) {
     return { willMirror: false, reason: `refused: "Review level:" is ${plan.reviewLevelText ?? 'missing'}, not Low, Medium or High` };
   }
@@ -170,16 +172,19 @@ async function finish({ reports, labelChangeList, state, options }) {
     process.exitCode = hasProblems ? 1 : 0;
     return;
   }
-  refuseUnsafeApply(reports, hasProblems, state);
+  refuseUnsafeApply({ reports, hasProblems, state, options });
   const changes = [...labelChangeList, ...reports.flatMap(report => report.changes ?? [])];
   console.log(`\napplying ${changeCount(changes.length)}, one write about every second`);
   await applyChanges(changes);
   console.log('applied: run again without --apply to see that nothing is left');
 }
 
-// Nothing is written unless every plan reads cleanly, every mirrored plan is committed, and gh
-// writes as the owner.
-function refuseUnsafeApply(reports, hasProblems, state) {
+// Nothing is written unless the plan is named, every plan reads cleanly, every mirrored plan is
+// committed, and gh writes as the owner. A named plan matters because the issue links follow the
+// branch the plan is read from: a sync of every plan from one branch would repoint the links of
+// features that live elsewhere.
+function refuseUnsafeApply({ reports, hasProblems, state, options }) {
+  if (!options.paths.length) fail('--apply refused: name the plan (specs/<feature>/plan.md), so no other feature\'s links move to this branch');
   const refusals = reports.filter(report => report.verdict.willMirror && report.refusal);
   if (refusals.length) fail(`--apply refused: ${refusals.map(r => `${r.source.repoPath}: ${r.refusal}`).join('; ')}`);
   if (hasProblems) fail('--apply refused: a plan has problems (see PROBLEM above)');

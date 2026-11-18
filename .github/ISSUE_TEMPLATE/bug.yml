@@ -26,8 +26,8 @@ body:
       label: Seed and tick, if known
       description: >-
         Open the game with ?debug in the URL, then type lmcDebug.gameState.seed and
-        lmcDebug.gameState.tickCount in the browser console. With the seed, the game can be
-        replayed exactly.
+        lmcDebug.gameState.tickCount in the browser console. With the seed, the draft, the side
+        and the calls, the game can be replayed exactly.
       placeholder: "seed 2024, tick 2700"
     validations:
       required: false
