@@ -1,36 +1,37 @@
 # Plan: github-issues
 
-Status: draft
+Status: approved by Simon on 2026-11-18. Revised the same day after the plan approver, with his
+two decisions.
 
-Tasks are built one at a time, in this order. Each is small enough to review in one sitting.
+Milestone: GitHub issues
 
 Review level: High. The reviewer diff is `git diff main...HEAD`. The four checks run after every
 task, and the golden master stays SAME throughout, because `src/` is not touched.
 
+Tasks are built one at a time, in this order. Each is small enough to review in one sitting.
 Tasks 1-3 are the smallest useful slice, like a P1 story in Spec Kit: after Task 3, M21 can be
 followed on GitHub. Tasks 4-6 build on it.
 
-## Task 1: Read a plan, and print what it holds
+## Task 1: Read every plan, and print what it holds
 
 - **Concept:**
   - The deterministic part comes first, as with Spec Kit's scripts. A plan is turned into plain
     data before anything talks to GitHub:
-    - the milestone
-    - the review level
-    - the tasks, each with its id, title, `Covers:` line and boxes, or `Skipped`
+    - the milestone, the review level and the status
+    - the tasks, each with its id, title, `Covers:` line and boxes, or a skip with its reason
     - the "After the last task" list
-  - The dry run prints that data, so the reader can be checked against every plan that exists.
+  - The dry run parses every plan, even the ones `--apply` would leave out, so the reader is
+    tested against every format that exists.
 - **Files:**
   - `.github/labels.json`: the label set from R1
   - `tools/planToIssues.mjs`:
-    - reads the plan from a path, or through `git show <ref>:<path>` with `--ref`
-    - parses it
-    - prints the result; there are no GitHub calls yet
+    - lists `specs/` itself
+    - reads a plan from the working tree, or through `git show <ref>:<path>` with `--ref`
+    - turns `\r\n` into `\n`
+    - parses the plan with the R3 grammar and prints the result, with no GitHub calls yet
 - **Covers:** AC1
 - **Proof:**
-  - A dry run over `specs/*/plan.md`: four plans are skipped for having no `Milestone:` line.
-  - With `--ref feature/consequence-rules`, the dry run lists 12 tasks and the review list, with the
-    right boxes, and 5b as skipped.
+  - The AC1 dry run over `specs/`, and with `--ref feature/consequence-rules`.
   - The four checks pass, and the golden master is SAME.
 - [ ] built  [ ] tests shown  [ ] reviewed  [ ] approved
 
@@ -39,58 +40,83 @@ followed on GitHub. Tasks 4-6 build on it.
 - **Concept:**
   - The sync compares two things:
     - what the plan says, from Task 1
-    - what GitHub has, read with `gh label list`, `gh api …/milestones` and
-      `gh issue list --json`
-  - It turns the difference into a list of changes: create, close, reopen or retitle. Only
-    `--apply` will carry the list out (Task 3).
-  - Issues are matched by their hidden marker, so a retitled task is still the same issue.
-- **Files:** `tools/planToIssues.mjs`: reads GitHub state, works out the changes, prints them
-- **Covers:** AC4
+    - what GitHub has: every issue, label and milestone, open and closed
+  - It turns the difference into a list of changes. Only `--apply` carries the list out
+    (Task 3). A change can:
+    - create or update a label or a milestone
+    - create, close or reopen an issue
+    - update an issue's title, body, labels or milestone
+  - Issues are matched by their hidden marker, and only issues opened by the owner count.
+  - `--github-state <file>` stands in for GitHub, so the comparison can be tested before any issue
+    exists.
+- **Files:** `tools/planToIssues.mjs`. It:
+  - reads the GitHub state, or a saved state with `--github-state`
+  - works out the changes and prints them
+  - handles the guards for a duplicate marker, uncommitted changes and a missing `gh`
+- **Covers:** AC5
 - **Proof:**
-  - Against a copy of the M21 plan in the scratchpad, the AC4 cases each print exactly one change:
-    - Task 6's two boxes ticked closes Task 6
-    - Task 1's `built` unticked reopens Task 1
-
-    Until Task 3 creates the issues, GitHub has none, so this is shown again after Task 3. Before
-    that, it is shown against a hand-written fake state.
+  - **The AC5 cases.** A saved state that matches the M21 plan as it is, plus copies of that plan
+    kept under `<scratchpad>/consequence-rules/plan.md`, so the feature name still comes from the
+    folder:
+    - Task 6 ticked: one change, close Task 6
+    - Task 1 unticked: one change, reopen Task 1
+    - a duplicate marker: the sync stops
+    - an uncommitted plan file: `--apply` is refused
   - A `gh` that is missing or not logged in gives a clear message, not a stack trace.
   - The four checks pass, and the golden master is SAME.
 - [ ] built  [ ] tests shown  [ ] reviewed  [ ] approved
 
-## Task 3: Mirror M21 on GitHub
+## Task 3: Mirror M21 and this feature on GitHub
 
 - **Concept:**
   - `--apply` carries out the list with `gh`:
-    - labels and the milestone come first, then the issues
-    - closing comments carry permalinks
-  - This is the first step that publishes anything. The repository is public, so it runs only
-    after Simon has approved this plan, and **this task stops for Simon to look at GitHub**.
+    - labels first, then milestones, then issues
+    - one write about every second
+    - a stop at the first error
+  - This is the first step that publishes anything, and the repository is public. So, in this
+    order:
+    1. The ask rules go in.
+    2. The reviewer reads Tasks 1-3.
+    3. Simon sees the dry-run output.
+    4. The `--apply` runs, and asks first.
 - **Files:**
   - `tools/planToIssues.mjs`: the `--apply` path
-  - On `feature/consequence-rules`, a one-line commit adds `Milestone: M21 Consequence rules` to
-    `specs/consequence-rules/plan.md`
-- **Covers:** AC2, AC3, AC5, and AC4 again against real issues
+  - `.claude/settings.json`: the ask rules from R8
+  - On `feature/consequence-rules`: a commit that adds the `Milestone: M21 Consequence rules` line
+    under the title of `specs/consequence-rules/plan.md`. It is made by switching to that branch
+    with a clean tree, committing, and switching back. It is not part of this feature's diff.
+- **Covers:** AC2, AC3, AC4, AC6, AC8, and AC5 again against the real issues
 - **Proof:**
-  - The `--apply` output.
-  - `gh issue list --milestone "M21 Consequence rules" --state all` shows 13 issues, 6 closed.
+  - `gh label list --json name` is saved before the first `--apply`.
+  - The `--apply` output for both plans, then:
+    - `gh api "repos/SimAbild/LolMacroCoachGame/milestones?state=all"`
+    - `gh issue list --state all --json number,title,state,stateReason,milestone`
   - A second `--apply` prints "0 changes".
-  - `gh label list` shows the new labels and GitHub's ten defaults.
+  - The labels, compared with the saved list.
   - The four checks pass, and the golden master is SAME.
+  - **This task stops for Simon to look at GitHub.** The question goes on Task 4's issue, labelled
+    `needs-simon` (AC8).
 - [ ] built  [ ] tests shown  [ ] reviewed  [ ] approved
 
 ## Task 4: Papercuts as issues
 
 - **Concept:**
   - `PAPERCUTS.md` stays the log, and an open row gets an issue so it shows next to the tasks.
-  - Writing the issue number back into the row links the two without a second list. It is also
-    how the sync knows a row already has its issue.
+  - Writing the issue number back into the row links the two without a second list. A marker in
+    the issue covers a crash between creating the issue and writing back.
 - **Files:**
-  - `tools/planToIssues.mjs`: `--papercuts` reads, creates or closes, and writes the number back
-  - `PAPERCUTS.md`: the numbers, written by the script
-- **Covers:** AC6
+  - `tools/planToIssues.mjs`: `--papercuts`. It:
+    - reads the table
+    - creates, closes or reopens issues
+    - writes each number back right away, keeping the line endings
+  - `PAPERCUTS.md`:
+    - the status rule in its header
+    - the numbers, written by the script
+- **Covers:** AC7
 - **Proof:**
-  - The dry run lists the five open rows.
-  - `--apply` creates five issues, and the diff of `PAPERCUTS.md` shows only the numbers added.
+  - The dry run lists the four open rows, with their shortened titles.
+  - `--apply` creates four issues. The diff of `PAPERCUTS.md` shows only the numbers and the
+    header line.
   - A second run prints "0 changes".
   - The four checks pass, and the golden master is SAME.
 - [ ] built  [ ] tests shown  [ ] reviewed  [ ] approved
@@ -101,33 +127,33 @@ followed on GitHub. Tasks 4-6 build on it.
   - A template asks for what the review rules already demand: the spec, the review level, the
     checks' output and the reviewer's findings. A PR then cannot quietly skip them.
   - The issue forms turn an idea or a bug into an issue with the fields an intent or a fix needs.
+  - GitHub reads both from `main` only, so they are fully proved only after the merge.
 - **Files:**
   - `.github/pull_request_template.md`
   - `.github/ISSUE_TEMPLATE/idea.yml`, `bug.yml`, `config.yml`
-- **Covers:** AC7
+- **Covers:** AC9
 - **Proof:**
-  - This feature's own PR body comes from the template.
-  - After the merge, a screenshot of GitHub's "New issue" page shows both forms.
   - The four checks pass.
+  - The template is used for this feature's PR body with `--body-file`.
+  - After the merge, the two checks in "After the last task" below.
 - [ ] built  [ ] tests shown  [ ] reviewed  [ ] approved
 
 ## Task 6: Write the workflow down
 
-- **Concept:** a step that is not written down is forgotten in the next session. The workflow
-  needs four things written down:
-  - when the sync runs
-  - when `needs-simon` goes on and off
-  - that a task's commits say `Refs #N`
-  - why `plan.md` is the truth (the ADR)
+- **Concept:**
+  - A step that is not written down is forgotten in the next session.
+  - The four workflow points from R8 go into `CLAUDE.md`, and the ADR records why `plan.md` is
+    the truth.
 - **Files:**
   - `CLAUDE.md`: the Workflow section
-  - `specs/README.md` and `specs/_templates/plan.md`: the `Milestone:` line
-  - `docs/adr/0004-github-issues-mirror-the-plan.md`
+  - `specs/README.md` and `specs/_templates/plan.md`: the `Milestone:` and `Review level:` lines
+  - `docs/review-rules.md`: `.github/` and publishing
+  - `docs/adr/`: the next free number when merged
   - `README.md`: one line under Tools
-- **Covers:** AC8
+- **Covers:** AC10
 - **Proof:**
+  - Each point of AC10, checked against the files.
   - The four checks pass, and the golden master is SAME.
-  - The reviewer has read the whole diff against this spec.
 - [ ] built  [ ] tests shown  [ ] reviewed  [ ] approved
 
 ## After the last task
@@ -136,3 +162,11 @@ followed on GitHub. Tasks 4-6 build on it.
 - [ ] Reviewer agent has read the whole diff against the spec
 - [ ] ADR written
 - [ ] Simon approves the merge (High)
+
+## After the merge
+
+These two checks can only happen on `main`. They are not part of the review issue, which closes
+with the merge.
+
+- [ ] A new PR is filled in by the template by itself
+- [ ] Both issue forms show under "New issue"
