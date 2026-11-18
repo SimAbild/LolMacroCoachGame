@@ -4,7 +4,31 @@
       "Bash(git push *)",
       "Bash(git push)",
       "PowerShell(git push *)",
-      "PowerShell(git push)"
+      "PowerShell(git push)",
+      "Bash(node tools/planToIssues.mjs --apply *)",
+      "Bash(node tools/planToIssues.mjs --apply)",
+      "PowerShell(node tools/planToIssues.mjs --apply *)",
+      "PowerShell(node tools/planToIssues.mjs --apply)",
+      "Bash(gh issue create *)",
+      "Bash(gh issue edit *)",
+      "Bash(gh issue comment *)",
+      "Bash(gh issue close *)",
+      "Bash(gh issue reopen *)",
+      "Bash(gh issue delete *)",
+      "Bash(gh label create *)",
+      "Bash(gh label edit *)",
+      "Bash(gh label delete *)",
+      "Bash(gh api *)",
+      "PowerShell(gh issue create *)",
+      "PowerShell(gh issue edit *)",
+      "PowerShell(gh issue comment *)",
+      "PowerShell(gh issue close *)",
+      "PowerShell(gh issue reopen *)",
+      "PowerShell(gh issue delete *)",
+      "PowerShell(gh label create *)",
+      "PowerShell(gh label edit *)",
+      "PowerShell(gh label delete *)",
+      "PowerShell(gh api *)"
     ]
   }
 }

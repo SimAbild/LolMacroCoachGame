@@ -1,7 +1,9 @@
 // Mirrors each approved specs/<feature>/plan.md as a GitHub milestone with one issue per task.
 // plan.md stays the truth; GitHub only shows it. Spec: specs/github-issues/spec.md.
-// Run: node tools/planToIssues.mjs [plan.md ...] [--ref <branch>] [--github-state <file>] [--verbose]
-//   Without paths it reads every plan under specs/. It only prints what it would change.
+// Run: node tools/planToIssues.mjs [--apply] [plan.md ...] [--ref <branch>] [--github-state <file>] [--verbose]
+//   Without paths it reads every plan under specs/. Without --apply it only prints what it would change.
+//   --apply carries the changes out on GitHub. Put it first: the ask rule in .claude/settings.json
+//   matches "node tools/planToIssues.mjs --apply".
 //   --ref reads the plans from that branch through git, without checking it out.
 //   --github-state compares with a saved state instead of GitHub (for tests).
 import { parsePlan, taskState } from './issueSync/parsePlan.mjs';
@@ -9,6 +11,7 @@ import { currentBranch, featureOf, isSkippedFolder, listPlanPaths, readLabelDefi
 import { desiredState } from './issueSync/desiredState.mjs';
 import { describeChange, labelChanges, planChanges } from './issueSync/planChanges.mjs';
 import { ensureGhReady, loadSavedState, readGithubState } from './issueSync/githubState.mjs';
+import { applyChanges } from './issueSync/applyChanges.mjs';
 
 const BOX_NAMES = ['built', 'tests shown', 'reviewed', 'approved'];
 
@@ -20,7 +23,7 @@ try {
   printLabelChanges(labelChangeList, state);
   for (const report of reports) compareAndPrint(report, state, options);
   printTotals(reports, labelChangeList);
-  finish(reports, options);
+  await finish(reports, labelChangeList, options);
 } catch (error) {
   // A bad option, a failed git or gh call, or a marker on two issues: print why and stop.
   console.error(`planToIssues: ${error.message}`);
@@ -65,7 +68,7 @@ function mirrorVerdict(plan) {
   if (!plan.isApproved) return { willMirror: false, reason: 'left out: its status is not "approved"' };
   if (!plan.reviewLevel) return { willMirror: false, reason: `refused: "Review level:" is ${plan.reviewLevelText ?? 'missing'}, not Low, Medium or High` };
   if (plan.problems.length) return { willMirror: false, reason: 'refused: the plan has problems (above)' };
-  return { willMirror: true, reason: '--apply would mirror it' };
+  return { willMirror: true, reason: 'mirrored' };
 }
 
 function compareAndPrint(report, state, options) {
@@ -79,7 +82,13 @@ function compareAndPrint(report, state, options) {
     Object.assign(report, planChanges(desired, state));
     printChanges(report);
   }
-  console.log(`  => ${report.verdict.reason}${report.refusal ? `; --apply would refuse: ${report.refusal}` : ''}\n`);
+  console.log(`  => ${verdictText(report, options)}\n`);
+}
+
+function verdictText({ verdict, refusal }, { isApply }) {
+  if (!verdict.willMirror) return verdict.reason;
+  if (refusal) return `--apply refuses it: ${refusal}`;
+  return isApply ? 'the changes above are applied below' : '--apply would make the changes above';
 }
 
 function contextFor(source, state) {
@@ -136,12 +145,24 @@ function printTotals(reports, labelChangeList) {
   console.log(countText(changes));
 }
 
-function finish(reports, options) {
+async function finish(reports, labelChangeList, options) {
   const hasProblems = reports.some(report => report.plan?.problems.length);
+  if (!options.isApply) {
+    process.exitCode = hasProblems ? 1 : 0;
+    return;
+  }
+  refuseUnsafeApply(reports, hasProblems);
+  const changes = [...labelChangeList, ...reports.flatMap(report => report.changes ?? [])];
+  console.log(`\napplying ${countText(changes.length)}, one write about every second`);
+  await applyChanges(changes);
+  console.log('applied: run again without --apply to see that nothing is left');
+}
+
+// Nothing is written unless every plan reads cleanly and every mirrored plan is committed.
+function refuseUnsafeApply(reports, hasProblems) {
   const refusals = reports.filter(report => report.verdict.willMirror && report.refusal);
-  if (options.isApply && refusals.length) fail(`--apply refused: ${refusals.map(r => `${r.source.repoPath}: ${r.refusal}`).join('; ')}`);
-  if (options.isApply) fail('--apply is not built yet (specs/github-issues, Task 3)');
-  process.exitCode = hasProblems ? 1 : 0;
+  if (refusals.length) fail(`--apply refused: ${refusals.map(r => `${r.source.repoPath}: ${r.refusal}`).join('; ')}`);
+  if (hasProblems) fail('--apply refused: a plan has problems (see PROBLEM above)');
 }
 
 function countText(count) {
