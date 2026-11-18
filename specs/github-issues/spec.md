@@ -141,6 +141,8 @@ Simon's decisions (2026-11-18):
       delete, transfer, pin, unpin, lock, unlock, develop and clone
     - `gh api`
     - `gh pr merge`, because a merge to `main` goes live (widened after the Task 3 review)
+    - `gh pr create`, `edit`, `comment`, `review` and `close`, `gh release` and `gh repo edit`
+      (widened at the final gate)
   - **An ADR**, with the next free number when merged (ADR 0004 is reserved by consequence-rules).
     It is ADR 0005.
     It records:

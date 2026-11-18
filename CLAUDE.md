@@ -73,10 +73,11 @@ smallest possible change -> tests after the code -> reviewer agent -> proof (sho
 ## Walls
 
 - These ask Simon every time (`.claude/settings.json`):
-  - `git push` and `gh pr merge`
-  - the sync's `--apply`, written `node tools/planToIssues.mjs --apply …` with a relative path
+  - `git push`, and `gh pr merge`, `create`, `edit`, `comment`, `review` and `close`
+  - the sync's `--apply`. Always write it `node tools/planToIssues.mjs --apply …`, with the
+    relative path: an absolute path is not covered.
   - every `gh issue` and `gh label` write
-  - any `gh api` call
+  - any `gh api` call, plus `gh release` and `gh repo edit`
 - Do not create, change or delete anything outside this project folder without asking first.
 
 ## More

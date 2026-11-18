@@ -71,7 +71,7 @@ followed on GitHub. Tasks 4-6 build on it.
       `tools/issueSync/parsePlan.mjs` is the pure reader, with no files, git or GitHub.
       `tools/issueSync/readPlan.mjs` gets the text from the working tree or a branch.
     - `--verbose` also prints each task's `Covers:` line.
-- [x] built  [x] tests shown  [x] reviewed  [ ] approved
+- [x] built  [x] tests shown  [x] reviewed  [x] approved
 
 ## Task 2: Work out the changes, still without writing
 
@@ -153,7 +153,7 @@ followed on GitHub. Tasks 4-6 build on it.
       show on GitHub.
     - The sync only adds or removes its own labels (`task`, `review:*`). Any other label, such as
       `needs-simon`, is left alone (case 5). Without this, every sync would remove the gate label.
-- [x] built  [x] tests shown  [x] reviewed  [ ] approved
+- [x] built  [x] tests shown  [x] reviewed  [x] approved
 
 ## Task 3: Mirror M21 and this feature on GitHub
 
@@ -256,7 +256,7 @@ followed on GitHub. Tasks 4-6 build on it.
 
     The same gate ran after Task 4 (#8) and Task 5 (#9). Each time the label came off when Simon
     answered, and his answer was posted on the issue.
-- [x] built  [x] tests shown  [x] reviewed  [ ] approved
+- [x] built  [x] tests shown  [x] reviewed  [x] approved
 
 ## Task 4: Papercuts as issues
 
@@ -327,7 +327,7 @@ followed on GitHub. Tasks 4-6 build on it.
       state is mirrored after that. R6 asks for no more, and the row's number stays the link.
     - The refusal wording now says "the file", not "the plan", because it also covers
       `PAPERCUTS.md`.
-- [x] built  [x] tests shown  [x] reviewed  [ ] approved
+- [x] built  [x] tests shown  [x] reviewed  [x] approved
 
 ## Task 5: Templates for pull requests and new issues
 
@@ -381,7 +381,7 @@ followed on GitHub. Tasks 4-6 build on it.
   - **Left for later:**
     - The PR body comes when this feature's PR is opened.
     - The two checks in "After the merge" come after Simon merges.
-- [x] built  [x] tests shown  [x] reviewed  [ ] approved
+- [x] built  [x] tests shown  [x] reviewed  [x] approved
 
 ## Task 6: Write the workflow down
 
@@ -437,7 +437,7 @@ followed on GitHub. Tasks 4-6 build on it.
     `0 changes`.
   - **Deviation:** `docs/architecture.md` describes `tools` as "scripts that run the simulation
     headless", which is no longer the whole truth. That one cell now names the issue sync too.
-- [x] built  [x] tests shown  [x] reviewed  [ ] approved
+- [x] built  [x] tests shown  [x] reviewed  [x] approved
 
 ## Fixes after the final review (2026-11-18)
 
@@ -507,12 +507,32 @@ one must-fix.
   - CLAUDE.md says a branch made before the sync reached `main` merges `main` first.
   - The four checks pass again.
 
+## The final gate (2026-11-18)
+
+Simon's answers on #10:
+- **He approves the merge of PR #30.**
+- **Links go via `main`.** After the merge: `git fetch`, then one sync with `--ref origin/main`
+  (CLAUDE.md, ADR 0005).
+- **Widen the ask rules.**
+  - `.claude/settings.json` now asks for `gh pr create`, `edit`, `comment`, `review` and `close`,
+    `gh release` and `gh repo edit`, in Bash and PowerShell: 64 rules.
+  - **Left open: the absolute path to the sync.**
+    - It would name Simon's own folders, so it does not belong in this public repo. It was meant
+      for `.claude/settings.local.json`, which his global gitignore covers, but the auto mode
+      classifier refused that write.
+    - CLAUDE.md therefore says to write the sync with its relative path, the only spelling the
+      shared rules cover.
+    - Simon can add the rule himself.
+  - **Found in `.claude/settings.local.json`:** `"allow": ["Bash(gh issue *)"]`. It was most
+    likely saved during this session, when a prompt was answered with "don't ask again". It is
+    Simon's setting and was not touched; whether the shared ask rules beat it is for him to check.
+
 ## After the last task
 
 - [x] All four checks pass, output shown
 - [x] Reviewer agent has read the whole diff against the spec (second pass: APPROVED)
 - [x] ADR written
-- [ ] Simon approves the merge (High)
+- [x] Simon approves the merge (High) (on #10, 2026-11-18)
 
 ## After the merge
 
