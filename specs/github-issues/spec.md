@@ -180,8 +180,9 @@ Simon's decisions (2026-11-18):
   - a plan file with uncommitted changes: `--apply` is refused
 - [ ] AC6 (R1): `gh label list` shows the labels from `.github/labels.json`. The ten labels saved
   before Task 3 are all still there.
-- [ ] AC7 (R6): the four `open` rows in `PAPERCUTS.md` get issues labelled `papercut`, and their
-  numbers are written back. The diff shows only the numbers, and the line endings are unchanged. A
+- [ ] AC7 (R6): every `open` row in `PAPERCUTS.md` gets an issue labelled `papercut`, and its
+  number is written back. There were four at approval, and five since the Data Dragon row from
+  Task 1. The diff shows only the numbers, and the line endings are unchanged. A
   second run prints "0 changes".
 - [ ] AC8 (R8): at the stop after Task 3, `gh issue list --label needs-simon` shows exactly one
   open issue, github-issues Task 4, with the question as a comment.

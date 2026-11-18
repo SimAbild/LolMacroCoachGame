@@ -33,7 +33,45 @@ followed on GitHub. Tasks 4-6 build on it.
 - **Proof:**
   - The AC1 dry run over `specs/`, and with `--ref feature/consequence-rules`.
   - The four checks pass, and the golden master is SAME.
-- [ ] built  [ ] tests shown  [ ] reviewed  [ ] approved
+- **Result** (2026-11-18, commit 8c14359):
+  - **AC1, the working tree.** `node tools/planToIssues.mjs`:
+    - `_templates` is skipped.
+    - fullscreen (5 tasks), scoreboard-layout (6), support-card-overflow (3) and tutorial-polish
+      (3) are parsed, all done, and left out with `no "Milestone:" line`.
+    - github-issues has 6 open tasks, and "would mirror it: 7 issues".
+    - The totals: "6 plans, 0 with problems".
+  - **AC1 with `--ref feature/consequence-rules`** prints 12 tasks:
+    - 1-5 are done, with `[xx--]`: built and tests shown, not yet reviewed or approved.
+    - 5b is skipped. Its title has no condition, the condition is shown apart, and the whole
+      three-line `Skipped (` item is quoted as one.
+    - 6-11 are open, and the review is 0 of 5.
+    - It is left out for now, because its `Milestone:` line comes in Task 3.
+  - **Line endings.** The working tree is CRLF (`core.autocrlf true`) and `git show` gives LF.
+    Both read the four merged plans identically.
+  - **The error paths:**
+    - A synthetic CRLF plan reports all four problems:
+      - a heading off the grammar
+      - a task with no box line
+      - a task id used twice
+      - no review section
+    - An unindented `Skipped (` line straight under a box line is read as its own item.
+    - `--apply` (not built yet), an unknown option and a missing branch each give one line and
+      exit code 1.
+  - **The four checks.** Determinism SAME, lane theory 18 rules pass, and the tutorial runs twice
+    the same.
+    - **The golden master could not be compared as usual.** Data Dragon moved from patch 16.22.1
+      to 16.23.1, and the check refuses a baseline from another patch, on `main` too (PAPERCUTS).
+    - Shown instead:
+      - `git diff main -- src tools/check*.mjs tools/goldenMaster.json` is empty.
+      - The fingerprints of `main` and this branch on 16.23.1 are byte-identical.
+    - Both are also identical to the stored 16.22.1 baseline, apart from the patch string: the new
+      patch changes nothing in play.
+  - **Deviations:**
+    - The script is split. `tools/planToIssues.mjs` is the command line, and
+      `tools/issueSync/parsePlan.mjs` is the pure reader, with no files, git or GitHub.
+      `tools/issueSync/readPlan.mjs` gets the text from the working tree or a branch.
+    - `--verbose` also prints each task's `Covers:` line.
+- [x] built  [x] tests shown  [ ] reviewed  [ ] approved
 
 ## Task 2: Work out the changes, still without writing
 
@@ -114,8 +152,9 @@ followed on GitHub. Tasks 4-6 build on it.
     - the numbers, written by the script
 - **Covers:** AC7
 - **Proof:**
-  - The dry run lists the four open rows, with their shortened titles.
-  - `--apply` creates four issues. The diff of `PAPERCUTS.md` shows only the numbers and the
+  - The dry run lists the five open rows, with their shortened titles. There were four at
+    approval; Task 1 added the Data Dragon row.
+  - `--apply` creates five issues. The diff of `PAPERCUTS.md` shows only the numbers and the
     header line.
   - A second run prints "0 changes".
   - The four checks pass, and the golden master is SAME.
