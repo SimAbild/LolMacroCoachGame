@@ -4,9 +4,11 @@ import { SYNC_LABELS } from './desiredState.mjs';
 
 const MARKER = /<!-- lmc-task: ([^\s]+) -->/;
 
+// Colours are compared the way GitHub returns them: lower case, without "#".
 export function labelChanges(definitions, labels) {
   const changes = [];
-  for (const wanted of definitions) {
+  for (const definition of definitions) {
+    const wanted = { ...definition, color: definition.color.replace(/^#/, '').toLowerCase() };
     const actual = labels.find(label => label.name === wanted.name);
     if (!actual) changes.push({ kind: 'create-label', label: wanted });
     else if (actual.color !== wanted.color || actual.description !== wanted.description) changes.push({ kind: 'update-label', label: wanted });
@@ -19,10 +21,9 @@ export function labelChanges(definitions, labels) {
 export function planChanges(desired, state) {
   const warnings = [];
   const owned = ownedTaskIssues(desired.feature, state, warnings);
-  const changes = [
-    ...milestoneChanges(desired.milestone, state.milestones),
-    ...desired.issues.flatMap(issue => issueChanges(issue, owned.get(issue.marker))),
-  ];
+  const issueChangeList = desired.issues.flatMap(issue => issueChanges(issue, owned.get(issue.marker)));
+  const milestone = milestoneChanges(desired.milestone, state.milestones, issueChangeList);
+  const changes = [...milestone.before, ...issueChangeList, ...milestone.after];
   for (const [marker, issue] of owned) {
     if (!desired.issues.some(wanted => wanted.marker === marker)) warnings.push(`#${issue.number} carries ${marker}, but the plan has no such task; left as it is`);
   }
@@ -46,11 +47,25 @@ function ownedTaskIssues(feature, state, warnings) {
   return owned;
 }
 
-function milestoneChanges(wanted, milestones) {
+// gh only finds an open milestone for --milestone, so it is open while its issues are created or
+// moved, and closed (if the plan says so) only after them.
+function milestoneChanges(wanted, milestones, issueChangeList) {
   const actual = milestones.find(milestone => milestone.title === wanted.title);
-  if (!actual) return [{ kind: 'create-milestone', milestone: wanted }];
-  const fields = ['description', 'state'].filter(field => actual[field] !== wanted[field]);
-  return fields.length ? [{ kind: 'update-milestone', number: actual.number, milestone: wanted, fields }] : [];
+  const needsOpen = issueChangeList.some(change => change.kind === 'create-issue' || change.fields?.includes('milestone'));
+  const patch = {};
+  if (actual && actual.description !== wanted.description) patch.description = wanted.description;
+  if (actual?.state === 'closed' && needsOpen) patch.state = 'open';
+  const before = actual
+    ? (Object.keys(patch).length ? [milestoneUpdate(wanted.title, actual.number, patch)] : [])
+    : [{ kind: 'create-milestone', milestone: { ...wanted, state: 'open' } }];
+  const stateInBetween = actual ? (patch.state ?? actual.state) : 'open';
+  const after = stateInBetween === wanted.state ? [] : [milestoneUpdate(wanted.title, actual?.number, { state: wanted.state })];
+  return { before, after };
+}
+
+// A milestone created in the same run has no number yet; the apply step looks it up by title.
+function milestoneUpdate(title, number, patch) {
+  return { kind: 'update-milestone', title, number: number ?? null, patch };
 }
 
 function issueChanges(wanted, actual) {
@@ -94,7 +109,7 @@ export function describeChange(change) {
     case 'create-label': return `create label    ${change.label.name} (${change.label.color})`;
     case 'update-label': return `update label    ${change.label.name} (${change.label.color}, "${change.label.description}")`;
     case 'create-milestone': return `create milestone "${change.milestone.title}" (${change.milestone.state})`;
-    case 'update-milestone': return `update milestone ${target}"${change.milestone.title}": ${change.fields.join(', ')}`;
+    case 'update-milestone': return `update milestone ${target}"${change.title}": ${Object.entries(change.patch).map(([key, value]) => (key === 'state' ? value : key)).join(', ')}`;
     case 'create-issue': return `create issue    ${change.issue.title}  [${change.issue.labels.join(', ')}]${closedNote(change.issue)}`;
     case 'update-issue': return `update issue    ${target}${change.issue.title}: ${change.fields.join(', ')}`;
     case 'close-issue': return `close issue     ${target}${change.issue.title} (${change.issue.stateReason.replace('_', ' ')}, with a comment)`;

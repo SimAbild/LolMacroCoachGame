@@ -11,10 +11,14 @@ export function ensureGhReady() {
   try {
     gh(['auth', 'status']);
   } catch (error) {
-    // A missing gh keeps its own message; anything else here means gh has no usable login.
+    // A missing gh keeps its own message; otherwise gh has no usable login, or no network.
     if (error.isMissingGh) throw error;
-    throw new Error('gh is not logged in to GitHub: run "gh auth login" first');
+    throw new Error(`gh is not logged in to GitHub, or cannot reach it: run "gh auth login" first (${error.message})`);
   }
+}
+
+export function activeLogin() {
+  return gh(['api', 'user', '--jq', '.login']).trim();
 }
 
 export function readGithubState() {

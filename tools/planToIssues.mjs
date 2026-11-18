@@ -10,10 +10,11 @@ import { parsePlan, taskState } from './issueSync/parsePlan.mjs';
 import { currentBranch, featureOf, isSkippedFolder, listPlanPaths, readLabelDefinitions, readPlanSource, uncommittedReason } from './issueSync/readPlan.mjs';
 import { desiredState } from './issueSync/desiredState.mjs';
 import { describeChange, labelChanges, planChanges } from './issueSync/planChanges.mjs';
-import { ensureGhReady, loadSavedState, readGithubState } from './issueSync/githubState.mjs';
+import { activeLogin, ensureGhReady, loadSavedState, readGithubState } from './issueSync/githubState.mjs';
 import { applyChanges } from './issueSync/applyChanges.mjs';
 
 const BOX_NAMES = ['built', 'tests shown', 'reviewed', 'approved'];
+const FEATURE_NAME = /^[a-z0-9-]+$/;
 
 try {
   const options = readOptions(process.argv.slice(2));
@@ -23,7 +24,7 @@ try {
   printLabelChanges(labelChangeList, state);
   for (const report of reports) compareAndPrint(report, state, options);
   printTotals(reports, labelChangeList);
-  await finish(reports, labelChangeList, options);
+  await finish({ reports, labelChangeList, state, options });
 } catch (error) {
   // A bad option, a failed git or gh call, or a marker on two issues: print why and stop.
   console.error(`planToIssues: ${error.message}`);
@@ -37,7 +38,7 @@ function readOptions(args) {
     if (arg === '--ref') options.ref = args[++index] ?? fail('--ref needs a branch name');
     else if (arg === '--github-state') options.githubStatePath = args[++index] ?? fail('--github-state needs a file');
     else if (arg === '--verbose') options.isVerbose = true;
-    else if (arg === '--apply') options.isApply = true;
+    else if (arg === '--apply') options.isApply = index === 0 || fail('put --apply first, so the ask rule in .claude/settings.json sees it');
     else if (arg.startsWith('--')) fail(`unknown option ${arg}`);
     else options.paths.push(arg);
   }
@@ -56,17 +57,24 @@ function githubStateFor({ githubStatePath }) {
 }
 
 function readReport(planPath, options) {
-  if (isSkippedFolder(planPath)) return { planPath, verdict: { willMirror: false, isSkipped: true, reason: 'skipped: a template, never mirrored' } };
+  if (isSkippedFolder(planPath)) {
+    return { planPath, verdict: { willMirror: false, isSkipped: true, reason: 'skipped: a template, never mirrored' } };
+  }
   const source = readPlanSource(planPath, options.ref);
   const plan = parsePlan(source.text);
-  return { planPath, source, plan, verdict: mirrorVerdict(plan), refusal: uncommittedReason(source) };
+  const verdict = mirrorVerdict(plan, featureOf(source.repoPath));
+  return { planPath, source, plan, verdict, refusal: uncommittedReason(source) };
 }
 
-// R2: only an approved plan with a milestone and a review level is mirrored.
-function mirrorVerdict(plan) {
+// R2: only an approved plan with a milestone and a review level is mirrored. The folder name goes
+// into every marker, so it must stay one plain word the marker pattern can read back.
+function mirrorVerdict(plan, feature) {
   if (!plan.milestone) return { willMirror: false, reason: 'left out: no "Milestone:" line' };
   if (!plan.isApproved) return { willMirror: false, reason: 'left out: its status is not "approved"' };
-  if (!plan.reviewLevel) return { willMirror: false, reason: `refused: "Review level:" is ${plan.reviewLevelText ?? 'missing'}, not Low, Medium or High` };
+  if (!plan.reviewLevel) {
+    return { willMirror: false, reason: `refused: "Review level:" is ${plan.reviewLevelText ?? 'missing'}, not Low, Medium or High` };
+  }
+  if (!FEATURE_NAME.test(feature)) return { willMirror: false, reason: `refused: the folder name "${feature}" is not lower-case letters, digits and hyphens` };
   if (plan.problems.length) return { willMirror: false, reason: 'refused: the plan has problems (above)' };
   return { willMirror: true, reason: 'mirrored' };
 }
@@ -95,10 +103,16 @@ function contextFor(source, state) {
   return {
     feature: featureOf(source.repoPath),
     repoPath: source.repoPath,
-    branch: source.ref ?? currentBranch(),
+    branch: linkBranch(source.ref),
     commit: source.commit,
     repoUrl: state.repoUrl,
   };
+}
+
+// The branch the issue links point at, as GitHub names it ("origin/x" is "x" there).
+function linkBranch(ref) {
+  if (ref) return ref.replace(/^origin\//, '');
+  return currentBranch() || fail('HEAD is detached, so the links would have no branch: check out a branch or use --ref');
 }
 
 function printPlan({ plan, source }, isVerbose) {
@@ -121,7 +135,7 @@ function printTask(task, isVerbose) {
 function printReview(review) {
   if (!review) return;
   const ticked = review.items.filter(item => item.isTicked).length;
-  const state = ticked === review.items.length ? 'done' : 'open';
+  const state = review.items.length && ticked === review.items.length ? 'done' : 'open';
   console.log(`  ${'Review'.padEnd(9)}${state.padEnd(8)}${ticked} of ${review.items.length} boxes ticked`);
 }
 
@@ -141,28 +155,33 @@ function printChanges({ changes, warnings }) {
 function printTotals(reports, labelChangeList) {
   const count = test => reports.filter(test).length;
   const changes = labelChangeList.length + reports.reduce((sum, report) => sum + (report.changes?.length ?? 0), 0);
-  console.log(`${reports.length} plan${reports.length === 1 ? '' : 's'}: ${count(r => r.verdict.willMirror)} mirrored, ${count(r => !r.verdict.willMirror && !r.verdict.isSkipped)} left out, ${count(r => r.verdict.isSkipped)} skipped, ${count(r => r.plan?.problems.length)} with problems`);
+  const plans = `${reports.length} plan${reports.length === 1 ? '' : 's'}`;
+  const leftOut = count(r => !r.verdict.willMirror && !r.verdict.isSkipped);
+  console.log(`${plans}: ${count(r => r.verdict.willMirror)} mirrored, ${leftOut} left out, ${count(r => r.verdict.isSkipped)} skipped, ${count(r => r.plan?.problems.length)} with problems`);
   console.log(countText(changes));
 }
 
-async function finish(reports, labelChangeList, options) {
+async function finish({ reports, labelChangeList, state, options }) {
   const hasProblems = reports.some(report => report.plan?.problems.length);
   if (!options.isApply) {
     process.exitCode = hasProblems ? 1 : 0;
     return;
   }
-  refuseUnsafeApply(reports, hasProblems);
+  refuseUnsafeApply(reports, hasProblems, state);
   const changes = [...labelChangeList, ...reports.flatMap(report => report.changes ?? [])];
   console.log(`\napplying ${countText(changes.length)}, one write about every second`);
   await applyChanges(changes);
   console.log('applied: run again without --apply to see that nothing is left');
 }
 
-// Nothing is written unless every plan reads cleanly and every mirrored plan is committed.
-function refuseUnsafeApply(reports, hasProblems) {
+// Nothing is written unless every plan reads cleanly, every mirrored plan is committed, and gh
+// writes as the owner: issues opened by anyone else are never matched, so they would be duplicated.
+function refuseUnsafeApply(reports, hasProblems, state) {
   const refusals = reports.filter(report => report.verdict.willMirror && report.refusal);
   if (refusals.length) fail(`--apply refused: ${refusals.map(r => `${r.source.repoPath}: ${r.refusal}`).join('; ')}`);
   if (hasProblems) fail('--apply refused: a plan has problems (see PROBLEM above)');
+  const login = activeLogin();
+  if (state && login !== state.owner) fail(`--apply refused: gh is logged in as ${login}, not the owner ${state.owner} ("gh auth switch")`);
 }
 
 function countText(count) {

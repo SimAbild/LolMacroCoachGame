@@ -1,5 +1,5 @@
 [
-  { "name": "task", "color": "1d76db", "description": "A task from a specs/<feature>/plan.md" },
+  { "name": "task", "color": "1d76db", "description": "A task from a plan.md in specs/" },
   { "name": "papercut", "color": "fbca04", "description": "A row from PAPERCUTS.md" },
   { "name": "idea", "color": "c5def5", "description": "A wish that has no spec yet" },
   { "name": "review:low", "color": "c2e0c6", "description": "Low review level (docs/review-rules.md)" },

@@ -6,10 +6,12 @@ import { describeChange } from './planChanges.mjs';
 const PAUSE_BETWEEN_WRITES_MS = 1000;
 const ISSUE_NUMBER_IN_URL = /\/issues\/(\d+)\s*$/;
 
+const MILESTONES = 'repos/{owner}/{repo}/milestones';
+
 const HANDLERS = {
-  'create-label': ({ label }) => write(['label', 'create', label.name, '--color', label.color, '--description', label.description]),
-  'update-label': ({ label }) => write(['label', 'edit', label.name, '--color', label.color, '--description', label.description]),
-  'create-milestone': ({ milestone }) => write(['api', '--method', 'POST', 'repos/{owner}/{repo}/milestones', '--input', '-'], JSON.stringify(milestone)),
+  'create-label': ({ label }) => writeLabel('create', label),
+  'update-label': ({ label }) => writeLabel('edit', label),
+  'create-milestone': ({ milestone }) => write(['api', '--method', 'POST', MILESTONES, '--input', '-'], JSON.stringify(milestone)),
   'update-milestone': updateMilestone,
   'create-issue': createIssue,
   'update-issue': updateIssue,
@@ -22,22 +24,38 @@ export async function applyChanges(changes) {
     try {
       await HANDLERS[change.kind](change);
     } catch (error) {
+      // Stop here and say how far the run got; the next run compares again and does only the rest.
       throw new Error(`stopped at "${describeChange(change)}" after ${index} of ${changes.length} changes: ${error.message}`);
     }
     console.log(`  done ${index + 1}/${changes.length}: ${describeChange(change)}`);
   }
 }
 
-function updateMilestone({ number, milestone, fields }) {
-  const patch = Object.fromEntries(fields.map(field => [field, milestone[field]]));
-  return write(['api', '--method', 'PATCH', `repos/{owner}/{repo}/milestones/${number}`, '--input', '-'], JSON.stringify(patch));
+function writeLabel(verb, label) {
+  return write(['label', verb, label.name, '--color', label.color, '--description', label.description]);
 }
 
+async function updateMilestone({ title, number, patch }) {
+  const milestoneNumber = number ?? await milestoneNumberOf(title);
+  return write(['api', '--method', 'PATCH', `${MILESTONES}/${milestoneNumber}`, '--input', '-'], JSON.stringify(patch));
+}
+
+async function milestoneNumberOf(title) {
+  const pages = JSON.parse(gh(['api', '--paginate', '--slurp', `${MILESTONES}?state=all&per_page=100`]));
+  const milestone = pages.flat().find(candidate => candidate.title === title);
+  if (!milestone) throw new Error(`no milestone titled "${title}"`);
+  return milestone.number;
+}
+
+// An issue that must end up closed is created, then closed; the number is printed in between, so
+// a stop during the close still shows that the issue exists.
 async function createIssue({ issue }) {
   const labels = issue.labels.flatMap(label => ['--label', label]);
-  const url = await write(['issue', 'create', '--title', issue.title, '--body-file', '-', '--milestone', issue.milestone, ...labels], issue.body);
+  const args = ['issue', 'create', '--title', issue.title, '--body-file', '-', '--milestone', issue.milestone, ...labels];
+  const url = await write(args, issue.body);
   const number = Number(url.match(ISSUE_NUMBER_IN_URL)?.[1]);
   if (!number) throw new Error(`gh issue create did not print an issue URL: ${url.trim()}`);
+  console.log(`    created #${number}`);
   if (issue.state === 'closed') await closeIssue({ number, issue });
 }
 
@@ -60,6 +78,7 @@ async function closeIssue({ number, issue }) {
 // When an issue is only reopened to be closed with another reason, the close carries the comment.
 async function reopenIssue({ number, issue }) {
   await write(['issue', 'reopen', String(number)]);
+  console.log(`    reopened #${number}`);
   if (issue.reopenComment) await write(['issue', 'comment', String(number), '--body-file', '-'], issue.reopenComment);
 }
 
