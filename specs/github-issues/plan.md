@@ -102,7 +102,58 @@ followed on GitHub. Tasks 4-6 build on it.
     - an uncommitted plan file: `--apply` is refused
   - A `gh` that is missing or not logged in gives a clear message, not a stack trace.
   - The four checks pass, and the golden master is SAME.
-- [ ] built  [ ] tests shown  [ ] reviewed  [ ] approved
+- **Result** (2026-11-18, commit 2979772):
+  - **Against the real GitHub** (reads only), `node tools/planToIssues.mjs
+    specs/github-issues/plan.md` prints 15 changes:
+    - 7 labels
+    - the milestone "GitHub issues"
+    - 7 issues; Task 1 is created and then closed (completed), because its proof is recorded
+  - **The AC5 cases.**
+    - The setup:
+      - The M21 plan from `feature/consequence-rules` was copied to
+        `<scratchpad>/ac5/consequence-rules/plan.md`, with a `Milestone: M21 Consequence rules`
+        line added.
+      - A small scaffold (`makeMatchingState.mjs`, in the scratchpad, not in the repo) wrote a saved
+        state that matches the copy: 13 issues, 6 closed, the numbers AC2 expects.
+    - Results:
+
+    | Case | Printed | Exit |
+    |---|---|---|
+    | 0. the matching state | `0 changes` | 0 |
+    | 1. Task 6's two boxes ticked | 1 change: `close issue #106 … Task 6 … (completed, with a comment)` | 0 |
+    | 2. Task 1's `built` unticked | 1 change: `reopen issue #100 … Task 1 … (with a comment)` | 0 |
+    | 3. Task 6's marker on a second issue | `<!-- lmc-task: consequence-rules/6 --> is on #106 and #200: close or edit one by hand, then sync again` | 1 |
+    | 4. a stranger's issue carries the marker | `WARNING: #201 … was opened by someone-else, not SimAbild; ignored`, then `0 changes` | 0 |
+    | 5. `needs-simon` added by hand | `0 changes`: the sync leaves labels it does not own | 0 |
+    | 6. a title edited on GitHub | 1 change: `update issue #106 …: title` | 0 |
+    | 7. `--apply` on the copy | `--apply refused: … the plan lies outside this repository` | 1 |
+    | 8. `--apply` on `specs/github-issues/plan.md` with a temporary blank line | `--apply refused: … the plan file has uncommitted changes` (the line was removed again) | 1 |
+    | 9. `--apply` with `--github-state` | `--apply cannot be used with --github-state, which is for tests` | 1 |
+    | 10. `--apply` on a clean plan | `--apply is not built yet (specs/github-issues, Task 3)` | 1 |
+    | 11. `gh` removed from PATH | `the GitHub CLI "gh" was not found on PATH: install it …` | 1 |
+    | 12. `GH_CONFIG_DIR` pointing at an empty folder | `gh is not logged in to GitHub: run "gh auth login" first` | 1 |
+
+  - **Anchors.** Every heading of the four plans on `main` was compared with the anchor GitHub
+    renders for it (`gh api` with `Accept: application/vnd.github.html`): 28 of 28 match, the ones
+    with backticks, parentheses and dates included.
+  - **The four checks** pass:
+    - the golden master SAME, directly now that `fix/golden-master-patch` is merged in (PR #3)
+    - determinism SAME
+    - lane theory OK
+    - the tutorial twice the same
+
+    `git diff main -- src tools/check*.mjs` is empty.
+  - **Deviations:**
+    - Three more modules, so each part does one thing:
+      - `tools/issueSync/desiredState.mjs` (pure: what GitHub should hold)
+      - `githubState.mjs` (reads gh, or a saved state)
+      - `planChanges.mjs` (pure: the difference)
+    - The review issue also carries `task` and the review level, so a filter on `task` shows a
+      feature's whole work. Its body mirrors the "After the last task" checklist, so the boxes
+      show on GitHub.
+    - The sync only adds or removes its own labels (`task`, `review:*`). Any other label, such as
+      `needs-simon`, is left alone (case 5). Without this, every sync would remove the gate label.
+- [x] built  [x] tests shown  [ ] reviewed  [ ] approved
 
 ## Task 3: Mirror M21 and this feature on GitHub
 
