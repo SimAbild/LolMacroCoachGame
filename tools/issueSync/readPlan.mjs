@@ -33,6 +33,17 @@ export function currentBranch() {
   return git(['branch', '--show-current']).trim();
 }
 
+// R5: --apply refuses a plan whose permalink would not show what was read.
+export function uncommittedReason(source) {
+  if (source.ref) return null;
+  if (source.repoPath.startsWith('../')) return 'the plan lies outside this repository';
+  return git(['status', '--porcelain', '--', source.repoPath]).trim() ? 'the plan file has uncommitted changes' : null;
+}
+
+export function readLabelDefinitions() {
+  return JSON.parse(readFileSync(path.join(REPO_ROOT, '.github', 'labels.json'), 'utf8'));
+}
+
 function listPathsAtRef(ref) {
   return git(['ls-tree', '-r', '--name-only', ref, '--', 'specs']).split('\n').map(line => line.trim());
 }
