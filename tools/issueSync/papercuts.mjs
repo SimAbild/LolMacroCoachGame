@@ -17,13 +17,19 @@ export function parsePapercuts(text) {
   text.split(/\r?\n/).forEach((line, lineIndex) => {
     if (!ROW.test(line)) return;
     const row = readRow(line, lineIndex);
-    if (row.problem) problems.push(`line ${lineIndex + 1}: ${row.problem}`);
-    else if (row.issueNumber && rows.some(other => other.issueNumber === row.issueNumber)) {
-      // Two rows on one issue would open and close it in turn on every sync.
-      problems.push(`line ${lineIndex + 1}: #${row.issueNumber} is already the issue of an earlier row`);
-    } else rows.push(row);
+    const clash = row.problem ? null : clashWithEarlierRow(row, rows);
+    if (row.problem || clash) problems.push(`line ${lineIndex + 1}: ${row.problem ?? clash}`);
+    else rows.push(row);
   });
   return { rows, problems };
+}
+
+// Two rows on one issue would open and close it in turn on every sync, and two rows with the same
+// date and text would share a marker, so their issues could not be told apart.
+function clashWithEarlierRow(row, rows) {
+  if (row.issueNumber && rows.some(other => other.issueNumber === row.issueNumber)) return `#${row.issueNumber} is already the issue of an earlier row`;
+  if (rows.some(other => other.date === row.date && other.whatFailed === row.whatFailed)) return 'an earlier row has the same date and text';
+  return null;
 }
 
 function readRow(line, lineIndex) {

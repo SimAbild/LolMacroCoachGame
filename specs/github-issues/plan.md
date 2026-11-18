@@ -71,7 +71,7 @@ followed on GitHub. Tasks 4-6 build on it.
       `tools/issueSync/parsePlan.mjs` is the pure reader, with no files, git or GitHub.
       `tools/issueSync/readPlan.mjs` gets the text from the working tree or a branch.
     - `--verbose` also prints each task's `Covers:` line.
-- [x] built  [x] tests shown  [ ] reviewed  [ ] approved
+- [x] built  [x] tests shown  [x] reviewed  [ ] approved
 
 ## Task 2: Work out the changes, still without writing
 
@@ -153,7 +153,7 @@ followed on GitHub. Tasks 4-6 build on it.
       show on GitHub.
     - The sync only adds or removes its own labels (`task`, `review:*`). Any other label, such as
       `needs-simon`, is left alone (case 5). Without this, every sync would remove the gate label.
-- [x] built  [x] tests shown  [ ] reviewed  [ ] approved
+- [x] built  [x] tests shown  [x] reviewed  [ ] approved
 
 ## Task 3: Mirror M21 and this feature on GitHub
 
@@ -256,7 +256,7 @@ followed on GitHub. Tasks 4-6 build on it.
 
     The same gate ran after Task 4 (#8) and Task 5 (#9). Each time the label came off when Simon
     answered, and his answer was posted on the issue.
-- [x] built  [x] tests shown  [ ] reviewed  [ ] approved
+- [x] built  [x] tests shown  [x] reviewed  [ ] approved
 
 ## Task 4: Papercuts as issues
 
@@ -327,7 +327,7 @@ followed on GitHub. Tasks 4-6 build on it.
       state is mirrored after that. R6 asks for no more, and the row's number stays the link.
     - The refusal wording now says "the file", not "the plan", because it also covers
       `PAPERCUTS.md`.
-- [x] built  [x] tests shown  [ ] reviewed  [ ] approved
+- [x] built  [x] tests shown  [x] reviewed  [ ] approved
 
 ## Task 5: Templates for pull requests and new issues
 
@@ -381,7 +381,7 @@ followed on GitHub. Tasks 4-6 build on it.
   - **Left for later:**
     - The PR body comes when this feature's PR is opened.
     - The two checks in "After the merge" come after Simon merges.
-- [x] built  [x] tests shown  [ ] reviewed  [ ] approved
+- [x] built  [x] tests shown  [x] reviewed  [ ] approved
 
 ## Task 6: Write the workflow down
 
@@ -402,7 +402,8 @@ followed on GitHub. Tasks 4-6 build on it.
 - **Result** (2026-11-18). AC10, point by point:
   - **`CLAUDE.md`:**
     - The Commands section has the sync command.
-    - The Workflow section has a "GitHub issues (ADR 0004)" part with the four R8 points:
+    - The Workflow section has a "GitHub issues" part (now pointing at ADR 0005) with the four R8
+      points:
       1. sync after approval and after every task: the dry run, push, then `--apply`
       2. `needs-simon` on the next open issue, with the question as a comment
       3. `Refs #<issue>`
@@ -418,7 +419,7 @@ followed on GitHub. Tasks 4-6 build on it.
   - **`docs/review-rules.md`:** `.github/` is Low. A new part, "Publishing to GitHub", says: only
     the sync publishes, only approved and committed plans, and it asks first.
   - **`--apply` asks first:** seen at every `--apply` since Task 3.
-  - **ADR:** `docs/adr/0004-github-issues-mirror-the-plan.md`.
+  - **ADR:** `docs/adr/0005-github-issues-mirror-the-plan.md`. It was first written as 0004.
     - It records the mirror and why `plan.md` stays the truth, what a GitHub milestone means,
       closing on "tests shown", the papercut link, the ask rules, the `needs-simon` gate, and the
       links.
@@ -436,7 +437,7 @@ followed on GitHub. Tasks 4-6 build on it.
     `0 changes`.
   - **Deviation:** `docs/architecture.md` describes `tools` as "scripts that run the simulation
     headless", which is no longer the whole truth. That one cell now names the issue sync too.
-- [x] built  [x] tests shown  [ ] reviewed  [ ] approved
+- [x] built  [x] tests shown  [x] reviewed  [ ] approved
 
 ## Fixes after the final review (2026-11-18)
 
@@ -491,11 +492,25 @@ one must-fix.
     tutorial twice the same.
   - The form check is OK.
   - Both plans and the papercuts dry-run as expected against the live GitHub.
+- **Second pass: APPROVED, 0 must-fix.** Its one should-fix was fixed: `--apply` now needs exactly
+  one plan, because two named plans or a glob would still repoint other features' links. The
+  refusal is the same line as "no plan named", which was run live. The two-plan case was not run,
+  to spare Simon a prompt for a command that is refused. Its notes were fixed too:
+  - CLAUDE.md and the ADR say `git fetch`, then `--ref origin/main`, since the merge happens on
+    GitHub.
+  - Two papercut rows with the same date and text are a PROBLEM before any issue is made
+    (`PROBLEM: line 39: an earlier row has the same date and text`).
+  - The commit reminder prints only when a number was written.
+  - The header comment says `--apply` needs one plan, and a placeholder level reads "missing or a
+    placeholder".
+  - The parameter of `readSourceFile` is `filePath`.
+  - CLAUDE.md says a branch made before the sync reached `main` merges `main` first.
+  - The four checks pass again.
 
 ## After the last task
 
 - [x] All four checks pass, output shown
-- [ ] Reviewer agent has read the whole diff against the spec
+- [x] Reviewer agent has read the whole diff against the spec (second pass: APPROVED)
 - [x] ADR written
 - [ ] Simon approves the merge (High)
 

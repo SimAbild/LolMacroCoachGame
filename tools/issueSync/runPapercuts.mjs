@@ -47,17 +47,19 @@ async function apply({ source, problems, changes, state, refusal }) {
   refuseUnlessOwner(state);
   const filePath = path.join(REPO_ROOT, source.repoPath);
   console.log(`\napplying ${changeCount(changes.length)}, one write about every second`);
+  let written = 0;
   try {
     await applyChanges(changes, {
       onPapercutNumber: (row, number) => {
         writeBackIssueNumber(filePath, row, number);
+        written++;
         console.log(`    wrote #${number} into the row from ${row.date}`);
       },
     });
   } finally {
     // Done or stopped halfway, the numbers written so far must be committed before the next
     // --apply, which refuses a changed file.
-    console.log(`commit ${source.repoPath} now, then run again without --apply to see what is left`);
+    if (written) console.log(`commit ${source.repoPath} now (${written} number${written === 1 ? '' : 's'} written), then run again without --apply`);
   }
 }
 

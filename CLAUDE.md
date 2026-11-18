@@ -58,7 +58,10 @@ smallest possible change -> tests after the code -> reviewer agent -> proof (sho
 - Sync the feature's own plan (`node tools/planToIssues.mjs --apply specs/<feature>/plan.md`) once
   Simon approves it, and after every task: show the dry run, push the branch (the closing comments
   link to its commits), then apply. The links follow the branch the plan is read from.
-- After the merge, sync once more with `--ref main`, so the feature's links point at `main`.
+- After the merge on GitHub, `git fetch`, then sync once more with `--ref origin/main`, so the
+  feature's links point at `main`.
+- A branch made before the sync reached `main` merges `main` first, before its next sync or gate,
+  so it has the sync and its ask rules.
 - A gate is any stop where Claude waits for Simon: the stop after each task, and every stop the
   plan names. At a gate, put `needs-simon` on the feature's next open issue (the review issue at
   the end), with the question as a comment. Take it off when Simon answers. Only one open issue

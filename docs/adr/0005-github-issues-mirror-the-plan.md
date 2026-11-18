@@ -35,8 +35,8 @@ step, which turns the tasks of a spec into GitHub issues.
   comment.
 - **Links follow the branch the plan is read from, and permalinks a commit.**
   - The branch is pushed before a sync, so the links work.
-  - After the merge, one sync with `--ref main` points the feature's links at `main`, where they
-    stay when the branch is deleted.
+  - After the merge, `git fetch` and one sync with `--ref origin/main` point the feature's links
+    at `main`, where they stay when the branch is deleted.
 
 ## Alternatives considered
 

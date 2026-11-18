@@ -3,8 +3,8 @@
 // Run: node tools/planToIssues.mjs [--apply] [plan.md ...] [--ref <branch>] [--github-state <file>] [--verbose]
 //      node tools/planToIssues.mjs [--apply] --papercuts [PAPERCUTS.md] [--github-state <file>]
 //   Without paths it reads every plan under specs/. Without --apply it only prints what it would change.
-//   --apply carries the changes out on GitHub. Put it first: the ask rule in .claude/settings.json
-//   matches "node tools/planToIssues.mjs --apply".
+//   --apply carries the changes out on GitHub, for exactly one named plan (or --papercuts). Put it
+//   first: the ask rule in .claude/settings.json matches "node tools/planToIssues.mjs --apply".
 //   --ref reads the plans from that branch through git, without checking it out.
 //   --papercuts mirrors the open rows of PAPERCUTS.md instead of the plans.
 //   --github-state compares with a saved state instead of GitHub (for tests).
@@ -76,7 +76,7 @@ function mirrorVerdict(plan, feature) {
   if (!plan.isApproved) return { willMirror: false, reason: 'left out: its status is not "approved"' };
   if (plan.milestone.startsWith('<')) return { willMirror: false, reason: 'refused: "Milestone:" is still the template\'s placeholder' };
   if (!plan.reviewLevel) {
-    return { willMirror: false, reason: `refused: "Review level:" is ${plan.reviewLevelText ?? 'missing'}, not Low, Medium or High` };
+    return { willMirror: false, reason: `refused: "Review level:" is ${plan.reviewLevelText ?? 'missing or a placeholder'}, not Low, Medium or High` };
   }
   if (!FEATURE_NAME.test(feature)) return { willMirror: false, reason: `refused: the folder name "${feature}" is not lower-case letters, digits and hyphens` };
   if (plan.problems.length) return { willMirror: false, reason: 'refused: the plan has problems (above)' };
@@ -179,12 +179,12 @@ async function finish({ reports, labelChangeList, state, options }) {
   console.log('applied: run again without --apply to see that nothing is left');
 }
 
-// Nothing is written unless the plan is named, every plan reads cleanly, every mirrored plan is
-// committed, and gh writes as the owner. A named plan matters because the issue links follow the
-// branch the plan is read from: a sync of every plan from one branch would repoint the links of
+// Nothing is written unless exactly one plan is named, it reads cleanly, it is committed, and gh
+// writes as the owner. One named plan matters because the issue links follow the branch the plan
+// is read from: a sync of several plans (or a glob) from one branch would repoint the links of
 // features that live elsewhere.
 function refuseUnsafeApply({ reports, hasProblems, state, options }) {
-  if (!options.paths.length) fail('--apply refused: name the plan (specs/<feature>/plan.md), so no other feature\'s links move to this branch');
+  if (options.paths.length !== 1) fail('--apply refused: name exactly one plan (specs/<feature>/plan.md), so no other feature\'s links move to this branch');
   const refusals = reports.filter(report => report.verdict.willMirror && report.refusal);
   if (refusals.length) fail(`--apply refused: ${refusals.map(r => `${r.source.repoPath}: ${r.refusal}`).join('; ')}`);
   if (hasProblems) fail('--apply refused: a plan has problems (see PROBLEM above)');
