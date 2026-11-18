@@ -29,6 +29,7 @@ Then open http://localhost:8000.
 - `node tools/checkGoldenMaster.mjs`: safety net for refactoring. Plays three seeded games to the end and compares a fingerprint of each with `tools/goldenMaster.json`; a refactor that keeps the behaviour keeps every fingerprint. After an intended gameplay change, save a new baseline with `--update`.
 - `node tools/checkLaneTheory.mjs`: proves the lanes follow the theory the game teaches. It plays the same seeded lane with and without a call over several seeds and fails if, say, a lead no longer becomes a CS lead, Play safe stops costing CS, or a freeze stops costing the opponent farm.
 - `node tools/checkTutorial.mjs`: plays the whole guided tutorial headless with the same steps as the browser (draft to end screen) and checks that every step allows its own action, that the lessons reach their intended outcomes and that Blue wins. `--twice` also checks that two runs are identical.
+- `node tools/planToIssues.mjs`: mirrors each approved `specs/<feature>/plan.md` on GitHub, as a milestone with one issue per task, and `--papercuts` gives every open row in `PAPERCUTS.md` an issue. Without `--apply` it only shows what it would change (ADR 0004).
 - Open the game with `?tutorial` to start the guided game at once, or `?tutorial&from=baron` to jump to a chapter while testing (`rift`, `gank`, `dragon`, `plates`, `herald`, `baron`, `siege`, `end`). The autopilot (`src/tutorial/autopilot.js`) plays everything before it.
 
 ## Status

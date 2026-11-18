@@ -391,13 +391,50 @@ followed on GitHub. Tasks 4-6 build on it.
 - **Proof:**
   - Each point of AC10, checked against the files.
   - The four checks pass, and the golden master is SAME.
-- [ ] built  [ ] tests shown  [ ] reviewed  [ ] approved
+- **Result** (2026-11-18). AC10, point by point:
+  - **`CLAUDE.md`:**
+    - The Commands section has the sync command.
+    - The Workflow section has a "GitHub issues (ADR 0004)" part with the four R8 points:
+      1. sync after approval and after every task: the dry run, push, then `--apply`
+      2. `needs-simon` on the next open issue, with the question as a comment
+      3. `Refs #<issue>`
+      4. ids are never renumbered, and a task is skipped rather than deleted
+    - The papercut line now ends in the `--papercuts` sync.
+    - The Walls section names every publish that asks.
+  - **`specs/README.md`:**
+    - a section "On GitHub": the `Milestone:` and `Review level:` lines, how a task closes, ids
+      never renumbered
+    - the folder-name rule
+  - **`specs/_templates/plan.md`:** both lines, and the rule for ids and `Skipped (…)`. The dry run
+    still skips the template.
+  - **`docs/review-rules.md`:** `.github/` is Low. A new part, "Publishing to GitHub", says: only
+    the sync publishes, only approved and committed plans, and it asks first.
+  - **`--apply` asks first:** seen at every `--apply` since Task 3.
+  - **ADR:** `docs/adr/0004-github-issues-mirror-the-plan.md`.
+    - It records the mirror and why `plan.md` stays the truth, what a GitHub milestone means,
+      closing on "tests shown", the papercut link, the ask rules, the `needs-simon` gate, and the
+      links.
+    - It names four alternatives: issues as the truth, plain `taskstoissues`, a Project board and
+      a GitHub Action.
+    - It takes 0004, the next free number on `main`. When consequence-rules reaches its Task 11, it
+      takes the next free one.
+  - **`README.md`:** one line under Tools.
+  - **The four checks** pass:
+    - the golden master SAME
+    - determinism SAME
+    - lane theory OK
+    - the tutorial twice the same
+  - **The sync after the change:** the dry run over `specs/` reads 6 plans with 0 problems and
+    `0 changes`.
+  - **Deviation:** `docs/architecture.md` describes `tools` as "scripts that run the simulation
+    headless", which is no longer the whole truth. That one cell now names the issue sync too.
+- [x] built  [x] tests shown  [ ] reviewed  [ ] approved
 
 ## After the last task
 
-- [ ] All four checks pass, output shown
+- [x] All four checks pass, output shown
 - [ ] Reviewer agent has read the whole diff against the spec
-- [ ] ADR written
+- [x] ADR written
 - [ ] Simon approves the merge (High)
 
 ## After the merge

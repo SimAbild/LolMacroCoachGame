@@ -8,6 +8,7 @@ Text, styling and docs. Nothing here can change how a game plays out.
 
 - `styles/`
 - `README.md`, `docs/`, `specs/`, `PAPERCUTS.md`
+- `.github/`: the pull request template, the issue forms and `labels.json`
 - Wording only (`label`, `description`, `pros`, `cons`, `bestWhen`) in `src/config/actions.js`
 - Wording only in `src/tutorial/chapters/`
 
@@ -39,6 +40,12 @@ Core logic, stored data, and anything that goes live.
 
 Login, money and data migration do not exist in this project today. The first feature that adds
 one of them (accounts or a server for PvP, for example) is High, and this file gets its paths.
+
+## Publishing to GitHub
+
+Issues, labels and milestones are public. They are only made by `tools/planToIssues.mjs`, and only
+for a plan Simon has approved (`Status: approved`) and has committed. `--apply` asks first, like
+`git push` (`.claude/settings.json`). A change to the sync itself is `tools/` (Medium). See ADR 0004.
 
 ## What every level needs
 
