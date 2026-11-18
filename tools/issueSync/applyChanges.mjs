@@ -17,12 +17,15 @@ const HANDLERS = {
   'update-issue': updateIssue,
   'close-issue': closeIssue,
   'reopen-issue': reopenIssue,
+  'create-papercut': async (change, hooks) => hooks.onPapercutNumber(change.row, await createIssue(change)),
+  'link-papercut': async (change, hooks) => hooks.onPapercutNumber(change.row, change.number),
 };
 
-export async function applyChanges(changes) {
+// hooks.onPapercutNumber(row, number) writes a new papercut issue's number back into its row.
+export async function applyChanges(changes, hooks = {}) {
   for (const [index, change] of changes.entries()) {
     try {
-      await HANDLERS[change.kind](change);
+      await HANDLERS[change.kind](change, hooks);
     } catch (error) {
       // Stop here and say how far the run got; the next run compares again and does only the rest.
       throw new Error(`stopped at "${describeChange(change)}" after ${index} of ${changes.length} changes: ${error.message}`);
@@ -51,12 +54,14 @@ async function milestoneNumberOf(title) {
 // a stop during the close still shows that the issue exists.
 async function createIssue({ issue }) {
   const labels = issue.labels.flatMap(label => ['--label', label]);
-  const args = ['issue', 'create', '--title', issue.title, '--body-file', '-', '--milestone', issue.milestone, ...labels];
+  const milestone = issue.milestone ? ['--milestone', issue.milestone] : [];
+  const args = ['issue', 'create', '--title', issue.title, '--body-file', '-', ...milestone, ...labels];
   const url = await write(args, issue.body);
   const number = Number(url.match(ISSUE_NUMBER_IN_URL)?.[1]);
   if (!number) throw new Error(`gh issue create did not print an issue URL: ${url.trim()}`);
   console.log(`    created #${number}`);
   if (issue.state === 'closed') await closeIssue({ number, issue });
+  return number;
 }
 
 async function updateIssue({ number, issue, fields, addLabels, removeLabels }) {

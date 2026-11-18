@@ -91,7 +91,7 @@ function contentUpdate(wanted, actual) {
 }
 
 // A closed issue with the wrong reason is reopened and closed again, the only way gh changes it.
-function stateChanges(wanted, actual) {
+export function stateChanges(wanted, actual) {
   if (wanted.state === 'open') return actual.state === 'open' ? [] : [{ kind: 'reopen-issue', number: actual.number, issue: wanted }];
   if (actual.state === 'open') return [{ kind: 'close-issue', number: actual.number, issue: wanted }];
   if (actual.stateReason === wanted.stateReason) return [];
@@ -101,6 +101,10 @@ function stateChanges(wanted, actual) {
 // GitHub may hand a body back with \r\n or trailing spaces; neither is a real difference.
 function normalizeBody(body) {
   return body.replace(/\r\n/g, '\n').trim();
+}
+
+export function changeCount(count) {
+  return `${count} change${count === 1 ? '' : 's'}`;
 }
 
 export function describeChange(change) {
@@ -114,6 +118,8 @@ export function describeChange(change) {
     case 'update-issue': return `update issue    ${target}${change.issue.title}: ${change.fields.join(', ')}`;
     case 'close-issue': return `close issue     ${target}${change.issue.title} (${change.issue.stateReason.replace('_', ' ')}, with a comment)`;
     case 'reopen-issue': return `reopen issue    ${target}${change.issue.title} (with a comment)`;
+    case 'create-papercut': return `create issue    ${change.issue.title}  [papercut], then write its number into the row from ${change.row.date}`;
+    case 'link-papercut': return `write #${change.number} into the row from ${change.row.date} (the issue exists, the number was never written back)`;
     default: throw new Error(`unknown change kind ${change.kind}`);
   }
 }

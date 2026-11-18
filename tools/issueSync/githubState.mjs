@@ -17,8 +17,17 @@ export function ensureGhReady() {
   }
 }
 
-export function activeLogin() {
-  return gh(['api', 'user', '--jq', '.login']).trim();
+export function loadGithubState({ githubStatePath }) {
+  if (githubStatePath) return loadSavedState(githubStatePath);
+  ensureGhReady();
+  return readGithubState();
+}
+
+// Issues opened by anyone but the owner are never matched, so writing as another gh account would
+// create every issue again.
+export function refuseUnlessOwner(state) {
+  const login = gh(['api', 'user', '--jq', '.login']).trim();
+  if (login !== state.owner) throw new Error(`--apply refused: gh is logged in as ${login}, not the owner ${state.owner} ("gh auth switch")`);
 }
 
 export function readGithubState() {

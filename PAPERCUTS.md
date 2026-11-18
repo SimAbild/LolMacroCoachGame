@@ -5,6 +5,10 @@ is reviewed (see `docs/adr/0001-ai-harness.md`).
 
 Status: `open`, `fixed`, or `accepted` (we live with it).
 
+An open row gets a GitHub issue (`node tools/planToIssues.mjs --papercuts`), and the sync writes its
+number into the status (`open #25`). Keep the number when the status changes (`fixed #25`,
+`accepted #25`): that is how the sync knows which issue to close.
+
 | Date | What failed | Workaround | Status |
 |---|---|---|---|
 | 2026-11-13 | Frame rate in the automated Chrome was about 1 fps, so the game could not be watched at real speed | Opened the game with `?debug` and stepped the simulation with `lmcDebug.simulation.runTicks()` | accepted |

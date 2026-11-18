@@ -1,43 +1,51 @@
 // Mirrors each approved specs/<feature>/plan.md as a GitHub milestone with one issue per task.
 // plan.md stays the truth; GitHub only shows it. Spec: specs/github-issues/spec.md.
 // Run: node tools/planToIssues.mjs [--apply] [plan.md ...] [--ref <branch>] [--github-state <file>] [--verbose]
+//      node tools/planToIssues.mjs [--apply] --papercuts [PAPERCUTS.md] [--github-state <file>]
 //   Without paths it reads every plan under specs/. Without --apply it only prints what it would change.
 //   --apply carries the changes out on GitHub. Put it first: the ask rule in .claude/settings.json
 //   matches "node tools/planToIssues.mjs --apply".
 //   --ref reads the plans from that branch through git, without checking it out.
+//   --papercuts mirrors the open rows of PAPERCUTS.md instead of the plans.
 //   --github-state compares with a saved state instead of GitHub (for tests).
 import { parsePlan, taskState } from './issueSync/parsePlan.mjs';
 import { currentBranch, featureOf, isSkippedFolder, listPlanPaths, readLabelDefinitions, readPlanSource, uncommittedReason } from './issueSync/readPlan.mjs';
 import { desiredState } from './issueSync/desiredState.mjs';
-import { describeChange, labelChanges, planChanges } from './issueSync/planChanges.mjs';
-import { activeLogin, ensureGhReady, loadSavedState, readGithubState } from './issueSync/githubState.mjs';
+import { changeCount, describeChange, labelChanges, planChanges } from './issueSync/planChanges.mjs';
+import { loadGithubState, refuseUnlessOwner } from './issueSync/githubState.mjs';
 import { applyChanges } from './issueSync/applyChanges.mjs';
+import { runPapercuts } from './issueSync/runPapercuts.mjs';
 
 const BOX_NAMES = ['built', 'tests shown', 'reviewed', 'approved'];
 const FEATURE_NAME = /^[a-z0-9-]+$/;
 
 try {
   const options = readOptions(process.argv.slice(2));
-  const reports = planPathsFor(options).map(planPath => readReport(planPath, options));
-  const state = reports.some(report => report.verdict?.willMirror) ? githubStateFor(options) : null;
-  const labelChangeList = state ? labelChanges(readLabelDefinitions(), state.labels) : [];
-  printLabelChanges(labelChangeList, state);
-  for (const report of reports) compareAndPrint(report, state, options);
-  printTotals(reports, labelChangeList);
-  await finish({ reports, labelChangeList, state, options });
+  await (options.isPapercuts ? runPapercuts(options) : runPlans(options));
 } catch (error) {
   // A bad option, a failed git or gh call, or a marker on two issues: print why and stop.
   console.error(`planToIssues: ${error.message}`);
   process.exitCode = 1;
 }
 
+async function runPlans(options) {
+  const reports = planPathsFor(options).map(planPath => readReport(planPath, options));
+  const state = reports.some(report => report.verdict?.willMirror) ? loadGithubState(options) : null;
+  const labelChangeList = state ? labelChanges(readLabelDefinitions(), state.labels) : [];
+  printLabelChanges(labelChangeList, state);
+  for (const report of reports) compareAndPrint(report, state, options);
+  printTotals(reports, labelChangeList);
+  await finish({ reports, labelChangeList, state, options });
+}
+
 function readOptions(args) {
-  const options = { paths: [], ref: null, githubStatePath: null, isVerbose: false, isApply: false };
+  const options = { paths: [], ref: null, githubStatePath: null, isVerbose: false, isApply: false, isPapercuts: false };
   for (let index = 0; index < args.length; index++) {
     const arg = args[index];
     if (arg === '--ref') options.ref = args[++index] ?? fail('--ref needs a branch name');
     else if (arg === '--github-state') options.githubStatePath = args[++index] ?? fail('--github-state needs a file');
     else if (arg === '--verbose') options.isVerbose = true;
+    else if (arg === '--papercuts') options.isPapercuts = true;
     else if (arg === '--apply') options.isApply = index === 0 || fail('put --apply first, so the ask rule in .claude/settings.json sees it');
     else if (arg.startsWith('--')) fail(`unknown option ${arg}`);
     else options.paths.push(arg);
@@ -48,12 +56,6 @@ function readOptions(args) {
 
 function planPathsFor({ paths, ref }) {
   return paths.length ? paths : listPlanPaths(ref);
-}
-
-function githubStateFor({ githubStatePath }) {
-  if (githubStatePath) return loadSavedState(githubStatePath);
-  ensureGhReady();
-  return readGithubState();
 }
 
 function readReport(planPath, options) {
@@ -142,13 +144,13 @@ function printReview(review) {
 
 function printLabelChanges(changes, state) {
   if (!state) return;
-  console.log(`labels (.github/labels.json) against ${state.repoUrl}: ${countText(changes.length)}`);
+  console.log(`labels (.github/labels.json) against ${state.repoUrl}: ${changeCount(changes.length)}`);
   for (const change of changes) console.log(`    ${describeChange(change)}`);
   console.log('');
 }
 
 function printChanges({ changes, warnings }) {
-  console.log(`  changes: ${countText(changes.length)}`);
+  console.log(`  changes: ${changeCount(changes.length)}`);
   for (const change of changes) console.log(`    ${describeChange(change)}`);
   for (const warning of warnings) console.log(`  WARNING: ${warning}`);
 }
@@ -159,7 +161,7 @@ function printTotals(reports, labelChangeList) {
   const plans = `${reports.length} plan${reports.length === 1 ? '' : 's'}`;
   const leftOut = count(r => !r.verdict.willMirror && !r.verdict.isSkipped);
   console.log(`${plans}: ${count(r => r.verdict.willMirror)} mirrored, ${leftOut} left out, ${count(r => r.verdict.isSkipped)} skipped, ${count(r => r.plan?.problems.length)} with problems`);
-  console.log(countText(changes));
+  console.log(changeCount(changes));
 }
 
 async function finish({ reports, labelChangeList, state, options }) {
@@ -170,23 +172,18 @@ async function finish({ reports, labelChangeList, state, options }) {
   }
   refuseUnsafeApply(reports, hasProblems, state);
   const changes = [...labelChangeList, ...reports.flatMap(report => report.changes ?? [])];
-  console.log(`\napplying ${countText(changes.length)}, one write about every second`);
+  console.log(`\napplying ${changeCount(changes.length)}, one write about every second`);
   await applyChanges(changes);
   console.log('applied: run again without --apply to see that nothing is left');
 }
 
 // Nothing is written unless every plan reads cleanly, every mirrored plan is committed, and gh
-// writes as the owner: issues opened by anyone else are never matched, so they would be duplicated.
+// writes as the owner.
 function refuseUnsafeApply(reports, hasProblems, state) {
   const refusals = reports.filter(report => report.verdict.willMirror && report.refusal);
   if (refusals.length) fail(`--apply refused: ${refusals.map(r => `${r.source.repoPath}: ${r.refusal}`).join('; ')}`);
   if (hasProblems) fail('--apply refused: a plan has problems (see PROBLEM above)');
-  const login = activeLogin();
-  if (state && login !== state.owner) fail(`--apply refused: gh is logged in as ${login}, not the owner ${state.owner} ("gh auth switch")`);
-}
-
-function countText(count) {
-  return `${count} change${count === 1 ? '' : 's'}`;
+  if (state) refuseUnlessOwner(state);
 }
 
 function fail(message) {
