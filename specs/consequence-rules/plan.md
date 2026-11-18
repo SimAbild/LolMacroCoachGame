@@ -2,6 +2,8 @@
 
 Status: approved by Simon on 2026-11-15
 
+Milestone: M21 Consequence rules
+
 Tasks are built one at a time, in this order. Each is small enough to review in one sitting.
 
 Review level: High. The reviewer diff is `git diff main...HEAD`. The four checks run after every
