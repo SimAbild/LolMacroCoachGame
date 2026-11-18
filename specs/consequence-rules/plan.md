@@ -274,6 +274,7 @@ task.
       Task 10.
   - **Stop for Simon (the dive question).** A 2v1 already kills: Red's duo killed the lone ADC 12
     times against 8, with no change to the AI's dives. Proposal: skip Task 5b.
+  - **Simon's answer (2026-11-18): skip Task 5b.** Next is Task 6.
 - [x] built  [x] tests shown  [ ] reviewed  [ ] approved
 
 ## Task 5b (only if Simon says yes in Task 5): Let the AI dive a lone laner earlier
@@ -286,7 +287,9 @@ task.
   - The chain rule now reports deaths above 0.
   - The four checks pass.
   - The golden master is DIFFERENT; record its `--summary`, then save it.
-- [ ] built  [ ] tests shown  [ ] reviewed  [ ] approved
+- Skipped (Simon, 2026-11-18): a 2v1 already sends the lone ADC out of lane, 27 times against 17,
+  and that rule passes. The kill difference on its own (12 against 8) lies within its noise (about
+  ± 4.5), so the decision rests on the combined rule, not on kills.
 
 ## Task 6: Teach intel when an enemy is plainly away (Rule 2a)
 
