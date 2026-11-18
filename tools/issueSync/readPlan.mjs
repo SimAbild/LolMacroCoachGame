@@ -36,8 +36,8 @@ export function currentBranch() {
 // R5: --apply refuses a plan whose permalink would not show what was read.
 export function uncommittedReason(source) {
   if (source.ref) return null;
-  if (source.repoPath.startsWith('../')) return 'the plan lies outside this repository';
-  return git(['status', '--porcelain', '--', source.repoPath]).trim() ? 'the plan file has uncommitted changes' : null;
+  if (source.repoPath.startsWith('../')) return 'the file lies outside this repository';
+  return git(['status', '--porcelain', '--', source.repoPath]).trim() ? 'the file has uncommitted changes' : null;
 }
 
 export function readLabelDefinitions() {

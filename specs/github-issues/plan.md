@@ -272,7 +272,54 @@ followed on GitHub. Tasks 4-6 build on it.
     header line.
   - A second run prints "0 changes".
   - The four checks pass, and the golden master is SAME.
-- [ ] built  [ ] tests shown  [ ] reviewed  [ ] approved
+- **Result** (2026-11-18). The code is in 97189f6, the numbers in d019ce1, and the issues are
+  #25-#29.
+  - **Before Task 4,** with Simon's answers from the Task 3 gate:
+    - the answers were recorded on #7, and `needs-simon` came off
+    - the ask rules were widened to 50 (5234c27): the other spellings of `--apply`, every
+      `gh issue` and `gh label` write, and `gh pr merge`
+    - both branches were pushed, and the task links and permalinks now resolve
+  - **AC7.**
+    - The dry run listed 5 open rows. Titles are cut at a word to at most 100 characters, the
+      390-character cell included.
+    - `--apply --papercuts` created #25-#29 and wrote each number back right after its issue.
+    - The word diff of `PAPERCUTS.md` shows `#25` … `#29` added on five rows and nothing else (the
+      header rule went in with the code commit before).
+    - The file is still CRLF: 38 lines and 38 CR characters.
+    - A second run prints `0 changes`.
+  - **Cases against the real issues**, with a copy of `PAPERCUTS.md` in the scratchpad:
+
+    | Case | Printed | Exit |
+    |---|---|---|
+    | 1. the copy as committed | `0 changes` | 0 |
+    | 2. a row turns `fixed #29` | 1 change: `close issue #29 … (completed, with a comment)` | 0 |
+    | 3. a row turns `accepted #25` | 1 change: `close issue #25 … (not planned, with a comment)` | 0 |
+    | 4. #26's number removed, as after a crash before the write-back | 1 change: `write #26 into the row from 2026-11-13 (the issue exists …)`, no new issue | 0 |
+    | 5. a row points at #7, a task issue | two warnings: #7 is not a papercut issue, and #27 is pointed at by no row; `0 changes` | 0 |
+    | 6. the status `opne #28` | `PROBLEM: line 32: status "opne #28" is not open, fixed or accepted …` | 1 |
+    | 7. `--apply` on the copy | `--apply refused: … the file lies outside this repository` | 1 |
+    | 8. `--apply` with `PAPERCUTS.md` changed and not committed | `--apply refused: PAPERCUTS.md: the file has uncommitted changes` | 1 |
+    | 9. `--papercuts --ref main` | `--papercuts reads PAPERCUTS.md from the working tree, so --ref does not apply` | 1 |
+
+  - **The four checks** pass:
+    - the golden master SAME
+    - determinism SAME
+    - lane theory OK
+    - the tutorial twice the same
+
+    Both plans still sync with `0 changes`.
+  - **Deviations:**
+    - The papercut mode lives in its own modules:
+      - `tools/issueSync/papercuts.mjs` (pure: the table and the changes)
+      - `papercutFile.mjs` (the write-back)
+      - `runPapercuts.mjs` (the mode)
+    - "Load the GitHub state" and "refuse unless gh writes as the owner" moved into
+      `githubState.mjs`, so both modes share them.
+    - A papercut issue's title and body are set when it is created, and only its open or closed
+      state is mirrored after that. R6 asks for no more, and the row's number stays the link.
+    - The refusal wording now says "the file", not "the plan", because it also covers
+      `PAPERCUTS.md`.
+- [x] built  [x] tests shown  [ ] reviewed  [ ] approved
 
 ## Task 5: Templates for pull requests and new issues
 
