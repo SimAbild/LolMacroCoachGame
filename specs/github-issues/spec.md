@@ -135,9 +135,12 @@ Simon's decisions (2026-11-18):
     - `.github/` (templates and labels) is Low.
     - Publishing through the sync asks first and mirrors only approved plans.
   - **`.claude/settings.json` (Simon 2026-11-18):** ask rules for:
-    - `node tools/planToIssues.mjs --apply*`, so `--apply` must come first on the command line
-    - `gh issue` and `gh label` write commands
+    - `node tools/planToIssues.mjs --apply*`, so `--apply` must come first on the command line,
+      and also the spellings `./tools/…`, `tools\…` and `.\tools\…`
+    - every `gh issue` and `gh label` write command: create, edit, comment, close, reopen,
+      delete, transfer, pin, unpin, lock, unlock, develop and clone
     - `gh api`
+    - `gh pr merge`, because a merge to `main` goes live (widened after the Task 3 review)
   - **An ADR**, with the next free number when merged (ADR 0004 is reserved by consequence-rules).
     It records:
     - the mirror and why `plan.md` is the truth
